@@ -92,6 +92,28 @@ class PolyCheck(object):
             term[bitpos] = 1
         return term
 
+    def eval_term(self, term, block):
+        """
+        Evaluates a term on the data block.
+        block has to be a multiple of the term size. term is evaluated by sliding window of size=term.
+        :param term:
+        :param block:
+        :return:
+        """
+        ln = len(block)
+        lnt = len(term)
+        res = BitArray()
+        for idx in range(0, ln, lnt):
+            res.append(block[idx:idx + self.blocklen] & term)
+        return res
+
+    def hw(self, block):
+        """
+        Computes hamming weight of the block
+        :param block:
+        :return:
+        """
+        return block.count(True)
 
 
 
