@@ -101,7 +101,7 @@ def zscore_p(observed, expected, N):
     return (observed-expected) / math.sqrt((expected*(1.0-expected))/float(N))
 
 
-class PolyCheck(object):
+class TermEval(object):
     def __init__(self, *args, **kwargs):
         # block length in bits, term size.
         self.blocklen = 128
@@ -165,7 +165,7 @@ class PolyCheck(object):
 
     def gen_base(self, block):
         """
-        Generate base for polynomial evaluation from the block.
+        Generate base for term evaluation from the block.
         Evaluates each base term (deg=1) on the input, creates a base for further evaluation of terms of high orders.
         :param block: bit representation of the input
         :return:
@@ -188,21 +188,35 @@ class PolyCheck(object):
             res &= self.base[term[i]]
         return res
 
-    def eval_terms(self):
+    def eval_terms(self, deg=None):
         """
         Evaluates all terms on the input data precomputed in the base.
         Returns array of hamming weights.
+        :param deg: degre of the terms to generate. If none, default degre is taken.
         :return: array of hamming weights. idx = 0 -> HW for term with index 0 evaluated on input data.
         """
+        if deg is None:
+            deg = self.deg
+
         hws = []
-        for idx, term in enumerate(term_generator(self.deg, self.blocklen-1)):
+        for idx, term in enumerate(term_generator(deg, self.blocklen-1)):
             res = self.eval_term(term)
             hw = self.hw(res)
             hws.append(hw)
 
         return hws
 
-
+    def eval_poly(self, poly):
+        """
+        Evaluates a polynomial on the input precomputed data
+        :param poly: polynomial specified as [term, term, term], e.g. [[1,2], [3,4], [5,6]] == x1x2 + x3x4 + x5x6
+        :return:
+        """
+        ln = len(poly)
+        res = self.eval_term(poly[0])
+        for i in range(1, ln):
+            res ^= self.eval_term(poly[i])
+        return res
 
 
 
