@@ -218,13 +218,55 @@ class TermEval(object):
             res ^= self.eval_term(poly[i])
         return res
 
+    def expp_term(self, term):
+        """
+        Computes expected probability of result=1 of the given term under null hypothesis of uniformity.
+        O(1) time, O(n lg n) w.r.t. term length (distinct bit positions).
+        :param term:
+        :return:
+        """
+        dislen = len(set(term))
+        return math.pow(2, -1*dislen)
+
+    def expp_xor_indep(self, p1, p2):
+        """
+        Probability of term t1 XOR t2 being 1 if t1 is 1 with p1 and t2 is 1 with p2.
+        t1 and t2 has to be independent (no common sub-term).
+
+        XOR:
+          a b | r
+          ----+---
+          1 1 | 0
+          1 0 | 1  = p1    * (1-p2)
+          0 1 | 1  = (1-p1)* p2
+          0 0 | 0
+
+        :param p1:
+        :param p2:
+        :return:
+        """
+        return p1*(1-p2)+(1-p1)*p2
+
+    def expp_poly(self, poly):
+        """
+        Computes expected probability of result=1 of the given polynomial under null hypothesis of uniformity.
+        :param poly:
+        :return:
+        """
 
 
-class Const_bits(Bits):
-    pass
+
+class Tester(object):
+    """
+    Polynomial tester
+    """
+
+    def __init__(self, reffile=None, *args, **kwargs):
+        self.reffile = reffile
 
 
-class Bits(BitArray):
-    pass
 
+
+    def work(self):
+        pass
 
