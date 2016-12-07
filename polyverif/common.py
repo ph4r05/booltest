@@ -1,6 +1,7 @@
 import numpy as np
 from bitstring import Bits, BitArray, BitStream, ConstBitStream
 import bitarray
+import types
 
 
 def pos_generator(spec=None, dim=None, maxelem=None):
@@ -77,28 +78,34 @@ def term_generator(deg, maxelem):
 
 class PolyCheck(object):
     def __init__(self, *args, **kwargs):
-        # block length in bits
+        # block length in bits, term size.
         self.blocklen = 128
+
+        # term degree
+        self.deg = 1
+
+        # evaluated base terms of deg=1
+        self.base = []
 
     def gen_term(self, indices):
         """
         Generates a bit term mask from the indices created by term_generator().
         blocklen wide.
-        :param indices:
-        :return:
+        :param indices: array of bit indices, e.g., [0,8] -> x0x8
+        :return: bit representation of the term
         """
         term = BitArray(uint=0, length=self.blocklen)
         for bitpos in indices:
             term[bitpos] = 1
         return term
 
-    def eval_term(self, term, block):
+    def eval_term_raw(self, term, block):
         """
         Evaluates a term on the data block.
         block has to be a multiple of the term size. term is evaluated by sliding window of size=term.
-        :param term:
-        :param block:
-        :return:
+        :param term: bit representation of the term
+        :param block: bit representation of the input
+        :return: bit representation of the result
         """
         ln = len(block)
         lnt = len(term)
@@ -110,10 +117,35 @@ class PolyCheck(object):
     def hw(self, block):
         """
         Computes hamming weight of the block
-        :param block:
+        :param block: bit representation of the input
         :return:
         """
         return block.count(True)
+
+    def gen_base(self, block):
+        """
+        Generate base for polynomial evaluation from the block.
+        Evaluates each base term (deg=1) on the input, creates a base for futher evaluation of terms of high orders.
+        :param block: bit representation of the input
+        :return:
+        """
+        self.base = [None] * self.blocklen
+        for bitpos in range(0, self.blocklen):
+            term = self.gen_term([bitpos])
+            self.base[bitpos] = Bits(self.eval_term_raw(term, block))
+
+    def eval_term(self, term):
+        """
+        Evaluates term on the block using the precomputed base.
+        :param term: term represented as an array of bit positions
+        :return: bit representation of the result
+        """
+        ln = len(term)
+        res = BitArray(self.base[term[0]])
+
+        for i in range(1, ln):
+            res &= self.base[term[i]]
+        return res
 
 
 
