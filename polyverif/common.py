@@ -53,6 +53,8 @@ def term_generator(deg, maxelem):
     idx = [0] * deg
     for i in range(deg):
         idx[i] = i
+        if i > maxelem:
+            raise ValueError('deg too big for the maxelem')
 
     while True:
         yield idx
