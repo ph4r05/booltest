@@ -2,6 +2,7 @@ import numpy as np
 from bitstring import Bits, BitArray, BitStream, ConstBitStream
 import bitarray
 import types
+import math
 
 
 def pos_generator(spec=None, dim=None, maxelem=None):
@@ -76,6 +77,30 @@ def term_generator(deg, maxelem):
             return
 
 
+def zscore(observed, expected, N):
+    """
+    Computes z-score for the normal distribution
+    :param observed: number of occurrences
+    :param expected: number of occurrences
+    :param N: sample size
+    :return:
+    """
+    observed = float(observed) / float(N)
+    expected = float(expected) / float(N)
+    return (observed-expected) / math.sqrt((expected*(1.0-expected))/float(N))
+
+
+def zscore_p(observed, expected, N):
+    """
+    Computes z-score for the normal distribution
+    :param observed: prob.
+    :param expected: prob.
+    :param N:
+    :return:
+    """
+    return (observed-expected) / math.sqrt((expected*(1.0-expected))/float(N))
+
+
 class PolyCheck(object):
     def __init__(self, *args, **kwargs):
         # block length in bits, term size.
@@ -147,6 +172,18 @@ class PolyCheck(object):
             res &= self.base[term[i]]
         return res
 
+    def eval_terms(self):
+        """
+        Evaluates all terms on the input data precomputed in the base
+        :return: array of hamming weights. idx = 0 -> HW for term with index 0 evaluated on input data.
+        """
+        hws = []
+        for idx, term in enumerate(term_generator(self.deg, self.blocklen-1)):
+            res = self.eval_term(term)
+            hw = self.hw(res)
+            hws.append(hw)
+
+        return hws
 
 
 
