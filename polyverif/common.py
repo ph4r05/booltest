@@ -124,19 +124,35 @@ class PolyCheck(object):
             term[bitpos] = 1
         return term
 
-    def eval_term_raw(self, term, block):
+    def mask_with_term(self, term, block):
         """
-        Evaluates a term on the data block.
+        Masks input with the term.
         block has to be a multiple of the term size. term is evaluated by sliding window of size=term.
         :param term: bit representation of the term
         :param block: bit representation of the input
-        :return: bit representation of the result
+        :return: bit representation of the result, size = size of block.
         """
         ln = len(block)
         lnt = len(term)
         res = BitArray()
         for idx in range(0, ln, lnt):
             res.append(block[idx:idx + self.blocklen] & term)
+        return res
+
+    def eval_term_raw(self, term, block):
+        """
+        Evaluates term on the input.
+        Block has to be a multiple of the term size. term is evaluated by sliding window of size=term.
+        In result each bit represents a single term evaluation on the given sub-block
+        :param term: bit representation of the term
+        :param block: bit representation of the input, bit array of term evaluations. size = size of block / size of term.
+        :return:
+        """
+        ln = len(block)
+        lnt = len(term)
+        res = BitArray()
+        for idx in range(0, ln, lnt):
+            res.append((block[idx:idx + self.blocklen] & term) == term)
         return res
 
     def hw(self, block):
@@ -150,7 +166,7 @@ class PolyCheck(object):
     def gen_base(self, block):
         """
         Generate base for polynomial evaluation from the block.
-        Evaluates each base term (deg=1) on the input, creates a base for futher evaluation of terms of high orders.
+        Evaluates each base term (deg=1) on the input, creates a base for further evaluation of terms of high orders.
         :param block: bit representation of the input
         :return:
         """
@@ -163,7 +179,7 @@ class PolyCheck(object):
         """
         Evaluates term on the block using the precomputed base.
         :param term: term represented as an array of bit positions
-        :return: bit representation of the result
+        :return: bit representation of the result, each bit represents single term evaluation on the given sub-block
         """
         ln = len(term)
         res = BitArray(self.base[term[0]])
@@ -174,7 +190,8 @@ class PolyCheck(object):
 
     def eval_terms(self):
         """
-        Evaluates all terms on the input data precomputed in the base
+        Evaluates all terms on the input data precomputed in the base.
+        Returns array of hamming weights.
         :return: array of hamming weights. idx = 0 -> HW for term with index 0 evaluated on input data.
         """
         hws = []
@@ -184,6 +201,7 @@ class PolyCheck(object):
             hws.append(hw)
 
         return hws
+
 
 
 
