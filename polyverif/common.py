@@ -3,6 +3,7 @@ from bitstring import Bits, BitArray, BitStream, ConstBitStream
 import bitarray
 import types
 import math
+import ufx.uf_hash as ufh
 
 
 def pos_generator(spec=None, dim=None, maxelem=None):
@@ -196,7 +197,7 @@ class TermEval(object):
         """
         Evaluates all terms on the input data precomputed in the base.
         Returns array of hamming weights.
-        :param deg: degre of the terms to generate. If none, default degre is taken.
+        :param deg: degree of the terms to generate. If none, default degree is taken.
         :return: array of hamming weights. idx = 0 -> HW for term with index 0 evaluated on input data.
         """
         if deg is None:
@@ -255,7 +256,7 @@ class TermEval(object):
     def term_remap(self, term):
         """
         Remaps the term to the lower indices - for simulation.
-        remapping may lead to degre reduction, e.g., x1x2x3x3 -> x0x1x2
+        remapping may lead to degree reduction, e.g., x1x2x3x3 -> x0x1x2
         :param term:
         :return:
         """
@@ -288,9 +289,20 @@ class TermEval(object):
     def poly_reduce(self, poly, neg, idx, val):
         """
         Reduces normed polynomial = fixes variable with bitpos=idx to val.
-        neg represents +1 terms
-        :param poly:
-        :param idx:
+
+        Neg represents constant 1 as it has no representation in this polynomial form.
+        Empty terms [] evaluates to 0 by definition. To be able to express term after reduction
+        like p = 1 + 1 + 1 + x1x2 the neg is a constant part XORed to the result of the polynomial evaluation.
+        In this case neg = 1 + 1 + 1 = 1. for x1=1 and x2=1 the p evaluates to neg + 1 = 1 + 1 = 0.
+        For x1=1 and x2=0 the p evaluates to neg + 0 = 1 + 0 = 1.
+        Neg is some kind of carry value.
+
+        Method is used in the recursive polynomial evaluation with branch pruning.
+
+        :param poly: polynomial representation
+        :param neg: carry value for the XOR constant term
+        :param idx: variable idx to fix
+        :param val: value to fix variable to
         :return: (poly, neg)
         """
         res_poly = []
@@ -305,16 +317,17 @@ class TermEval(object):
                 # val is 0 -> whole term is zero, do not add.
                 continue
 
-            # val is 1 -> remove from term
+            # val is 1 -> remove from term as it is constant now.
             n_term = [x for x in term if x != idx]
 
             if len(n_term) == 0:
-                # term is empty -> is 1, neg
-                neg = not neg
+                # term is empty -> is 1, xor with neg
+                neg ^= 1
 
             else:
-                # term is non-empty, add to poly
+                # term is non-empty (at least one variable), add to poly
                 res_poly.append(n_term)
+
         return res_poly, neg
 
     def expnum_poly_sim(self, poly):
@@ -322,7 +335,7 @@ class TermEval(object):
         Simulates the given polynomial w.r.t. null hypothesis, for all variable values combinations.
         O(2^n)
         :param poly:
-        :return:
+        :return: number of polynomial evaluations to 1
         """
         npoly, idx_map_rev = self.poly_remap(poly)
         return self.expnum_poly_sim_norm(poly, idx_map_rev)
@@ -332,11 +345,11 @@ class TermEval(object):
         Computes how many times the given polynomial evaluates to 1 for all variable combinations.
         :param poly:
         :param idx_set:
-        :return:
+        :return: number of polynomial evaluations to 1
         """
         # current evaluation is simple - iterate over all possible values of variables.
         deg = len(idx_map_rev)
-        is_one = 0
+        num_one = 0
 
         gen = pos_generator(dim=deg, maxelem=1)
         for val in gen:
@@ -354,9 +367,50 @@ class TermEval(object):
                 res ^= cval
 
             if res > 0:
-                is_one += 1
+                num_one += 1
 
-        return is_one
+        return num_one
+
+    def expp_poly_dep(self, poly, neg=0):
+        """
+        Computes expected probability of result=1 of the given polynomial under null hypothesis of uniformity.
+        It is assumed each term in the polynomial shares at least one variable with a different term
+        in the polynomial so it cannot be easily optimised.
+        :param poly:
+        :param neg: internal, for recursion
+        :return: probability of polynomial evaluating to 1 over all possibilities of variables
+        """
+
+        # at first - degenerate cases
+        ln = len(poly)
+        if ln == 1:
+            # only one term - evluate independently
+            return self.expp_term(poly[0])
+
+        # More than 1 term. Remap term for evaluation & degree detection.
+        npoly, idx_map_rev = self.poly_remap(poly)
+        deg = len(idx_map_rev)
+
+        # if degree is small do the all combinations algorithm
+        ones = self.expnum_poly_sim_norm(npoly, idx_map_rev)
+        return float(ones) / float(2**deg)
+
+        # for long degree or long polynomial we can do this:
+        # a) Isolate independent variables, substitute them with a single one:
+        #  x1x2x3x7x8 + x2x3x4x9x10x11 + x1x4x12x23 can be simplified to
+        #  x1x2x3A    + x2x3x4B        + x1x4C - we don't need to iterate over independent variables
+        #  here (e.g., x7x8x9x10,...). New variables A, B, C aggregate independent variables in the
+        #  original equation. We evaluate A,B,C only one, A is 1 with prob 1/4, B 1/8, C 1/4. This is considered
+        #  during the evaluation.
+        #
+        # b) recursive evaluation with branch pruning.
+        # recursively do:
+        #  - Is polynomial a const? Return.
+        #  - Is polynomial of 1 term only? Return.
+        #  - 1. fix the fist variable x1=0, use poly_reduce, (some terms drop out), evaluate recursively.
+        #  - 2. fix the fist variable x1=1, use poly_reduce, evaluate recursively.
+        #  - result = 0.5 * fix0 + 0.5 * fix1
+        #  The pruning on the 0 branches can potentially save a lot of evaluations.
 
     def expp_poly(self, poly):
         """
@@ -364,7 +418,7 @@ class TermEval(object):
         Due to non-independence between terms this evaluation can take some time - simulating.
         Independent terms are simulated, i.e. all variable combinations are computed.
         :param poly:
-        :return:
+        :return: probability of polynomial evaluating to 1 over all possibilities of variables
         """
         # Optimization: find independent terms, move aside, can be evaluated without simulation.
         # independent terms are XORed with expp_xor_indep()
@@ -378,10 +432,45 @@ class TermEval(object):
         # same principle can be used for this.
         #
         # Find independent terms.
+        ln = len(poly)
 
+        # degenerate case = 1 term
+        if ln == 1:
+            return self.expp_term(poly[0])
+        terms = [set(x) for x in poly]
 
+        # degenerate case = 2 terms
+        if ln == 2:
+            if len(terms[0] & terms[1]) == 0:
+                return self.expp_xor_indep(self.expp_term(poly[0]), self.expp_term(poly[1]))
+            else:
+                return self.expp_poly_dep(poly)
 
+        # General case:
+        #   Finding independent terms = create a graph from the terms in the polynomial.
+        #   There is a connection if t1 and t2 share at least one element.
+        #   Find connected components of the graph. Union-find (disjoint sets) data structure is helping with it.
+        uf = ufh.UnionFind()
+        for idx, term in enumerate(terms):
+            uf.make_set(idx)
+        for idx, term in enumerate(terms):
+            for idx2 in range(idx+1, ln):
+                if len(term & terms[idx2]) > 0:
+                    uf.union(idx, idx2)
+                pass
+            pass
+        pass
 
+        # clusterize terms related to each other.
+        # [[t1,t2,t3], [t4], [t5]]
+        clusters = [[poly[y] for y in x] for x in uf.get_set_map().values()]
+
+        # Each cluster can be evaluated independently and XORed with the rest.
+        probs = [self.expp_poly_dep(x) for x in clusters]
+
+        # reduce the prob list with independent term-xor formula..
+        res = reduce(lambda x, y: self.expp_xor_indep(x, y), probs)
+        return res
 
 
 class Tester(object):
