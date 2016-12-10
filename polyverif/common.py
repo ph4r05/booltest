@@ -3,7 +3,12 @@ from bitstring import Bits, BitArray, BitStream, ConstBitStream
 import bitarray
 import types
 import math
+import logging
+import crypto_util
 import ufx.uf_hash as ufh
+
+
+logger = logging.getLogger(__name__)
 
 
 def pos_generator(spec=None, dim=None, maxelem=None):
@@ -102,16 +107,31 @@ def zscore_p(observed, expected, N):
     return (observed-expected) / math.sqrt((expected*(1.0-expected))/float(N))
 
 
+def to_bitarray(inp=None, filename=None, const=True):
+    """
+    Converts input to bitarray for computation with TermEval
+    :return:
+    """
+    constructor = Bits if const else BitArray
+    if isinstance(inp, types.StringTypes):
+        return constructor(bytes=inp)
+    else:
+        raise ValueError('Unknown input')
+
+
+
 class TermEval(object):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, blocklen=128, deg=1, *args, **kwargs):
         # block length in bits, term size.
-        self.blocklen = 128
+        self.blocklen = blocklen
 
         # term degree
-        self.deg = 1
+        self.deg = deg
 
         # evaluated base terms of deg=1
         self.base = []
+        self.cur_tv_size = None
+        self.cur_evals = None
 
     def gen_term(self, indices, blocklen=None):
         """
@@ -155,9 +175,12 @@ class TermEval(object):
         """
         ln = len(block)
         lnt = len(term)
-        res = BitArray()
+        ctr = 0
+        res_size = int(math.ceil(len(block)/float(len(term))))
+        res = BitArray(uint=0, length=res_size)
         for idx in range(0, ln, lnt):
-            res.append((block[idx:idx + self.blocklen] & term) == term)
+            res[ctr] = ((block[idx:idx + self.blocklen] & term) == term)
+            ctr += 1
         return res
 
     def hw(self, block):
@@ -168,6 +191,24 @@ class TermEval(object):
         """
         return block.count(True)
 
+    def term_generator(self, deg=None):
+        """
+        Returns term generator for given deg (internal if none is given) and blocklen
+        :return:
+        """
+        if deg is None:
+            deg = self.deg
+
+        return term_generator(deg, self.blocklen-1)
+
+    def load(self, block):
+        """
+        Precomputes data
+        :param block:
+        :return:
+        """
+        self.gen_base(block)
+
     def gen_base(self, block):
         """
         Generate base for term evaluation from the block.
@@ -175,10 +216,27 @@ class TermEval(object):
         :param block: bit representation of the input
         :return:
         """
+        if (len(block)/8 % self.blocklen) != 0:
+            raise ValueError('Input data not multiple of block length')
+
+        self.cur_tv_size = len(block)/8
+        self.cur_evals = self.cur_tv_size / self.blocklen
+
+        ln = len(block)
+        res_size = int(math.ceil(len(block) / float(self.blocklen)))
+
         self.base = [None] * self.blocklen
         for bitpos in range(0, self.blocklen):
-            term = self.gen_term([bitpos])
-            self.base[bitpos] = Bits(self.eval_term_raw(term, block))
+            logger.info('bitpos %d' % bitpos)
+            ctr = 0
+            res = BitArray(uint=0, length=res_size)
+            for idx in range(0, ln, self.blocklen):
+                res[ctr] = block[idx+bitpos] == 1
+                ctr += 1
+            self.base[bitpos] = Bits(res)
+            # old, slower method
+            # term = self.gen_term([bitpos])
+            # self.base[bitpos] = Bits(self.eval_term_raw(term, block))
 
     def eval_term(self, term):
         """
@@ -204,7 +262,7 @@ class TermEval(object):
             deg = self.deg
 
         hws = []
-        for idx, term in enumerate(term_generator(deg, self.blocklen-1)):
+        for idx, term in enumerate(self.term_generator(deg)):
             res = self.eval_term(term)
             hw = self.hw(res)
             hws.append(hw)
@@ -222,6 +280,15 @@ class TermEval(object):
         for i in range(1, ln):
             res ^= self.eval_term(poly[i])
         return res
+
+    def expp_term_deg(self, deg):
+        """
+        Returns expected probability of result=1 of a term with given degree under null hypothesis of uniformity.
+        :param deg:
+        :return:
+        """
+        return math.pow(2, -1 * deg)
+
 
     def expp_term(self, term):
         """
@@ -481,7 +548,13 @@ class Tester(object):
     def __init__(self, reffile=None, *args, **kwargs):
         self.reffile = reffile
 
-
+    def load_file(self, file):
+        """
+        Loads file to the
+        :param file:
+        :return:
+        """
+        pass
 
 
     def work(self):
