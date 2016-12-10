@@ -286,7 +286,7 @@ class TermEval(object):
 
         return res_poly, idx_map_rev
 
-    def poly_reduce(self, poly, neg, idx, val):
+    def poly_fix_var(self, poly, neg, idx, val):
         """
         Reduces normed polynomial = fixes variable with bitpos=idx to val.
 
@@ -407,8 +407,8 @@ class TermEval(object):
         # recursively do:
         #  - Is polynomial a const? Return.
         #  - Is polynomial of 1 term only? Return.
-        #  - 1. fix the fist variable x1=0, use poly_reduce, (some terms drop out), evaluate recursively.
-        #  - 2. fix the fist variable x1=1, use poly_reduce, evaluate recursively.
+        #  - 1. fix the fist variable x1=0, use poly_fix_var, (some terms drop out), evaluate recursively.
+        #  - 2. fix the fist variable x1=1, use poly_fix_var, evaluate recursively.
         #  - result = 0.5 * fix0 + 0.5 * fix1
         #  The pruning on the 0 branches can potentially save a lot of evaluations.
 
