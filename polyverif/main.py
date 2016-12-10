@@ -17,9 +17,10 @@ class App(object):
         return val if val is not None else default
 
     def work(self):
-        blocklen = self.defset(self.args.blocklen, 128)
-        deg = self.defset(self.args.degre, 3)
-        tvsize_orig = self.defset(self.args.tvsize, 1024*64)
+        blocklen = int(self.defset(self.args.blocklen, 128))
+        deg = int(self.defset(self.args.degre, 3))
+        tvsize_orig = long(self.defset(self.args.tvsize, 1024*256))
+        zscore_thresh = float(self.args.conf)
         reffile = self.defset(self.args.reffile)
         #self.tester = common.Tester(reffile=reffile)
 
@@ -51,7 +52,7 @@ class App(object):
                     logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d, round: %d' %
                                 (deg, blocklen, tvsize, round))
 
-                    term_eval.gen_base(bits)
+                    term_eval.load(bits)
                     round += 1
 
                     # evaluate all terms of the given degree
@@ -62,13 +63,30 @@ class App(object):
 
                     difs = [(abs(x-exp_count), idx) for idx,x in enumerate(hws)]
                     difs.sort(key=lambda x: x[0], reverse=True)
+                    zscores = [common.zscore(x, exp_count, term_eval.cur_evals) for x in hws]
 
-                    # top 30 diffs
-                    for x in difs[0:30]:
+                    # top x diffs
+                    for x in difs[0:5]:
                         observed = hws[x[1]]
                         zscore = common.zscore(observed, exp_count, term_eval.cur_evals)
-                        print(' - zscore: %05.5f, observed: %08d, expected: %08d' % (zscore, observed, exp_count))
+                        fail = 'x' if abs(zscore) > zscore_thresh else ''
+                        print(' - zscore: %+05.5f, observed: %08d, expected: %08d %s'
+                              % (zscore, observed, exp_count, fail))
 
+                    for x in difs[-5:]:
+                        observed = hws[x[1]]
+                        zscore = common.zscore(observed, exp_count, term_eval.cur_evals)
+                        fail = 'x' if abs(zscore) > zscore_thresh else ''
+                        print(' - zscore: %+05.5f, observed: %08d, expected: %08d %s'
+                              % (zscore, observed, exp_count, fail))
+
+                    mean = sum(hws)/float(len(hws))
+                    mean_zscore = sum(zscores)/float(len(zscores))
+
+                    fails = sum([1 for x in zscores if abs(x) > zscore_thresh])
+                    print('Mean value: %s' % mean)
+                    print('Mean zscore: %s' % mean_zscore)
+                    print('Num of fails: %s = %02f.5%%' % (fails, 100.0*float(fails)/len(zscores)))
 
 
     def main(self):
@@ -91,6 +109,8 @@ class App(object):
                             help='maximum degre of computation')
         parser.add_argument('--tv', dest='tvsize',
                             help='Size of one test vector')
+        parser.add_argument('--conf', dest='conf', type=float, default=1.96,
+                            help='Zscore failing threshold')
 
         parser.add_argument('--stdin', dest='verbose', action='store_const', const=True,
                             help='read data from STDIN')
