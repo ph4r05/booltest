@@ -21,8 +21,8 @@ class App(object):
         deg = int(self.defset(self.args.degre, 3))
         tvsize_orig = long(self.defset(self.args.tvsize, 1024*256))
         zscore_thresh = float(self.args.conf)
+        rounds = int(self.args.rounds) if self.args.rounds is not None else None
         reffile = self.defset(self.args.reffile)
-        #self.tester = common.Tester(reffile=reffile)
 
         for file in self.args.files:
             tvsize = tvsize_orig
@@ -44,7 +44,12 @@ class App(object):
             with open(file, 'r') as fh:
                 data_read = 0
                 round = 0
+                total_fails = []
+
                 while data_read < size:
+                    if rounds is not None and round > rounds:
+                        break
+
                     data = fh.read(tvsize)
                     bits = common.to_bitarray(data)
 
@@ -84,10 +89,15 @@ class App(object):
                     mean_zscore = sum(zscores)/float(len(zscores))
 
                     fails = sum([1 for x in zscores if abs(x) > zscore_thresh])
+                    fails_fraction = float(fails)/len(zscores)
+                    total_fails.append(fails_fraction)
                     print('Mean value: %s' % mean)
                     print('Mean zscore: %s' % mean_zscore)
-                    print('Num of fails: %s = %02f.5%%' % (fails, 100.0*float(fails)/len(zscores)))
+                    print('Num of fails: %s = %02f.5%%' % (fails, 100.0*fails_fraction))
 
+                total_fails_avg = float(sum(total_fails)) / len(total_fails)
+                print('Total fails: %s' % total_fails)
+                print('Total fails avg: %f%%' % (100.0*total_fails_avg))
 
     def main(self):
         logger.debug('App started')
@@ -109,6 +119,9 @@ class App(object):
                             help='maximum degre of computation')
         parser.add_argument('--tv', dest='tvsize',
                             help='Size of one test vector')
+        parser.add_argument('-r', dest='rounds',
+                            help='Maximal number of rounds')
+
         parser.add_argument('--conf', dest='conf', type=float, default=1.96,
                             help='Zscore failing threshold')
 
