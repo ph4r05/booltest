@@ -254,7 +254,7 @@ class TermEval(object):
         :param block: bit representation of the input
         :return:
         """
-        if (len(block)/8 % self.blocklen) != 0:
+        if (len(block) % self.blocklen) != 0:
             raise ValueError('Input data not multiple of block length')
 
         self.cur_tv_size = len(block)/8
