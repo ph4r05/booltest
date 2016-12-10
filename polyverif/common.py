@@ -194,7 +194,7 @@ class TermEval(object):
         """
         ln = len(block)
         lnt = len(term)
-        res = BitArray()  #  TODO: fix
+        res = empty_bitarray()
         for idx in range(0, ln, lnt):
             res.append(block[idx:idx + self.blocklen] & term)
         return res
