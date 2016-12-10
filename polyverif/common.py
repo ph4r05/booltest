@@ -224,7 +224,10 @@ class TermEval(object):
         :param block: bit representation of the input
         :return:
         """
-        return block.count(True)
+        if FAST_IMPL:
+            return block.count()
+        else:
+            return block.count(True)
 
     def term_generator(self, deg=None):
         """
