@@ -8,6 +8,9 @@ import crypto_util
 import ufx.uf_hash as ufh
 
 
+FAST_IMPL = True
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -107,17 +110,49 @@ def zscore_p(observed, expected, N):
     return (observed-expected) / math.sqrt((expected*(1.0-expected))/float(N))
 
 
+def empty_bitarray(size=None):
+    """
+    Initializes empty bit array (of given size)
+    :param size:
+    :return:
+    """
+    if FAST_IMPL:
+        if size is None:
+            return bitarray.bitarray()
+        else:
+            a = bitarray.bitarray(size)
+            a.setall(False)
+            return a
+    else:
+        if size is None:
+            return BitArray()
+        else:
+            return BitArray(uint=0, length=size)
+
+
 def to_bitarray(inp=None, filename=None, const=True):
     """
     Converts input to bitarray for computation with TermEval
     :return:
     """
-    constructor = Bits if const else BitArray
-    if isinstance(inp, types.StringTypes):
-        return constructor(bytes=inp)
+    if FAST_IMPL:
+        if isinstance(inp, types.StringTypes):
+            a = bitarray.bitarray()
+            a.frombytes(inp)
+            return a
+        elif isinstance(inp, bitarray.bitarray):
+            a = bitarray.bitarray(inp)
+            return a
+        else:
+            raise ValueError('Unknown input')
     else:
-        raise ValueError('Unknown input')
-
+        constructor = Bits if const else BitArray
+        if isinstance(inp, types.StringTypes):
+            return constructor(bytes=inp)
+        elif isinstance(inp, (Bits, BitStream, BitArray, ConstBitStream)):
+            return constructor(inp)
+        else:
+            raise ValueError('Unknown input')
 
 
 class TermEval(object):
@@ -144,7 +179,7 @@ class TermEval(object):
         if blocklen is None:
             blocklen = self.blocklen
 
-        term = BitArray(uint=0, length=blocklen)
+        term = empty_bitarray(blocklen)
         for bitpos in indices:
             term[bitpos] = 1
         return term
@@ -159,7 +194,7 @@ class TermEval(object):
         """
         ln = len(block)
         lnt = len(term)
-        res = BitArray()
+        res = BitArray()  #  TODO: fix
         for idx in range(0, ln, lnt):
             res.append(block[idx:idx + self.blocklen] & term)
         return res
@@ -227,13 +262,14 @@ class TermEval(object):
 
         self.base = [None] * self.blocklen
         for bitpos in range(0, self.blocklen):
-            logger.info('bitpos %d' % bitpos)
+            # logger.info('bitpos %d' % bitpos)
             ctr = 0
-            res = BitArray(uint=0, length=res_size)
+            res = empty_bitarray(res_size)
             for idx in range(0, ln, self.blocklen):
                 res[ctr] = block[idx+bitpos] == 1
                 ctr += 1
-            self.base[bitpos] = Bits(res)
+            self.base[bitpos] = res if FAST_IMPL else Bits(res)
+
             # old, slower method
             # term = self.gen_term([bitpos])
             # self.base[bitpos] = Bits(self.eval_term_raw(term, block))
@@ -245,8 +281,7 @@ class TermEval(object):
         :return: bit representation of the result, each bit represents single term evaluation on the given sub-block
         """
         ln = len(term)
-        res = BitArray(self.base[term[0]])
-
+        res = to_bitarray(self.base[term[0]], const=False)
         for i in range(1, ln):
             res &= self.base[term[i]]
         return res
