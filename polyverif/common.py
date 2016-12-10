@@ -258,7 +258,7 @@ class TermEval(object):
             raise ValueError('Input data not multiple of block length')
 
         self.cur_tv_size = len(block)/8
-        self.cur_evals = self.cur_tv_size / self.blocklen
+        self.cur_evals = len(block) / self.blocklen
 
         ln = len(block)
         res_size = int(math.ceil(len(block) / float(self.blocklen)))
