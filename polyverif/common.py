@@ -272,6 +272,7 @@ class TermEval(object):
                 res[ctr] = block[idx+bitpos] == 1
                 ctr += 1
             self.base[bitpos] = res if FAST_IMPL else Bits(res)
+            assert ctr == res_size
 
             # old, slower method
             # term = self.gen_term([bitpos])
