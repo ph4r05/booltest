@@ -35,7 +35,7 @@ def pos_generator(spec=None, dim=None, maxelem=None):
     ln = len(spec)
     idx = [0] * ln
     while True:
-        yield idx
+        yield (idx)
 
         # increment with overflow
         c = ln-1
@@ -68,7 +68,7 @@ def term_generator(deg, maxelem):
             raise ValueError('deg too big for the maxelem')
 
     while True:
-        yield idx
+        yield list(idx)
 
         # increment with overflow
         c = deg - 1
@@ -327,7 +327,6 @@ class TermEval(object):
         :return:
         """
         return math.pow(2, -1 * deg)
-
 
     def expp_term(self, term):
         """
