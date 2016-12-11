@@ -40,6 +40,12 @@ class App(object):
 
             term_eval = common.TermEval(blocklen=blocklen, deg=deg)
 
+            # prebuffer map 3deg terms
+            term_map = [[], [], [], []]
+            for dg in range(1, 4):
+                for x in term_eval.term_generator(deg=dg):
+                    term_map[dg].append(x)
+
             # read the file until there is no data.
             with open(file, 'r') as fh:
                 data_read = 0
@@ -71,19 +77,12 @@ class App(object):
                     zscores = [common.zscore(x, exp_count, term_eval.cur_evals) for x in hws]
 
                     # top x diffs
-                    for x in difs[0:5]:
+                    for x in difs[0:10]:
                         observed = hws[x[1]]
                         zscore = common.zscore(observed, exp_count, term_eval.cur_evals)
-                        fail = 'x' if abs(zscore) > zscore_thresh else ''
-                        print(' - zscore: %+05.5f, observed: %08d, expected: %08d %s'
-                              % (zscore, observed, exp_count, fail))
-
-                    for x in difs[-5:]:
-                        observed = hws[x[1]]
-                        zscore = common.zscore(observed, exp_count, term_eval.cur_evals)
-                        fail = 'x' if abs(zscore) > zscore_thresh else ''
-                        print(' - zscore: %+05.5f, observed: %08d, expected: %08d %s'
-                              % (zscore, observed, exp_count, fail))
+                        fail = 'x' if abs(zscore) > zscore_thresh else ' '
+                        print(' - zscore: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
+                              % (zscore, observed, exp_count, fail, x[1], term_map[deg][x[1]]))
 
                     mean = sum(hws)/float(len(hws))
                     mean_zscore = sum(zscores)/float(len(zscores))
