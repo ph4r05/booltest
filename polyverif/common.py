@@ -388,6 +388,8 @@ class TermEval(object):
                     idx += 1
                 else:
                     res_term.append(idx_map_rev[bitpos])
+            if len(res_term) > 0:
+                res_poly.append(res_term)
 
         return res_poly, idx_map_rev
 
@@ -489,7 +491,7 @@ class TermEval(object):
         # at first - degenerate cases
         ln = len(poly)
         if ln == 1:
-            # only one term - evluate independently
+            # only one term - evaluate independently
             return self.expp_term(poly[0])
 
         # More than 1 term. Remap term for evaluation & degree detection.
