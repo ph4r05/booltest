@@ -5,6 +5,7 @@ import types
 import math
 import logging
 import crypto_util
+import scipy.misc
 import ufx.uf_hash as ufh
 
 
@@ -84,6 +85,10 @@ def term_generator(deg, maxelem):
             c -= 1
         if c < 0:
             return
+
+
+def comb(n, k, exact=False):
+    return scipy.misc.comb(n, k, exact=exact)
 
 
 def zscore(observed, expected, N):
