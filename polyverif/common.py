@@ -217,7 +217,7 @@ class TermEval(object):
             if block[idx] == 0:
                 cval = 0
                 break
-        return res
+        return cval
 
     def eval_term_raw(self, term, block):
         """
