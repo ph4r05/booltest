@@ -52,7 +52,7 @@ class App(object):
 
         # prebuffer map 3deg terms
         logger.info('Precomputing term mappings')
-        term_map = [[], [], [], []]
+        term_map = [[] for x in range(deg+1)]
         for dg in range(1, deg+1):
             for x in common.term_generator(deg, blocklen-1):
                 term_map[dg].append(x)
