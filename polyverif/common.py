@@ -36,7 +36,7 @@ def pos_generator(spec=None, dim=None, maxelem=None):
     ln = len(spec)
     idx = [0] * ln
     while True:
-        yield (idx)
+        yield list(idx)
 
         # increment with overflow
         c = ln-1
