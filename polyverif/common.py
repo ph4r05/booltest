@@ -204,12 +204,12 @@ class TermEval(object):
             res.append(block[idx:idx + self.blocklen] & term)
         return res
 
-    def eval_term_raw_single(self, poly, block):
+    def eval_term_raw_single(self, term, block):
         """
         Evaluates term on the raw input - bit array. Uses [] operator to access bits in block.
         Returns a single number, evaluates polynomial on single block
-        :param poly:
-        :param block:
+        :param term: term in the index notation
+        :param block: bitarray indexable by []
         :return:
         """
         cval = 1
@@ -242,8 +242,8 @@ class TermEval(object):
         """
         Evaluates polynomial on the raw input - bit array. Uses [] operator to access bits in block.
         Returns a single number, evaluates polynomial on single block
-        :param poly:
-        :param block:
+        :param poly: polynomial in the index notation
+        :param block: bitarray indexable by []
         :return:
         """
         res = 0
