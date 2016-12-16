@@ -206,7 +206,7 @@ class TermEval(object):
 
     def eval_term_raw(self, term, block):
         """
-        Evaluates term on the input.
+        Evaluates term on the bitarray input. Uses & on the whole term and the block slices.
         Block has to be a multiple of the term size. term is evaluated by sliding window of size=term.
         In result each bit represents a single term evaluation on the given sub-block
         :param term: bit representation of the term
@@ -217,7 +217,7 @@ class TermEval(object):
         lnt = len(term)
         ctr = 0
         res_size = int(math.ceil(len(block)/float(len(term))))
-        res = BitArray(uint=0, length=res_size)
+        res = empty_bitarray(res_size)
         for idx in range(0, ln, lnt):
             res[ctr] = ((block[idx:idx + self.blocklen] & term) == term)
             ctr += 1
