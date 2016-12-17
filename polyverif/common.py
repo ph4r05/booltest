@@ -307,11 +307,12 @@ class TermEval(object):
         for bitpos in range(0, self.blocklen):
             # logger.info('bitpos %d' % bitpos)
             ctr = 0
-            res = empty_bitarray(res_size)
+            self.base[bitpos] = empty_bitarray(res_size)
             for idx in range(0, ln, self.blocklen):
-                res[ctr] = block[idx+bitpos] == 1
+                self.base[bitpos][ctr] = block[idx+bitpos] == 1
                 ctr += 1
-            self.base[bitpos] = res if FAST_IMPL else Bits(res)
+            if not FAST_IMPL:
+                self.base[bitpos] = Bits(self.base[bitpos])
             assert ctr == res_size
 
             # old, slower method
