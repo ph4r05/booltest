@@ -4,6 +4,7 @@ import common
 import os
 import sys
 import math
+import random
 import collections
 import matplotlib
 import matplotlib.pyplot as plt
@@ -39,6 +40,25 @@ class App(object):
 
     def defset(self, val, default=None):
         return val if val is not None else default
+
+    def independence_test(self, term_eval, ddeg=3, vvar=10):
+        """
+        Experimental verification of term independence.
+        :param term_eval:
+        :param ddeg:
+        :param vvar:
+        :return:
+        """
+        tterms = common.comb(vvar, ddeg)
+        print('Independence test C(%d, %d) = %s' % (vvar, ddeg, tterms))
+        ones = [0] * common.comb(vvar, ddeg, True)
+
+        for val in common.pos_generator(dim=vvar, maxelem=1):
+            for idx, term in enumerate(common.term_generator(ddeg, vvar - 1)):
+                ones[idx] += term_eval.eval_term_raw_single(term, val)
+        print('Done')
+        print(ones)
+        # TODO: test slight bias - in the allowed boundaries...
 
     def work(self):
         blocklen = int(self.defset(self.args.blocklen, 128))
@@ -213,7 +233,6 @@ class App(object):
                                   % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
                                      100.0*(comb.exp_cnt - comb.obs_cnt)/comb.exp_cnt, sorted(comb.poly)))
 
-
                     # Polynomial test here
                     for idx, poly in enumerate(poly_test):
                         poly_acc[idx] += term_eval.hw(term_eval.eval_poly(poly))
@@ -247,6 +266,16 @@ class App(object):
                     print(' - zscore: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
                           % (zscore, observed, exp_count, fail, x[1], term_map[deg][x[1]]))
 
+                mean = sum(total_hws) / float(len(total_hws))
+                mean_zscore = sum(zscores) / float(len(zscores))
+
+                fails = sum([1 for x in zscores if abs(x) > zscore_thresh])
+                fails_fraction = float(fails) / len(zscores)
+                total_fails.append(fails_fraction)
+                print('Mean value: %s' % mean)
+                print('Mean zscore: %s' % mean_zscore)
+                print('Num of fails: %s = %02f.5%%' % (fails, 100.0 * fails_fraction))
+
                 # bar_data = []
                 # for idx, x in enumerate(total_hws):
                 #     bar_data.append((idx, x-exp_count))
@@ -261,17 +290,7 @@ class App(object):
                     term = term_map[deg][x[1]]
                     for bit in term:
                         bar_data[bit][1] += 1
-                #bar_chart(res=bar_data)
-
-                mean = sum(total_hws) / float(len(total_hws))
-                mean_zscore = sum(zscores) / float(len(zscores))
-
-                fails = sum([1 for x in zscores if abs(x) > zscore_thresh])
-                fails_fraction = float(fails) / len(zscores)
-                total_fails.append(fails_fraction)
-                print('Mean value: %s' % mean)
-                print('Mean zscore: %s' % mean_zscore)
-                print('Num of fails: %s = %02f.5%%' % (fails, 100.0 * fails_fraction))
+                bar_chart(res=bar_data)
 
     def main(self):
         logger.debug('App started')
