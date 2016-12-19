@@ -172,6 +172,7 @@ class TermEval(object):
         self.base = []
         self.cur_tv_size = None
         self.cur_evals = None
+        self.last_base_size = None
 
     def gen_term(self, indices, blocklen=None):
         """
@@ -303,21 +304,25 @@ class TermEval(object):
         ln = len(block)
         res_size = int(math.ceil(len(block) / float(self.blocklen)))
 
-        self.base = [None] * self.blocklen
+        if self.base is None or self.last_base_size != (self.blocklen, res_size):
+            self.base = [None] * self.blocklen
+
         for bitpos in range(0, self.blocklen):
             # logger.info('bitpos %d' % bitpos)
             ctr = 0
-            self.base[bitpos] = empty_bitarray(res_size)
+
+            if self.last_base_size != (self.blocklen, res_size):
+                self.base[bitpos] = empty_bitarray(res_size)
+
             for idx in range(0, ln, self.blocklen):
                 self.base[bitpos][ctr] = block[idx+bitpos] == 1
                 ctr += 1
+
             if not FAST_IMPL:
                 self.base[bitpos] = Bits(self.base[bitpos])
-            assert ctr == res_size
 
-            # old, slower method
-            # term = self.gen_term([bitpos])
-            # self.base[bitpos] = Bits(self.eval_term_raw(term, block))
+            assert ctr == res_size
+        self.last_base_size = (self.blocklen, res_size)
 
     def eval_term(self, term):
         """
