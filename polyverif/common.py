@@ -232,7 +232,7 @@ class TermEval(object):
         ln = len(block)
         lnt = len(term)
         ctr = 0
-        res_size = int(math.ceil(len(block)/float(len(term))))
+        res_size = ln // lnt
         res = empty_bitarray(res_size)
         for idx in range(0, ln, lnt):
             res[ctr] = ((block[idx:idx + self.blocklen] & term) == term)
@@ -302,7 +302,7 @@ class TermEval(object):
         self.cur_evals = len(block) / self.blocklen
 
         ln = len(block)
-        res_size = int(math.ceil(len(block) / float(self.blocklen)))
+        res_size = ln // self.blocklen
 
         if self.base is None or self.last_base_size != (self.blocklen, res_size):
             self.base = [None] * self.blocklen
