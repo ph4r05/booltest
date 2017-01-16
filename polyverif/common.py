@@ -9,7 +9,11 @@ import scipy.misc
 import ufx.uf_hash as ufh
 
 
+# Enables bitarray - with native C extension
 FAST_IMPL = True
+
+# Enables bitarray - with native C extension with eval_monic()
+FAST_IMPL_PH4 = True
 
 
 logger = logging.getLogger(__name__)
@@ -314,7 +318,7 @@ class TermEval(object):
             if self.last_base_size != (self.blocklen, res_size):
                 self.base[bitpos] = empty_bitarray(res_size)
 
-            if FAST_IMPL:
+            if FAST_IMPL_PH4:
                 self.base[bitpos].eval_monic(block, bitpos, self.blocklen)
 
             else:
@@ -322,8 +326,10 @@ class TermEval(object):
                 for idx in range(0, ln, self.blocklen):
                     self.base[bitpos][ctr] = block[idx+bitpos] == 1
                     ctr += 1
-                self.base[bitpos] = Bits(self.base[bitpos])
                 assert ctr == res_size
+
+            if not FAST_IMPL:
+                self.base[bitpos] = Bits(self.base[bitpos])
 
         self.last_base_size = (self.blocklen, res_size)
 
