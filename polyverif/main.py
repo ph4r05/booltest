@@ -138,10 +138,13 @@ class App(object):
 
                     data = fh.read(tvsize)
                     bits = common.to_bitarray(data)
+                    if len(bits) == 0:
+                        logger.info('File read completely')
+                        break
 
                     # pre-compute
-                    logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d, round: %d' %
-                                (deg, blocklen, tvsize, cur_round))
+                    logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d, round: %d, avail: %d' %
+                                (deg, blocklen, tvsize, cur_round, len(bits)))
 
                     term_eval.load(bits)
                     cur_round += 1
