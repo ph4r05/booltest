@@ -20,7 +20,7 @@ install_requires = [
     'scipy',
     'numpy',
     'bitstring',
-    'bitarray',
+    'bitarray_ph4',
     'ufx'
 ]
 
