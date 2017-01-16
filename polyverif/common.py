@@ -291,7 +291,7 @@ class TermEval(object):
     def gen_base(self, block):
         """
         Generate base for term evaluation from the block.
-        Evaluates each base term (deg=1) on the input, creates a base for further evaluation of terms of high orders.
+        Evaluates each base term (deg=1) on the input, creates a base for further evaluation of high order terms.
         :param block: bit representation of the input
         :return:
         """
@@ -314,14 +314,17 @@ class TermEval(object):
             if self.last_base_size != (self.blocklen, res_size):
                 self.base[bitpos] = empty_bitarray(res_size)
 
-            for idx in range(0, ln, self.blocklen):
-                self.base[bitpos][ctr] = block[idx+bitpos] == 1
-                ctr += 1
+            if FAST_IMPL:
+                self.base[bitpos].eval_monic(block, bitpos, self.blocklen)
 
-            if not FAST_IMPL:
+            else:
+                # For verification purposes we have also another independent evaluation here.
+                for idx in range(0, ln, self.blocklen):
+                    self.base[bitpos][ctr] = block[idx+bitpos] == 1
+                    ctr += 1
                 self.base[bitpos] = Bits(self.base[bitpos])
+                assert ctr == res_size
 
-            assert ctr == res_size
         self.last_base_size = (self.blocklen, res_size)
 
     def eval_term(self, term):
