@@ -364,7 +364,7 @@ class TermEval(object):
 
         hws = []
         res = empty_bitarray(len(self.base[0]))
-        for idx, term in enumerate(self.term_generator(deg)):
+        for term in self.term_generator(deg):
             res.setall(True)
             for i in range(0, deg):
                 res &= self.base[term[i]]
