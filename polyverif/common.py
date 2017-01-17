@@ -364,13 +364,23 @@ class TermEval(object):
 
         hws = []
         res = empty_bitarray(len(self.base[0]))
-        for term in self.term_generator(deg):
-            res.setall(True)
-            for i in range(0, deg):
-                res &= self.base[term[i]]
 
-            hw = self.hw(res)
-            hws.append(hw)
+        if FAST_IMPL_PH4:
+            for term in self.term_generator(deg):
+                res.fast_copy(self.base[term[0]])
+                for i in range(1, deg):
+                    res &= self.base[term[i]]
+
+                hw = self.hw(res)
+                hws.append(hw)
+        else:
+            for term in self.term_generator(deg):
+                res.setall(True)
+                for i in range(0, deg):
+                    res &= self.base[term[i]]
+
+                hw = self.hw(res)
+                hws.append(hw)
 
         return hws
 
