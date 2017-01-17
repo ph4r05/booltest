@@ -333,15 +333,22 @@ class TermEval(object):
 
         self.last_base_size = (self.blocklen, res_size)
 
-    def eval_term(self, term):
+    def eval_term(self, term, res=None):
         """
         Evaluates term on the block using the precomputed base.
         :param term: term represented as an array of bit positions
+        :param res: bitarray buffer to put result to
         :return: bit representation of the result, each bit represents single term evaluation on the given sub-block
         """
         ln = len(term)
-        res = to_bitarray(self.base[term[0]], const=False)
-        for i in range(1, ln):
+        idx_start = 1
+        if res is None:
+            res = to_bitarray(self.base[term[0]], const=False)
+        else:
+            idx_start = 0
+            res.setall(True)
+
+        for i in range(idx_start, ln):
             res &= self.base[term[i]]
         return res
 
@@ -356,8 +363,12 @@ class TermEval(object):
             deg = self.deg
 
         hws = []
+        res = empty_bitarray(len(self.base[0]))
         for idx, term in enumerate(self.term_generator(deg)):
-            res = self.eval_term(term)
+            res.setall(True)
+            for i in range(0, deg):
+                res &= self.base[term[i]]
+
             hw = self.hw(res)
             hws.append(hw)
 
