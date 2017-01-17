@@ -32,7 +32,7 @@ int randint(int n) {
   }
 }
 
-#define BUFSIZE 128
+#define BUFSIZE 1024
 
 int main(int argc, char * argv[]){
     if (argc == 1){
@@ -48,6 +48,7 @@ int main(int argc, char * argv[]){
             buff[i] = randint(256);
         }
         write(fileno(stdout), buff, BUFSIZE);
+	fflush(stdout);
     }
 
     return 0;
