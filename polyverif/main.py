@@ -60,6 +60,24 @@ class App(object):
         print(ones)
         # TODO: test slight bias - in the allowed boundaries...
 
+    def get_testing_polynomials(self):
+        return [
+            [[0]],
+            [[0, 1]],
+            [[0, 1, 2]],
+            [[0, 1, 2], [0]],
+            [[0, 1, 2], [0, 1]],
+            [[0, 1, 2], [3]],
+            [[0, 1, 2], [2, 3, 4]],
+            [[0, 1, 2], [1, 2, 3]],
+            [[0, 1, 2], [3, 4, 5]],
+            [[5, 6, 7], [8, 9, 10]],
+            [[5, 6, 7], [7, 8, 9]],
+            [[1, 2], [2, 3], [1, 3]],
+            [[0, 1, 2], [2, 3, 4], [5, 6, 7]],
+            [[0, 1, 2], [2, 3, 4], [1, 2, 3]],
+        ]
+
     def work(self):
         blocklen = int(self.defset(self.args.blocklen, 128))
         deg = int(self.defset(self.args.degree, 3))
@@ -78,22 +96,7 @@ class App(object):
                 term_map[dg].append(x)
 
         # specific polynomial testing
-        poly_test = [
-            [[0]],
-            [[0,1]],
-            [[0,1,2]],
-            [[0,1,2],[0]],
-            [[0,1,2],[0,1]],
-            [[0,1,2],[3]],
-            [[0,1,2],[2,3,4]],
-            [[0,1,2],[1,2,3]],
-            [[0,1,2],[3,4,5]],
-            [[5,6,7],[8,9,10]],
-            [[5,6,7],[7,8,9]],
-            [[1,2],[2,3],[1,3]],
-            [[0,1,2],[2,3,4],[5,6,7]],
-            [[0,1,2],[2,3,4],[1,2,3]],
-        ]
+        poly_test = self.get_testing_polynomials()
         poly_acc = [0] * len(poly_test)
 
         # test polynomials
