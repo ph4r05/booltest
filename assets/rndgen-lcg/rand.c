@@ -23,7 +23,7 @@ inline void lcgsrand(int x)
  
 inline int lcgrand()
 {
-    return (rseed = (rseed * 214013 + 2531011) & LCG_RAND_MAX_32) >> 16;
+    return (rseed = (rseed * 214013 + 2531011) & LCG_RAND_MAX_32);
 }
  
 int main(int argc, char * argv[])
