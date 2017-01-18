@@ -176,7 +176,7 @@ class App(object):
 
             # size smaller than TV? Adapt tv then
             if size < tvsize:
-                logger.warning('File size is smaller than TV, updating TV to %d' % size)
+                logger.info('File size is smaller than TV, updating TV to %d' % size)
                 tvsize = size
 
             term_eval = common.TermEval(blocklen=blocklen, deg=deg)
