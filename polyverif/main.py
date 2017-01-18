@@ -2,6 +2,7 @@ import argparse
 import logging, coloredlogs
 import common
 import os
+import re
 import sys
 import math
 import random
@@ -78,17 +79,74 @@ class App(object):
             [[0, 1, 2], [2, 3, 4], [1, 2, 3]],
         ]
 
+    def get_multiplier(self, char, is_ib=False):
+        """
+        Returns the multiplier factor of the multiplier character. if ib is enabled, powers of
+        1024 are returned, otherwise powers of 1000.
+
+        :param char:
+        :param is_ib:
+        :return:
+        """
+        if char is None or len(char) == 0:
+            return 1
+
+        char = char[:1].lower()
+        if char == 'k':
+            return 1024L if is_ib else 1000L
+        elif char == 'm':
+            return 1024L * 1024L if is_ib else 1000L * 1000L
+        elif char == 'g':
+            return 1024L * 1024L * 1024L if is_ib else 1000L * 1000L * 1000L
+        elif char == 't':
+            return 1024L * 1024L * 1024L * 1024L if is_ib else 1000L * 1000L * 1000L * 1000L
+        else:
+            raise ValueError('Unknown multiplier %s' % char)
+
+    def process_size(self, size_param):
+        """
+        Processes size parameter and evaluates the multipliers (e.g., 3M).
+        :param size_param:
+        :return:
+        """
+        if size_param is None:
+            return None
+
+        if isinstance(size_param, (int, long)):
+            return size_param
+
+        if not isinstance(size_param, basestring):
+            raise ValueError('Unknown type of the input parameter')
+
+        if len(size_param) == 0:
+            return None
+
+        if size_param.isdigit():
+            return long(size_param)
+
+        matches = re.match('^([0-9a-fA-F]+(.[0-9]+)?)([kKmMgGtT]([iI])?)?$', size_param)
+        if matches is None:
+            raise ValueError('Unknown size specifier')
+
+        is_ib = matches.group(4) is not None
+        mult_char = matches.group(3)
+        multiplier = self.get_multiplier(mult_char, is_ib)
+        return long(float(matches.group(1)) * multiplier)
+
     def work(self):
         blocklen = int(self.defset(self.args.blocklen, 128))
         deg = int(self.defset(self.args.degree, 3))
-        tvsize_orig = long(self.defset(self.args.tvsize, 1024*256))
+        tvsize_orig = long(self.defset(self.process_size(self.args.tvsize), 1024*256))
         zscore_thresh = float(self.args.conf)
         rounds = int(self.args.rounds) if self.args.rounds is not None else None
         top_k = int(self.args.topk) if self.args.topk is not None else None
         top_comb = int(self.defset(self.args.combdeg, 2))
         reffile = self.defset(self.args.reffile)
 
-        # prebuffer map 3deg terms
+        logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s, rounds: %s'
+                    % (deg, blocklen, tvsize_orig, rounds))
+
+        # Prebuffer map 3deg terms
         logger.info('Precomputing term mappings')
         term_map = [[] for x in range(deg+1)]
         for dg in range(1, deg+1):
