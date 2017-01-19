@@ -15,7 +15,7 @@
 int main(int argc, char * argv[]){
     tinymt32_t state;
     if (argc == 1){
-	tinymt32_init(&state, time(NULL));
+	    tinymt32_init(&state, 0);
     } else {
         tinymt32_init(&state, atoi(argv[1]));
     }
