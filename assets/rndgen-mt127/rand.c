@@ -25,13 +25,13 @@ int main(int argc, char * argv[]){
     for(;;){
         for(int i = 0; i<BUFSIZE; i+=4){
             uint32_t cur = tinymt32_generate_uint32(&state);
-	    buff[i+0] = cur & 0xff;
-	    buff[i+1] = (cur >> 8)  & 0xff;
-	    buff[i+2] = (cur >> 16) & 0xff;
-	    buff[i+3] = (cur >> 24) & 0xff;
+            buff[i+0] = cur & 0xff;
+            buff[i+1] = (cur >> 8)  & 0xff;
+            buff[i+2] = (cur >> 16) & 0xff;
+            buff[i+3] = (cur >> 24) & 0xff;
         }
         write(fileno(stdout), buff, BUFSIZE);
-	fflush(stdout);
+        fflush(stdout);
     }
 
     return 0;

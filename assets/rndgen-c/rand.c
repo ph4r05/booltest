@@ -48,7 +48,7 @@ int main(int argc, char * argv[]){
             buff[i] = randint(256);
         }
         write(fileno(stdout), buff, BUFSIZE);
-	fflush(stdout);
+	    fflush(stdout);
     }
 
     return 0;
