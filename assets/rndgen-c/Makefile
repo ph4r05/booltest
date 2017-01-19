@@ -9,4 +9,4 @@ rand:  rand.c
 	${CC} -c $<
 
 clean:
-	rm -rf *.o *~ *.dSYM
+	rm -rf *.o *~ *.dSYM rand
