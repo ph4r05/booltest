@@ -56,6 +56,10 @@ int main(int argc, char * argv[]){
     unif01_Gen * gen = ugfsr_CreateTT800(S);
 #   define GENWIDTH 4
 
+#elif defined(T800)
+    unif01_Gen * gen = ugfsr_CreateT800(S);
+#   define GENWIDTH 4
+
 #elif defined(TOOT73)
     unif01_Gen * gen = ugfsr_CreateToot73(S);
 #   define GENWIDTH 2
