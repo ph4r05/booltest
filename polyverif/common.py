@@ -164,6 +164,21 @@ def to_bitarray(inp=None, filename=None, const=True):
             raise ValueError('Unknown input')
 
 
+def build_term_map(deg, blocklen):
+    """
+    Builds term map (degree, index) -> term
+
+    :param deg:
+    :param blocklen:
+    :return:
+    """
+    term_map = [[0] * comb(blocklen, x, True) for x in range(deg + 1)]
+    for dg in range(1, deg + 1):
+        for idx, x in enumerate(term_generator(dg, blocklen - 1)):
+            term_map[dg][idx] = x
+    return term_map
+
+
 class TermEval(object):
     def __init__(self, blocklen=128, deg=1, *args, **kwargs):
         # block length in bits, term size.

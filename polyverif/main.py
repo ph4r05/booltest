@@ -148,10 +148,7 @@ class App(object):
 
         # Prebuffer map 3deg terms
         logger.info('Precomputing term mappings')
-        term_map = [[0] * common.comb(blocklen, x, True) for x in range(deg+1)]
-        for dg in range(1, deg+1):
-            for idx, x in enumerate(common.term_generator(dg, blocklen-1)):
-                term_map[dg][idx] = x
+        term_map = common.build_term_map(deg, blocklen)
 
         # specific polynomial testing
         poly_test = self.get_testing_polynomials()
