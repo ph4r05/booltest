@@ -397,7 +397,20 @@ class TermEval(object):
 
     def eval_all_terms(self, deg=None):
         """
-        Evaluates all terms up to deg.
+        Evaluates all terms of deg [1, deg].
+
+        Evaluation is done with a caching of the results from higher orders. e.g., when evaluating a+b+c,
+        the c goes over all possible options, a+b result is cached until b is changed.
+        The last order is evaluated in memory without actually storing an AND result anywhere.
+
+        The lower orders are evaluated as a side product of caching - each new cache entry means a new combination
+        of the lower order.
+
+        Some lower orders evaluations are not included in the caching, e.g., for 128, 3 combination, the highest
+        term in the ordering is [125, 126, 127] so with caching you cannot get [126, 127] evaluation.
+        To fill missing gaps we have a term generator for each lower degree, it runs in parallel with the caching
+        and if there are some missing terms we compute it mannualy - raw AND, without cache.
+
         :warning: Works only with fast ph4r05 implementation.
         :param deg:
         :return:
@@ -410,11 +423,11 @@ class TermEval(object):
             hw[idx] = [0] * self.num_terms(idx, False, exact=True)
 
         # deg1 is simple - just use HW on the basis
-        hw[1] = [self.hw(x) for x in self.base]
+        hw[1] = [x.count() for x in self.base]
         if deg <= 1:
             return hw
 
-        # deg2 is simple to compute without optimisations
+        # deg2 is simple to compute without optimisations, if it is the top order we are interested in.
         if deg == 2:
             hw[2] = [0] * self.num_terms(2, False, exact=True)
             for idx, term in enumerate(self.term_generator(2)):
@@ -422,16 +435,16 @@ class TermEval(object):
             return hw
 
         # deg3 and more - optimisations in place.
-        # Remember last configurations.
         base_len = len(self.base[0])
 
-        # temp buffer for adding missing evaluations
+        # temp buffer for computing missing evaluations
         res = empty_bitarray(base_len)
 
         # Sub evaluations of high orders.
         # Has deg-1 as it makes no sense to cache the last term - it is the result directly.
-        # sub[0] = a+b    - deg2 result
-        # sub[1] = a+b+c  - deg3 result
+        # sub[0] = a      - deg1 result - basis reference
+        # sub[1] = a+b    - deg2 result
+        # sub[2] = a+b+c  - deg3 result
         sub = [empty_bitarray(base_len) for x in range(0, deg-1)]
 
         # Lower degree indices update here.
@@ -440,8 +453,9 @@ class TermEval(object):
         # Lower degree generators for filling up missing pieces
         subgen = [self.term_generator(x) for x in range(1, deg+1)]
 
+        # last term indices to detect changes in orders
         # lst = [0,1,2,3,4,5] - for deg 6
-        lst = [-1] * deg                # last term indices
+        lst = [-1] * deg
 
         for idx, term in enumerate(self.term_generator(deg)):
             # Has high order cached element changed?
@@ -459,7 +473,7 @@ class TermEval(object):
                 # Recompute changed, from the more general to less. e.g., from a+b to a+b+c+d+e+f....
                 for chidx in range(changed_from, deg-1):
                     if chidx == 0:
-                        sub[chidx].fast_copy(self.base[term[0]])
+                        sub[chidx] = self.base[term[0]]
                     else:             # recursive definition - use the previous result.
                         sub[chidx].fast_copy(sub[chidx-1])
                         sub[chidx] &= self.base[term[chidx]]
