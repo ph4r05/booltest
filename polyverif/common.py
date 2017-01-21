@@ -395,6 +395,111 @@ class TermEval(object):
         assert ctr == len(hws)
         return hws
 
+    def eval_all_terms(self, deg=None):
+        """
+        Evaluates all terms up to deg.
+        :warning: Works only with fast ph4r05 implementation.
+        :param deg:
+        :return:
+        """
+        if deg is None:
+            deg = self.deg
+
+        hw = [[]] * (deg+1)
+        for idx in range(1, deg+1):
+            hw[idx] = [0] * self.num_terms(idx, False, exact=True)
+
+        # deg1 is simple - just use HW on the basis
+        hw[1] = [self.hw(x) for x in self.base]
+        if deg <= 1:
+            return hw
+
+        # deg2 is simple to compute without optimisations
+        if deg == 2:
+            hw[2] = [0] * self.num_terms(2, False, exact=True)
+            for idx, term in enumerate(self.term_generator(2)):
+                hw[2][idx] = self.base[term[0]].fast_hw_and(self.base[term[1]])
+            return hw
+
+        # deg3 and more - optimisations in place.
+        # Remember last configurations.
+        base_len = len(self.base[0])
+
+        # temp buffer for adding missing evaluations
+        res = empty_bitarray(base_len)
+
+        # Sub evaluations of high orders.
+        # Has deg-1 as it makes no sense to cache the last term - it is the result directly.
+        # sub[0] = a+b    - deg2 result
+        # sub[1] = a+b+c  - deg3 result
+        sub = [empty_bitarray(base_len) for x in range(0, deg-1)]
+
+        # Lower degree indices update here.
+        subdg = [0] * deg
+
+        # Lower degree generators for filling up missing pieces
+        subgen = [self.term_generator(x) for x in range(1, deg+1)]
+
+        # lst = [0,1,2,3,4,5] - for deg 6
+        lst = [-1] * deg                # last term indices
+
+        for idx, term in enumerate(self.term_generator(deg)):
+            # Has high order cached element changed?
+            # Make a diff term vs lst. If there is a diff, recompute cached sub-results.
+            if term[:-1] != lst[:-1]:
+                # Get the leftmost index in the term list where the change happened.
+                # The 0 index is not considered as this change is not interesting - it is base[] anyway.
+                # Thus domain of changed_from is 1 .. deg-2
+                changed_from = deg-2
+                for chidx in range(0, deg-1):
+                    changed_from = chidx
+                    if term[chidx] != lst[chidx]:
+                        break
+
+                # Recompute changed, from the more general to less. e.g., from a+b to a+b+c+d+e+f....
+                for chidx in range(changed_from, deg-1):
+                    if chidx == 0:
+                        sub[chidx].fast_copy(self.base[term[0]])
+                    else:             # recursive definition - use the previous result.
+                        sub[chidx].fast_copy(sub[chidx-1])
+                        sub[chidx] &= self.base[term[chidx]]
+
+                        # Run update generator up to this position to fill missing pieces
+                        # Missing piece = [126,127] for deg = 3 cos max elem is [125,126,127]
+                        for missing_piece in subgen[chidx]:
+                            if missing_piece == term[0: 1 + chidx]:
+                                break
+                            res.fast_copy(self.base[missing_piece[0]])
+                            for subi in range(1, 1+chidx):
+                                res &= self.base[missing_piece[subi]]
+
+                            hw[1 + chidx][subdg[chidx]] = res.count()
+                            subdg[chidx] += 1
+                            # logger.info('Fill in missing: %s, cur: %s' % (missing_piece, term[0: 1 + chidx]))
+
+                        # Update lower degree HW
+                        hw[1 + chidx][subdg[chidx]] = sub[chidx].count()
+                        subdg[chidx] += 1
+
+            # Evaluate the current expression using the cached results + fast hw.
+            hw[deg][idx] = sub[deg-2].fast_hw_and(self.base[term[deg-1]])
+
+            # copy the last term
+            lst = term
+
+        # Finish generators - add missing pieces
+        for finish_deg in range(2, deg):
+            for missing_piece in subgen[finish_deg-1]:
+                res.fast_copy(self.base[missing_piece[0]])
+                for subi in range(1, finish_deg):
+                    res &= self.base[missing_piece[subi]]
+
+                hw[finish_deg][subdg[finish_deg-1]] = res.count()
+                subdg[finish_deg-1] += 1
+                # logger.info('Missing piece: %s' % missing_piece)
+
+        return hw
+
     def eval_terms_raw_slow(self, deg, include_all_below, hws, res=None):
         """
         Subroutine for evaluating all terms, the slower one without our bitarray optimisations.
