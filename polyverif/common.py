@@ -333,6 +333,23 @@ class TermEval(object):
 
         self.last_base_size = (self.blocklen, res_size)
 
+    def num_terms(self, deg, include_all_below=False, exact=False):
+        """
+        Computes number of terms of given degree.
+        :param deg:
+        :param include_all_below: if true, all lower degree counts are summed
+        :param exact: if true exact value is computed. Otherwise just approximation is given (larger).
+        :return:
+        """
+        if deg == 1:
+            return self.blocklen
+
+        rng = range(1 if include_all_below else deg, deg+1)
+        if exact:
+            return sum([long(comb(self.blocklen, x, True)) for x in rng])
+        else:
+            return sum([long(comb(self.blocklen, x, False) + 2) for x in rng])
+
     def eval_term(self, term, res=None):
         """
         Evaluates term on the block using the precomputed base.
