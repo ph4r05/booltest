@@ -388,9 +388,9 @@ class TermEval(object):
         ctr = 0
         for term in self.term_generator(deg):
             res.fast_copy(self.base[term[0]])      # Copy the first term to the result
-            for i in range(1, deg):                # And the remaining terms
+            for i in range(1, deg-1):              # And the remaining terms
                 res &= self.base[term[i]]
-            hws[ctr] = self.hw(res)
+            hws[ctr] = res.fast_hw_and(self.base[term[deg-1]])
             ctr += 1
         assert ctr == len(hws)
         return hws
