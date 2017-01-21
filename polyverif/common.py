@@ -379,25 +379,45 @@ class TermEval(object):
         if deg is None:
             deg = self.deg
 
-        hws = []
+        hws = [0] * self.num_terms(deg, False, exact=True)
         res = empty_bitarray(len(self.base[0]))
 
-        if FAST_IMPL_PH4:
-            for term in self.term_generator(deg):
-                res.fast_copy(self.base[term[0]])
-                for i in range(1, deg):
-                    res &= self.base[term[i]]
+        if not FAST_IMPL_PH4:
+            return self.eval_terms_raw_slow(deg, False, hws, res=res)
 
-                hw = self.hw(res)
-                hws.append(hw)
-        else:
+        ctr = 0
+        for term in self.term_generator(deg):
+            res.fast_copy(self.base[term[0]])      # Copy the first term to the result
+            for i in range(1, deg):                # And the remaining terms
+                res &= self.base[term[i]]
+            hws[ctr] = self.hw(res)
+            ctr += 1
+        assert ctr == len(hws)
+        return hws
+
+    def eval_terms_raw_slow(self, deg, include_all_below, hws, res=None):
+        """
+        Subroutine for evaluating all terms, the slower one without our bitarray optimisations.
+        Should be used only for testing.
+        :param deg:
+        :param include_all_below:
+        :param hws: hamming weight accumulator
+        :param res: working bitarray buffer
+        :return:
+        """
+        if res is None:
+            res = empty_bitarray(len(self.base[0]))
+
+        ctr = 0
+        for cur_deg in range(1 if include_all_below else deg, deg + 1):
             for term in self.term_generator(deg):
                 res.setall(True)
                 for i in range(0, deg):
                     res &= self.base[term[i]]
 
                 hw = self.hw(res)
-                hws.append(hw)
+                hws[ctr] = hw
+                ctr += 1
 
         return hws
 
