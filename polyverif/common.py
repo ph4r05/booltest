@@ -478,17 +478,15 @@ class TermEval(object):
             return hw
 
         # deg3 and more - optimisations in place.
-        base_len = len(self.base[0])
-
         # temp buffer for computing missing evaluations
-        res = empty_bitarray(base_len)
+        res = self.new_buffer()
 
         # Sub evaluations of high orders.
         # Has deg-1 as it makes no sense to cache the last term - it is the result directly.
         # sub[0] = a      - deg1 result - basis reference
         # sub[1] = a+b    - deg2 result
         # sub[2] = a+b+c  - deg3 result
-        sub = [empty_bitarray(base_len) for x in range(0, deg-1)]
+        sub = [self.new_buffer() for _ in range(0, deg-1)]
 
         # Lower degree indices update here.
         subdg = [0] * deg
@@ -568,7 +566,7 @@ class TermEval(object):
         :return:
         """
         if res is None:
-            res = empty_bitarray(len(self.base[0]))
+            res = self.new_buffer()
 
         ctr = 0
         for cur_deg in range(1 if include_all_below else deg, deg + 1):
