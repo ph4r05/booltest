@@ -207,6 +207,20 @@ class TermEval(object):
         self.cur_evals = None
         self.last_base_size = None
 
+    def base_size(self):
+        """
+        Returns base size of the vector - same as size of the base
+        :return:
+        """
+        return len(self.base[0])
+
+    def new_buffer(self):
+        """
+        Returns the allocated bitarray - non-intiialized of the size of the base.
+        :return:
+        """
+        return empty_bitarray(len(self.base[0]))
+
     def gen_term(self, indices, blocklen=None):
         """
         Generates a bit term mask from the indices created by term_generator().
