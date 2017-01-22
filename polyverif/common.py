@@ -139,7 +139,7 @@ def empty_bitarray(size=None):
             return BitArray(uint=0, length=size)
 
 
-def to_bitarray(inp=None, filename=None, const=True):
+def to_bitarray(inp=None, const=True):
     """
     Converts input to bitarray for computation with TermEval
     :return:
