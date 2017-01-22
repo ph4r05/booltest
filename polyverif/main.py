@@ -32,6 +32,144 @@ def bar_chart(sources=None, values=None, res=None, error=None, xlabel=None, titl
     plt.show()
 
 
+class HWAnalysis(object):
+    """
+    Analysis of all deg poly
+    """
+    def __init__(self, *args, **kwargs):
+        self.term_map = []
+        self.term_eval = None
+
+        self.blocklen = None
+        self.deg = 3
+        self.top_k = None
+        self.top_comb = None
+        self.zscore_thresh = 1.96
+
+        self.total_hws = []
+        self.total_n = 0
+
+    def init(self):
+        logger.info('Precomputing term mappings')
+        self.term_map = common.build_term_map(self.deg, self.blocklen)
+        self.term_eval = common.TermEval(blocklen=self.blocklen, deg=self.deg)
+        self.total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
+
+    def proces_chunk(self, bits):
+        # Compute the basis.
+        self.term_eval.load(bits)
+
+        # Evaluate all terms of degrees 1..deg
+        logger.info('Evaluating all terms')
+        hws2 = self.term_eval.eval_all_terms(self.deg)
+        logger.info('Done: %s' % [len(x) for x in hws2])
+
+        # Accumulate hws to the results.
+        for d in range(1, self.deg+1):
+            for i in range(len(self.total_hws[d])):
+                self.total_hws[d][i] += hws2[d][i]
+        self.total_n += self.term_eval.cur_evals
+
+        # Done.
+        self.analyse(hws2, self.term_eval.cur_evals)
+
+    def finished(self):
+        """
+        All data read - final analysis.
+        :return:
+        """
+        self.analyse(self.total_hws, self.total_n)
+
+    def analyse(self, hws, num_evals):
+        """
+        Analyse hamming weights
+        :param hws:
+        :return:
+        """
+
+        probab = [self.term_eval.expp_term_deg(d) for d in range(0, self.deg + 1)]
+        exp_count = [num_evals * x for x in probab]
+        print(probab)
+        print(exp_count)
+
+        top_terms = []
+        top_poly = []
+
+        difs = [None] * (self.deg + 1)
+        zscores = [None] * (self.deg + 1)
+        for d in range(1, self.deg+1):
+            difs[d] = [(abs(x - exp_count[d]), idx, d) for idx, x in enumerate(hws[d])]
+            difs[d].sort(key=lambda x: x[0], reverse=True)
+            zscores[d] = [common.zscore(x, exp_count[d], num_evals) for x in hws[d]]
+
+            # Selecting TOP k polynomials
+            for x in difs[d][0:15]:
+                observed = hws[d][x[1]]
+                zscore = common.zscore(observed, exp_count[d], num_evals)
+                fail = 'x' if abs(zscore) > self.zscore_thresh else ' '
+                print(' - zscore: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
+                      % (zscore, observed, exp_count[d], fail, x[1], self.term_map[d][x[1]]))
+
+            # Take top X best polynomials
+            if self.top_k is None:
+                continue
+
+            top_terms += [self.term_map[d][x[1]] for x in difs[d][0: (None if self.top_k < 0 else self.top_k)]]
+
+            mean_zscore = sum(zscores[d])/float(len(zscores[d]))
+            fails = sum([1 for x in zscores[d] if abs(x) > self.zscore_thresh])
+            fails_fraction = float(fails)/len(zscores[d])
+            # total_fails.append(fails_fraction)
+            print('Mean zscore: %s' % mean_zscore)
+            print('Num of fails: %s = %02f.5%%' % (fails, 100.0*fails_fraction))
+
+        if self.top_k is None:
+            return
+
+        # Combine & store the results - XOR
+        top_res = []
+        logger.info('Combining...')
+        Combined = collections.namedtuple('Combined', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore'])
+
+        for top_comb_cur in range(1, self.top_comb + 1):
+            for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1)):
+                # Create a new polynomial
+                poly = [top_terms[x] for x in places]
+                # Compute expected value
+                expp = self.term_eval.expp_poly(poly)
+                # Expected counts
+                exp_cnt = num_evals * expp
+                # Evaluate polynomial
+                obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly))
+                # ZScore
+                zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
+                comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+                top_res.append(comb)
+
+            # Combine & store results - AND
+            for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1)):
+                # Create a new polynomial
+                poly = [reduce(lambda x, y: x + y, [top_terms[x] for x in places])]
+                # Compute expected value
+                expp = self.term_eval.expp_poly(poly)
+                # Expected counts
+                exp_cnt = self.term_eval.cur_evals * expp
+                # Evaluate polynomial
+                obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly))
+                # ZScore
+                zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
+                comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+                top_res.append(comb)
+
+        logger.info('Evaluating')
+        top_res.sort(key=lambda x: abs(x.zscore), reverse=True)
+        for i in range(min(len(top_res), 30)):
+            comb = top_res[i]
+            print(' - best poly zscore %9.5f, expp: %.4f, exp: %4d, obs: %s, diff: %f %%, poly: %s'
+                  % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
+                     100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, sorted(comb.poly)))
+
+
 # Main - argument parsing + processing
 class App(object):
     def __init__(self, *args, **kwargs):
