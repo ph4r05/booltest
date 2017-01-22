@@ -280,22 +280,24 @@ class App(object):
         top_k = int(self.args.topk) if self.args.topk is not None else None
         top_comb = int(self.defset(self.args.combdeg, 2))
         reffile = self.defset(self.args.reffile)
+        all_deg = self.args.alldeg
 
         logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s, rounds: %s'
                     % (deg, blocklen, tvsize_orig, rounds))
 
         # Prebuffer map 3deg terms
-        logger.info('Precomputing term mappings')
-        term_map = common.build_term_map(deg, blocklen)
+        # logger.info('Precomputing term mappings')
+        # term_map = common.build_term_map(deg, blocklen)
 
         # specific polynomial testing
+        logger.info('Initialising')
         poly_test = self.get_testing_polynomials()
         poly_acc = [0] * len(poly_test)
 
         # test polynomials
         term_eval = common.TermEval(blocklen=blocklen, deg=deg)
         for idx, poly in enumerate(poly_test):
-            print('Test poylnomial: %02d, %s' % (idx, poly))
+            print('Test polynomial: %02d, %s' % (idx, poly))
             expp = term_eval.expp_poly(poly)
             print('  Expected probability: %s' % expp)
 
@@ -314,9 +316,16 @@ class App(object):
                 logger.info('File size is smaller than TV, updating TV to %d' % size)
                 tvsize = size
 
-            term_eval = common.TermEval(blocklen=blocklen, deg=deg)
+            hwanalysis = HWAnalysis()
+            hwanalysis.deg = deg
+            hwanalysis.blocklen = blocklen
+            hwanalysis.top_comb = top_comb
+            hwanalysis.top_k = top_k
+            logger.info('Initializing test')
+            hwanalysis.init()
 
-            total_terms = long(round(scipy.misc.comb(blocklen, deg)))
+            term_eval = common.TermEval(blocklen=blocklen, deg=deg)
+            total_terms = long(scipy.misc.comb(blocklen, deg, True))
             logger.info('BlockLength: %d, deg: %d, terms: %d' % (blocklen, deg, total_terms))
 
             # read the file until there is no data.
@@ -342,154 +351,163 @@ class App(object):
                     logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d, round: %d, avail: %d' %
                                 (deg, blocklen, tvsize, cur_round, len(bits)))
 
-                    term_eval.load(bits)
-                    cur_round += 1
-
-                    # evaluate all terms of the given degree
-                    logger.info('Evaluating all terms')
-                    probab = term_eval.expp_term_deg(deg)
-                    exp_count = term_eval.cur_evals * probab
-                    hws = term_eval.eval_terms(deg)
-
-                    for idx, x in enumerate(hws):
-                        total_hws[idx] += x
-                    total_n += term_eval.cur_evals
-
-                    difs = [(abs(x-exp_count), idx) for idx,x in enumerate(hws)]
-                    difs.sort(key=lambda x: x[0], reverse=True)
-                    zscores = [common.zscore(x, exp_count, term_eval.cur_evals) for x in hws]
-
-                    # top x diffs
-                    for x in difs[0:10]:
-                        observed = hws[x[1]]
-                        zscore = common.zscore(observed, exp_count, term_eval.cur_evals)
-                        fail = 'x' if abs(zscore) > zscore_thresh else ' '
-                        print(' - zscore: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
-                              % (zscore, observed, exp_count, fail, x[1], term_map[deg][x[1]]))
-
-                    mean = sum(hws)/float(len(hws))
-                    mean_zscore = sum(zscores)/float(len(zscores))
-
-                    fails = sum([1 for x in zscores if abs(x) > zscore_thresh])
-                    fails_fraction = float(fails)/len(zscores)
-                    total_fails.append(fails_fraction)
-                    print('Mean value: %s' % mean)
-                    print('Mean zscore: %s' % mean_zscore)
-                    print('Num of fails: %s = %02f.5%%' % (fails, 100.0*fails_fraction))
-
-                    # take top X best polynomials
-                    top_poly = []
-                    if top_k is not None:
-                        top_k_cur = len(difs) if top_k < 0 else top_k
-                        top_terms_idx = set([x[1] for x in difs[:top_k_cur]])
-                        top_terms = []
-                        for idx, term in enumerate(term_eval.term_generator(deg)):
-                            if idx in top_terms_idx:
-                                top_terms.append(term)
-
-                        # Combine & store the results - XOR
-                        top_res = []
-                        logger.info('Combining...')
-                        Combined = collections.namedtuple('Combined', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore'])
-
-                        for top_comb_cur in range(2, top_comb+1):
-                            for idx, places in enumerate(common.term_generator(top_comb_cur, top_k-1)):
-                                # Create a new polynomial
-                                poly = [top_terms[x] for x in places]
-                                # Compute expected value
-                                expp = term_eval.expp_poly(poly)
-                                # Expected counts
-                                exp_cnt = term_eval.cur_evals * expp
-                                # Evaluate polynomial
-                                obs_cnt = term_eval.hw(term_eval.eval_poly(poly))
-                                # ZScore
-                                zscore = common.zscore(obs_cnt, exp_cnt, term_eval.cur_evals)
-                                comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
-                                top_res.append(comb)
-
-                            # Combine & store results - AND
-                            logger.info('Combining...')
-                            Combined = collections.namedtuple('Combined', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore'])
-                            for idx, places in enumerate(common.term_generator(top_comb_cur, top_k - 1)):
-                                # Create a new polynomial
-                                poly = [reduce(lambda x, y: x + y, [top_terms[x] for x in places])]
-                                # Compute expected value
-                                expp = term_eval.expp_poly(poly)
-                                # Expected counts
-                                exp_cnt = term_eval.cur_evals * expp
-                                # Evaluate polynomial
-                                obs_cnt = term_eval.hw(term_eval.eval_poly(poly))
-                                # ZScore
-                                zscore = common.zscore(obs_cnt, exp_cnt, term_eval.cur_evals)
-                                comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
-                                top_res.append(comb)
-
-                        logger.info('Evaluating')
-                        top_res.sort(key=lambda x: abs(x.zscore), reverse=True)
-                        for i in range(min(len(top_res), 10)):
-                            comb = top_res[i]
-                            print(' - best poly zscore %9.5f, expp: %.4f, exp: %4d, obs: %s, diff: %f %%, poly: %s'
-                                  % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
-                                     100.0*(comb.exp_cnt - comb.obs_cnt)/comb.exp_cnt, sorted(comb.poly)))
-
-                    # Polynomial test here
-                    for idx, poly in enumerate(poly_test):
-                        poly_acc[idx] += term_eval.hw(term_eval.eval_poly(poly))
-
-                # test polynomials
-                for idx, poly in enumerate(poly_test):
-                    print('Test polynomial %02d: %s' % (idx, poly))
-                    expp = term_eval.expp_poly(poly)
-                    exp_cnt = total_n * expp
-                    obs_cnt = poly_acc[idx]
-                    zscore = common.zscore(obs_cnt, exp_cnt, total_n)
-                    print('  Expected probability: %s' % expp)
-                    print('  Expected cnt: %10d, observed cnt: %10d, diff: %s, diff %02f %%'
-                          % (exp_cnt, obs_cnt, exp_cnt-obs_cnt, 100.0*(exp_cnt-obs_cnt) / float(exp_cnt)))
-                    print('  Zscore: %s' % zscore)
-
-                total_fails_avg = float(sum(total_fails)) / len(total_fails)
-                print('Total fails: %s' % total_fails)
-                print('Total fails avg: %f%%' % (100.0*total_fails_avg))
-
-                exp_count = term_eval.expp_term_deg(deg) * float(total_n)
-                difs = [(abs(x - exp_count), idx) for idx, x in enumerate(total_hws)]
-                difs.sort(key=lambda x: x[0], reverse=True)
-                zscores = [common.zscore(x, exp_count, total_n) for x in total_hws]
-
-                # top x diffs
-                for x in difs[0:10]:
-                    observed = total_hws[x[1]]
-                    zscore = common.zscore(observed, exp_count, total_n)
-                    fail = 'x' if abs(zscore) > zscore_thresh else ' '
-                    print(' - zscore: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
-                          % (zscore, observed, exp_count, fail, x[1], term_map[deg][x[1]]))
-
-                mean = sum(total_hws) / float(len(total_hws))
-                mean_zscore = sum(zscores) / float(len(zscores))
-
-                fails = sum([1 for x in zscores if abs(x) > zscore_thresh])
-                fails_fraction = float(fails) / len(zscores)
-                total_fails.append(fails_fraction)
-                print('Mean value: %s' % mean)
-                print('Mean zscore: %s' % mean_zscore)
-                print('Num of fails: %s = %02f.5%%' % (fails, 100.0 * fails_fraction))
-
-                # bar_data = []
-                # for idx, x in enumerate(total_hws):
-                #     bar_data.append((idx, x-exp_count))
+                    hwanalysis.proces_chunk(bits)
+                #
+                #     term_eval.load(bits)
+                #     cur_round += 1
+                #
+                #     # evaluate all terms of the given degree
+                #     logger.info('Evaluating all terms')
+                #     probab = term_eval.expp_term_deg(deg)
+                #     exp_count = term_eval.cur_evals * probab
+                #     #hws = term_eval.eval_terms(deg)
+                #     logger.info('Evaluating all terms + sub')
+                #     hws2 = term_eval.eval_all_terms(deg)
+                #     hws = hws2[deg]
+                #     logger.info('Done')
+                #
+                #     for idx, x in enumerate(hws):
+                #         y = hws2[3][idx]
+                #         if x != y:
+                #             print('oh snap %d %d # %d' % (x,y, idx))
+                #         total_hws[idx] += x
+                #     total_n += term_eval.cur_evals
+                #
+                #     difs = [(abs(x-exp_count), idx) for idx, x in enumerate(hws)]
+                #     difs.sort(key=lambda x: x[0], reverse=True)
+                #     zscores = [common.zscore(x, exp_count, term_eval.cur_evals) for x in hws]
+                #
+                #     # top x diffs
+                #     for x in difs[0:10]:
+                #         observed = hws[x[1]]
+                #         zscore = common.zscore(observed, exp_count, term_eval.cur_evals)
+                #         fail = 'x' if abs(zscore) > zscore_thresh else ' '
+                #         print(' - zscore: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
+                #               % (zscore, observed, exp_count, fail, x[1], term_map[deg][x[1]]))
+                #
+                #     mean = sum(hws)/float(len(hws))
+                #     mean_zscore = sum(zscores)/float(len(zscores))
+                #
+                #     fails = sum([1 for x in zscores if abs(x) > zscore_thresh])
+                #     fails_fraction = float(fails)/len(zscores)
+                #     total_fails.append(fails_fraction)
+                #     print('Mean value: %s' % mean)
+                #     print('Mean zscore: %s' % mean_zscore)
+                #     print('Num of fails: %s = %02f.5%%' % (fails, 100.0*fails_fraction))
+                #
+                #     # take top X best polynomials
+                #     top_poly = []
+                #     if top_k is not None:
+                #         top_k_cur = len(difs) if top_k < 0 else top_k
+                #         top_terms_idx = set([x[1] for x in difs[:top_k_cur]])
+                #         top_terms = []
+                #         for idx, term in enumerate(term_eval.term_generator(deg)):
+                #             if idx in top_terms_idx:
+                #                 top_terms.append(term)
+                #
+                #         # Combine & store the results - XOR
+                #         top_res = []
+                #         logger.info('Combining...')
+                #         Combined = collections.namedtuple('Combined', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore'])
+                #
+                #         for top_comb_cur in range(1, top_comb+1):
+                #             for idx, places in enumerate(common.term_generator(top_comb_cur, top_k-1)):
+                #                 # Create a new polynomial
+                #                 poly = [top_terms[x] for x in places]
+                #                 # Compute expected value
+                #                 expp = term_eval.expp_poly(poly)
+                #                 # Expected counts
+                #                 exp_cnt = term_eval.cur_evals * expp
+                #                 # Evaluate polynomial
+                #                 obs_cnt = term_eval.hw(term_eval.eval_poly(poly))
+                #                 # ZScore
+                #                 zscore = common.zscore(obs_cnt, exp_cnt, term_eval.cur_evals)
+                #                 comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+                #                 top_res.append(comb)
+                #
+                #             # Combine & store results - AND
+                #             for idx, places in enumerate(common.term_generator(top_comb_cur, top_k - 1)):
+                #                 # Create a new polynomial
+                #                 poly = [reduce(lambda x, y: x + y, [top_terms[x] for x in places])]
+                #                 # Compute expected value
+                #                 expp = term_eval.expp_poly(poly)
+                #                 # Expected counts
+                #                 exp_cnt = term_eval.cur_evals * expp
+                #                 # Evaluate polynomial
+                #                 obs_cnt = term_eval.hw(term_eval.eval_poly(poly))
+                #                 # ZScore
+                #                 zscore = common.zscore(obs_cnt, exp_cnt, term_eval.cur_evals)
+                #                 comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+                #                 top_res.append(comb)
+                #
+                #         logger.info('Evaluating')
+                #         top_res.sort(key=lambda x: abs(x.zscore), reverse=True)
+                #         for i in range(min(len(top_res), 10)):
+                #             comb = top_res[i]
+                #             print(' - best poly zscore %9.5f, expp: %.4f, exp: %4d, obs: %s, diff: %f %%, poly: %s'
+                #                   % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
+                #                      100.0*(comb.exp_cnt - comb.obs_cnt)/comb.exp_cnt, sorted(comb.poly)))
+                #
+                #     # Polynomial test here
+                #     for idx, poly in enumerate(poly_test):
+                #         poly_acc[idx] += term_eval.hw(term_eval.eval_poly(poly))
+                #
+                # # test polynomials
+                # print('-'*80)
+                # logger.info('Summary stats:')
+                # for idx, poly in enumerate(poly_test):
+                #     print('Test polynomial %02d: %s' % (idx, poly))
+                #     expp = term_eval.expp_poly(poly)
+                #     exp_cnt = total_n * expp
+                #     obs_cnt = poly_acc[idx]
+                #     zscore = common.zscore(obs_cnt, exp_cnt, total_n)
+                #     print('  Expected probability: %s' % expp)
+                #     print('  Expected cnt: %10d, observed cnt: %10d, diff: %s, diff %02f %%'
+                #           % (exp_cnt, obs_cnt, exp_cnt-obs_cnt, 100.0*(exp_cnt-obs_cnt) / float(exp_cnt)))
+                #     print('  Zscore: %s' % zscore)
+                #
+                # total_fails_avg = float(sum(total_fails)) / len(total_fails)
+                # print('Total fails: %s' % total_fails)
+                # print('Total fails avg: %f%%' % (100.0*total_fails_avg))
+                #
+                # exp_count = term_eval.expp_term_deg(deg) * float(total_n)
+                # difs = [(abs(x - exp_count), idx) for idx, x in enumerate(total_hws)]
+                # difs.sort(key=lambda x: x[0], reverse=True)
+                # zscores = [common.zscore(x, exp_count, total_n) for x in total_hws]
+                #
+                # # top x diffs
+                # for x in difs[0:10]:
+                #     observed = total_hws[x[1]]
+                #     zscore = common.zscore(observed, exp_count, total_n)
+                #     fail = 'x' if abs(zscore) > zscore_thresh else ' '
+                #     print(' - zscore: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
+                #           % (zscore, observed, exp_count, fail, x[1], term_map[deg][x[1]]))
+                #
+                # mean = sum(total_hws) / float(len(total_hws))
+                # mean_zscore = sum(zscores) / float(len(zscores))
+                #
+                # fails = sum([1 for x in zscores if abs(x) > zscore_thresh])
+                # fails_fraction = float(fails) / len(zscores)
+                # total_fails.append(fails_fraction)
+                # print('Mean value: %s' % mean)
+                # print('Mean zscore: %s' % mean_zscore)
+                # print('Num of fails: %s = %02f.5%%' % (fails, 100.0 * fails_fraction))
+                #
+                # # bar_data = []
+                # # for idx, x in enumerate(total_hws):
+                # #     bar_data.append((idx, x-exp_count))
+                # # bar_chart(res=bar_data)
+                #
+                # bar_data = [[x, 0] for x in range(blocklen)]
+                # for x in difs:
+                #     observed = total_hws[x[1]]
+                #     zscore = common.zscore(observed, exp_count, total_n)
+                #     if abs(zscore) < zscore_thresh:
+                #         break
+                #     term = term_map[deg][x[1]]
+                #     for bit in term:
+                #         bar_data[bit][1] += 1
                 # bar_chart(res=bar_data)
-
-                bar_data = [[x, 0] for x in range(blocklen)]
-                for x in difs:
-                    observed = total_hws[x[1]]
-                    zscore = common.zscore(observed, exp_count, total_n)
-                    if abs(zscore) < zscore_thresh:
-                        break
-                    term = term_map[deg][x[1]]
-                    for bit in term:
-                        bar_data[bit][1] += 1
-                bar_chart(res=bar_data)
 
     def main(self):
         logger.debug('App started')
@@ -520,6 +538,9 @@ class App(object):
 
         parser.add_argument('--conf', dest='conf', type=float, default=1.96,
                             help='Zscore failing threshold')
+
+        parser.add_argument('--alldeg', dest='alldeg', action='store_const', const=True, default=False,
+                            help='Evaluate all degree of polynomials to the threshold, e.g., 1,2,3 for deg 3')
 
         parser.add_argument('--stdin', dest='verbose', action='store_const', const=True,
                             help='read data from STDIN')
