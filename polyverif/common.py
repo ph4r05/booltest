@@ -581,16 +581,21 @@ class TermEval(object):
 
         return hws
 
-    def eval_poly(self, poly):
+    def eval_poly(self, poly, res=None, subres=None):
         """
         Evaluates a polynomial on the input precomputed data
         :param poly: polynomial specified as [term, term, term], e.g. [[1,2], [3,4], [5,6]] == x1x2 + x3x4 + x5x6
         :return:
         """
         ln = len(poly)
-        res = self.eval_term(poly[0])
+        if res is None:
+            res = self.new_buffer()
+        if subres is None:
+            subres = self.new_buffer()
+
+        self.eval_term(poly[0], res=res)
         for i in range(1, ln):
-            res ^= self.eval_term(poly[i])
+            res ^= self.eval_term(poly[i], res=subres)
         return res
 
     def expp_term_deg(self, deg):
