@@ -164,6 +164,20 @@ def to_bitarray(inp=None, const=True):
             raise ValueError('Unknown input')
 
 
+def clone_bitarray(other, src=None):
+    """
+    Fast clone of the bit array. The actual function used depends on the implementation
+    :param other:
+    :param src:
+    :return:
+    """
+    if FAST_IMPL_PH4 and src is not None:
+        src.fast_copy(other)
+        return src
+
+    return to_bitarray(other)
+
+
 def build_term_map(deg, blocklen):
     """
     Builds term map (degree, index) -> term
