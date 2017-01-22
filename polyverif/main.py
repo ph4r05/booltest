@@ -131,6 +131,8 @@ class HWAnalysis(object):
         logger.info('Combining...')
         Combined = collections.namedtuple('Combined', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore'])
 
+        comb_res = self.term_eval.new_buffer()
+        comb_subres = self.term_eval.new_buffer()
         for top_comb_cur in range(1, self.top_comb + 1):
             for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1)):
                 # Create a new polynomial
@@ -140,7 +142,7 @@ class HWAnalysis(object):
                 # Expected counts
                 exp_cnt = num_evals * expp
                 # Evaluate polynomial
-                obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly))
+                obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
                 # ZScore
                 zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
                 comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
@@ -155,7 +157,7 @@ class HWAnalysis(object):
                 # Expected counts
                 exp_cnt = self.term_eval.cur_evals * expp
                 # Evaluate polynomial
-                obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly))
+                obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
                 # ZScore
                 zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
                 comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)

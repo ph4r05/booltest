@@ -405,8 +405,11 @@ class TermEval(object):
         if res is None:
             res = to_bitarray(self.base[term[0]], const=False)
         else:
-            idx_start = 0
-            res.setall(True)
+            if FAST_IMPL_PH4:
+                res.fast_copy(self.base[term[0]])
+            else:
+                idx_start = 0
+                res.setall(True)
 
         for i in range(idx_start, ln):
             res &= self.base[term[i]]
