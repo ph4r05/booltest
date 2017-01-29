@@ -45,6 +45,7 @@ class HWAnalysis(object):
         self.top_k = None
         self.top_comb = None
         self.zscore_thresh = 1.96
+        self.combine_all_deg = False
 
         self.total_hws = []
         self.total_n = 0
@@ -87,41 +88,40 @@ class HWAnalysis(object):
         :return:
         """
 
-        probab = [self.term_eval.expp_term_deg(d) for d in range(0, self.deg + 1)]
+        probab = [self.term_eval.expp_term_deg(deg) for deg in range(0, self.deg + 1)]
         exp_count = [num_evals * x for x in probab]
         print(probab)
         print(exp_count)
 
         top_terms = []
-        top_poly = []
-
-        difs = [None] * (self.deg + 1)
-        zscores = [None] * (self.deg + 1)
-        for d in range(1, self.deg+1):
-            difs[d] = [(abs(x - exp_count[d]), idx, d) for idx, x in enumerate(hws[d])]
-            difs[d].sort(key=lambda x: x[0], reverse=True)
-            zscores[d] = [common.zscore(x, exp_count[d], num_evals) for x in hws[d]]
+        difs = [[]] * (self.deg + 1)
+        zscores = [[]] * (self.deg + 1)
+        for deg in range(1, self.deg+1):
+            difs[deg] = [(abs(x - exp_count[deg]), idx, deg) for idx, x in enumerate(hws[deg])]
+            difs[deg].sort(key=lambda x: x[0], reverse=True)
+            zscores[deg] = [common.zscore(x, exp_count[deg], num_evals) for x in hws[deg]]
 
             # Selecting TOP k polynomials
-            for x in difs[d][0:15]:
-                observed = hws[d][x[1]]
-                zscore = common.zscore(observed, exp_count[d], num_evals)
+            for x in difs[deg][0:15]:
+                observed = hws[deg][x[1]]
+                zscore = common.zscore(observed, exp_count[deg], num_evals)
                 fail = 'x' if abs(zscore) > self.zscore_thresh else ' '
-                print(' - zscore: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
-                      % (zscore, observed, exp_count[d], fail, x[1], self.term_map[d][x[1]]))
+                print(' - zscore[deg=%d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
+                      % (deg, zscore, observed, exp_count[deg], fail, x[1], self.term_map[deg][x[1]]))
 
             # Take top X best polynomials
             if self.top_k is None:
                 continue
 
-            top_terms += [self.term_map[d][x[1]] for x in difs[d][0: (None if self.top_k < 0 else self.top_k)]]
+            if self.combine_all_deg or deg == self.deg:
+                top_terms += [self.term_map[deg][x[1]] for x in difs[deg][0: (None if self.top_k < 0 else self.top_k)]]
 
-            mean_zscore = sum(zscores[d])/float(len(zscores[d]))
-            fails = sum([1 for x in zscores[d] if abs(x) > self.zscore_thresh])
-            fails_fraction = float(fails)/len(zscores[d])
+            mean_zscore = sum(zscores[deg])/float(len(zscores[deg]))
+            fails = sum([1 for x in zscores[deg] if abs(x) > self.zscore_thresh])
+            fails_fraction = float(fails)/len(zscores[deg])
             # total_fails.append(fails_fraction)
-            print('Mean zscore: %s' % mean_zscore)
-            print('Num of fails: %s = %02f.5%%' % (fails, 100.0*fails_fraction))
+            print('Mean zscore[deg=%d]: %s' % (deg, mean_zscore))
+            print('Num of fails[deg=%d]: %s = %02f.5%%' % (deg, fails, 100.0*fails_fraction))
 
         if self.top_k is None:
             return
@@ -287,10 +287,6 @@ class App(object):
         logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s, rounds: %s'
                     % (deg, blocklen, tvsize_orig, rounds))
 
-        # Prebuffer map 3deg terms
-        # logger.info('Precomputing term mappings')
-        # term_map = common.build_term_map(deg, blocklen)
-
         # specific polynomial testing
         logger.info('Initialising')
         poly_test = self.get_testing_polynomials()
@@ -323,6 +319,8 @@ class App(object):
             hwanalysis.blocklen = blocklen
             hwanalysis.top_comb = top_comb
             hwanalysis.top_k = top_k
+            hwanalysis.combine_all_deg = all_deg
+            hwanalysis.zscore_thresh = zscore_thresh
             logger.info('Initializing test')
             hwanalysis.init()
 
@@ -354,7 +352,8 @@ class App(object):
                                 (deg, blocklen, tvsize, cur_round, len(bits)))
 
                     hwanalysis.proces_chunk(bits)
-
+                pass
+            pass
 
     def main(self):
         logger.debug('App started')
@@ -381,7 +380,7 @@ class App(object):
         parser.add_argument('--top', dest='topk', default=30, type=int,
                             help='top K number of best distinguishers to combine together')
         parser.add_argument('--combine-deg', dest='combdeg', default=2, type=int,
-                            help='default degree of combination')
+                            help='Degree of combination')
 
         parser.add_argument('--conf', dest='conf', type=float, default=1.96,
                             help='Zscore failing threshold')
