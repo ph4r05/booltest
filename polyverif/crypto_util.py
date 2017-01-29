@@ -13,6 +13,7 @@ import struct
 
 from Crypto import Random
 from Crypto.Cipher import AES
+from Crypto.Util import Counter
 from Crypto.Util.py3compat import *
 from Crypto.Util.number import long_to_bytes, bytes_to_long, size, ceil_div
 
@@ -329,15 +330,27 @@ class PKCS15(Padding):
 # Encryption
 #
 
-def aes_cbc(key):
+def aes_cbc(key, iv=None):
     """
     Returns AES-CBC instance that can be used for [incremental] encryption/decryption in ProcessData.
     Uses zero IV.
 
     :param key:
+    :param iv:
     :return:
     """
-    return AES.new(key, AES.MODE_CBC, get_zero_vector(16))
+    return AES.new(key, AES.MODE_CBC, iv if iv is not None else get_zero_vector(16))
+
+
+def aes_ctr(key, counter=None):
+    """
+    Returns AES-CTR instance that can be used for [incremental] encryption/decryption in ProcessData.
+    Uses zero IV.
+
+    :param key:
+    :return:
+    """
+    return AES.new(key, AES.MODE_CTR, counter=(counter if counter is not None else Counter.new(128)))
 
 
 def aes(encrypt, key, data):
