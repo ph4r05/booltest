@@ -59,9 +59,10 @@ class HWAnalysis(object):
     def proces_chunk(self, bits):
         # Compute the basis.
         self.term_eval.load(bits)
+        ln = len(bits)
 
         # Evaluate all terms of degrees 1..deg
-        logger.info('Evaluating all terms')
+        logger.info('Evaluating all terms, bitlen: %d, bytes: %d' % (ln, ln//8))
         hws2 = self.term_eval.eval_all_terms(self.deg)
         logger.info('Done: %s' % [len(x) for x in hws2])
 
@@ -389,7 +390,7 @@ class App(object):
         parser.add_argument('--alldeg', dest='alldeg', action='store_const', const=True, default=False,
                             help='Evaluate all degree of polynomials to the threshold, e.g., 1,2,3 for deg 3')
 
-        parser.add_argument('--stdin', dest='verbose', action='store_const', const=True,
+        parser.add_argument('--stdin', dest='stdin', action='store_const', const=True,
                             help='read data from STDIN')
 
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
