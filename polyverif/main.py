@@ -352,6 +352,7 @@ class App(object):
                                 (deg, blocklen, tvsize, cur_round, len(bits)))
 
                     hwanalysis.proces_chunk(bits)
+                    cur_round += 1
                 pass
             pass
 
