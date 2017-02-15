@@ -36,7 +36,7 @@ int randint(int n) {
 
 int main(int argc, char * argv[]){
     if (argc == 1){
-        srand(time(NULL));
+        srand(0);
     } else {
         srand(atoi(argv[1]));
     }
