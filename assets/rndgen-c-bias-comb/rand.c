@@ -9,8 +9,8 @@
 #include <unistd.h>
 #include <assert.h>
 
-#define BIAS_OP_XOR 1  // 1 for XOR, 2 for AND
-#define BIAS_OP_AND 2  // 2 for XOR, 2 for AND
+#define BIAS_OP_XOR 1
+#define BIAS_OP_AND 2
 
 /**
  * Returns an integer in the range [0, n).
