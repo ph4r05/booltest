@@ -376,7 +376,8 @@ class App(object):
         parser.add_argument('--degree', dest='degree',
                             help='maximum degree of computation')
         parser.add_argument('--tv', dest='tvsize',
-                            help='Size of one test vector')
+                            help='Size of one test vector, in this interpretation = number of bytes to read from file. '
+                                 'Has to be aligned on block size')
         parser.add_argument('-r', '--rounds', dest='rounds',
                             help='Maximal number of rounds')
         parser.add_argument('--top', dest='topk', default=30, type=int,
