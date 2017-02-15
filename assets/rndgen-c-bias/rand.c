@@ -34,9 +34,9 @@ int randint(int n) {
 
 #define BUFSIZE 1024
 
-#define ZERO_CHANCE 10  // 1:10
+#define ZERO_CHANCE 1  // 1:10
 #define BLOCKLEN 16  // 16B
-#define BIASBIT 2
+#define BIASBIT 0
 
 #define BITPOS (BIASBIT/8)
 
@@ -57,7 +57,7 @@ int main(int argc, char * argv[]){
             if ((i - BITPOS) % BLOCKLEN == 0){
                 int reset_f = ZERO_CHANCE <= 1 ? 1 : randint(ZERO_CHANCE) == 0;
                 if (reset_f){
-                    buff[i] &= ~(1 << BIASBIT);
+                    buff[i] &= ~(1 << (7-(BIASBIT % 8)));
                 }
             }
         }
