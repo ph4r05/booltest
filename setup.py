@@ -21,7 +21,8 @@ install_requires = [
     'numpy',
     'bitstring',
     'bitarray_ph4',
-    'ufx'
+    'ufx',
+    'matplotlib'  # apt-get install python-tk
 ]
 
 dev_extras = [
