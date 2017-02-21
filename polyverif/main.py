@@ -54,6 +54,7 @@ class HWAnalysis(object):
         self.blocklen = None
         self.deg = 3
         self.top_k = None
+        self.comb_random = None
         self.top_comb = None
         self.zscore_thresh = 1.96
         self.combine_all_deg = False
@@ -241,6 +242,10 @@ class HWAnalysis(object):
             if self.combine_all_deg or deg == self.deg:
                 top_terms += [self.term_map[deg][x[1]] for x in zscores[deg][0: (None if self.top_k < 0 else self.top_k)]]
 
+                if self.comb_random > 0:
+                    random_subset = random.sample(zscores[deg], self.comb_random)
+                    top_terms += [self.term_map[deg][x[1]] for x in random_subset]
+
             mean_zscore = sum([x[0] for x in zscores[deg]])/float(len(zscores[deg]))
             fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
             fails_fraction = float(fails)/len(zscores[deg])
@@ -253,7 +258,7 @@ class HWAnalysis(object):
 
         # Combine & store the results - XOR
         top_res = []
-        logger.info('Combining...')
+        logger.info('Combining %d terms in %d degree...' % (len(top_terms), self.top_comb))
 
         comb_res = self.term_eval.new_buffer()
         comb_subres = self.term_eval.new_buffer()
@@ -515,6 +520,7 @@ class App(object):
             hwanalysis.deg = deg
             hwanalysis.blocklen = self.blocklen
             hwanalysis.top_comb = top_comb
+            hwanalysis.comb_random = self.args.comb_random
             hwanalysis.top_k = top_k
             hwanalysis.combine_all_deg = all_deg
             hwanalysis.zscore_thresh = zscore_thresh
@@ -586,8 +592,13 @@ class App(object):
                                  'Has to be aligned on block size')
         parser.add_argument('-r', '--rounds', dest='rounds',
                             help='Maximal number of rounds')
+
         parser.add_argument('--top', dest='topk', default=30, type=int,
                             help='top K number of best distinguishers to combine together')
+
+        parser.add_argument('--comb-rand', dest='comb_random', default=0, type=int,
+                            help='number of terms to add randomly to the combination set')
+
         parser.add_argument('--combine-deg', dest='combdeg', default=2, type=int,
                             help='Degree of combination')
 
