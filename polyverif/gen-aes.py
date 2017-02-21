@@ -10,7 +10,7 @@ def main():
 
     args = parser.parse_args()
     aes = aes_ctr(get_zero_vector(16))
-    print(aes.encrypt(get_zero_vector(long(args.size))))
+    print(aes.encrypt(get_zero_vector(int(args.size))))
 
 
 # Launcher
