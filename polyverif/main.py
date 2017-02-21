@@ -589,7 +589,7 @@ class App(object):
                             help='Zscore failing threshold')
 
         parser.add_argument('--alldeg', dest='alldeg', action='store_const', const=True, default=False,
-                            help='Evaluate all degree of polynomials to the threshold, e.g., 1,2,3 for deg 3')
+                            help='Add top K best terms to the combination group also for lower degree, not just top one')
 
         parser.add_argument('--stdin', dest='stdin', action='store_const', const=True,
                             help='read data from STDIN')
