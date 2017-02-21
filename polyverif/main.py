@@ -1,4 +1,5 @@
 from past.builtins import basestring
+from functools import reduce
 import argparse
 import logging, coloredlogs
 import common
