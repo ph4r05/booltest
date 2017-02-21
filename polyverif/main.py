@@ -80,10 +80,10 @@ class HWAnalysis(object):
         self.ref_term_eval = common.TermEval(blocklen=self.blocklen, deg=self.deg)
         self.total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
         self.ref_total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
-        self.precompute_input_poly()
         self.input_poly_exp = [0] * len(self.input_poly)
         self.input_poly_hws = [0] * len(self.input_poly)
         self.input_poly_ref_hws = [0] * len(self.input_poly)
+        self.precompute_input_poly()
 
     def precompute_input_poly(self):
         """
@@ -92,7 +92,8 @@ class HWAnalysis(object):
         """
         self.input_poly_exp = []
         for poly in self.input_poly:
-            self.input_poly_exp.append(self.term_eval.expp_poly(poly))
+            exp_cnt = self.term_eval.expp_poly(poly)
+            self.input_poly_exp.append(exp_cnt)
 
     def proces_chunk(self, bits, ref_bits=None):
         """
@@ -181,15 +182,15 @@ class HWAnalysis(object):
             exp_cnt = num_evals * expp
             obs_cnt = hws_input[idx]
             zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
-            results[idx] = CombinedIdx(poly, expp, exp_cnt, obs_cnt, zscore, idx)
+            results[idx] = CombinedIdx(None, expp, exp_cnt, obs_cnt, zscore, idx)
 
         # Sort by the zscore
         results.sort(key=lambda x: abs(x.zscore), reverse=True)
 
         for res in results:
             fail = 'x' if abs(res.zscore) > self.zscore_thresh else ' '
-            print(' - zscore[idx%d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, poly: %s'
-                  % (res.idx, res.zscore, res.obs_cnt, res.exp_cnt, fail, res.idx, poly))
+            print(' - zscore[idx%02d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, poly: %s'
+                  % (res.idx, res.zscore, res.obs_cnt, res.exp_cnt, fail, res.idx, self.input_poly[res.idx]))
 
     def analyse(self, num_evals, hws=None, hws_input=None, ref_hws=None):
         """
@@ -306,6 +307,7 @@ class App(object):
     def __init__(self, *args, **kwargs):
         self.args = None
         self.tester = None
+        self.blocklen = None
         self.term_map = []
         self.input_poly = []
 
@@ -426,6 +428,9 @@ class App(object):
             for var in term:
                 if not isinstance(var, (types.IntType, types.LongType)):
                     raise ValueError('Variable %s not valid in the polynomial %s (number expected)' % (var, poly))
+                if var >= self.blocklen:
+                    raise ValueError('Variable %s not valid in the polynomial %s (blocklen is %d)'
+                                     % (var, poly, self.blocklen))
 
         return poly
 
@@ -457,7 +462,7 @@ class App(object):
         logger.debug('Input polynomials length: %s' % len(self.input_poly))
 
     def work(self):
-        blocklen = int(self.defset(self.args.blocklen, 128))
+        self.blocklen = int(self.defset(self.args.blocklen, 128))
         deg = int(self.defset(self.args.degree, 3))
         tvsize_orig = int(self.defset(self.process_size(self.args.tvsize), 1024*256))
         zscore_thresh = float(self.args.conf)
@@ -471,7 +476,7 @@ class App(object):
         self.load_input_poly()
 
         logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s, rounds: %s'
-                    % (deg, blocklen, tvsize_orig, rounds))
+                    % (deg, self.blocklen, tvsize_orig, rounds))
 
         # specific polynomial testing
         logger.info('Initialising')
@@ -479,7 +484,7 @@ class App(object):
         poly_acc = [0] * len(poly_test)
 
         # test polynomials
-        term_eval = common.TermEval(blocklen=blocklen, deg=deg)
+        term_eval = common.TermEval(blocklen=self.blocklen, deg=deg)
         for idx, poly in enumerate(poly_test):
             print('Test polynomial: %02d, %s' % (idx, poly))
             expp = term_eval.expp_poly(poly)
@@ -502,7 +507,7 @@ class App(object):
 
             hwanalysis = HWAnalysis()
             hwanalysis.deg = deg
-            hwanalysis.blocklen = blocklen
+            hwanalysis.blocklen = self.blocklen
             hwanalysis.top_comb = top_comb
             hwanalysis.top_k = top_k
             hwanalysis.combine_all_deg = all_deg
@@ -515,8 +520,8 @@ class App(object):
             logger.info('Initializing test')
             hwanalysis.init()
 
-            total_terms = int(scipy.misc.comb(blocklen, deg, True))
-            logger.info('BlockLength: %d, deg: %d, terms: %d' % (blocklen, deg, total_terms))
+            total_terms = int(scipy.misc.comb(self.blocklen, deg, True))
+            logger.info('BlockLength: %d, deg: %d, terms: %d' % (self.blocklen, deg, total_terms))
 
             # read the file until there is no data.
             # TODO: sys.stdin
@@ -543,7 +548,7 @@ class App(object):
                         ref_bits = common.to_bitarray(ref_data)
 
                     logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d, round: %d, avail: %d' %
-                                (deg, blocklen, tvsize, cur_round, len(bits)))
+                                (deg, self.blocklen, tvsize, cur_round, len(bits)))
 
                     hwanalysis.proces_chunk(bits, ref_bits)
                     cur_round += 1
