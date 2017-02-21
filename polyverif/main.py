@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
 
 
+Combined = collections.namedtuple('Combined', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore'])
+CombinedIdx = collections.namedtuple('CombinedIdx', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore', 'idx'])
+ValueIdx = collections.namedtuple('ValueIdx', ['value', 'idx'])
+
+
 def bar_chart(sources=None, values=None, res=None, error=None, xlabel=None, title=None):
     if res is not None:
         sources = [x[0] for x in res]
@@ -58,35 +63,77 @@ class HWAnalysis(object):
         self.ref_total_hws = []
         self.total_n = 0
 
+        self.all_deg_compute = True
+        self.input_poly = []
+        self.input_poly_exp = []
+        self.input_poly_hws = []
+        self.input_poly_ref_hws = []
+
     def init(self):
+        """
+        Initializes state, term_eval engine, input polynomials expected probability.
+        :return:
+        """
         logger.info('Precomputing term mappings')
         self.term_map = common.build_term_map(self.deg, self.blocklen)
         self.term_eval = common.TermEval(blocklen=self.blocklen, deg=self.deg)
         self.ref_term_eval = common.TermEval(blocklen=self.blocklen, deg=self.deg)
         self.total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
         self.ref_total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
+        self.precompute_input_poly()
+        self.input_poly_exp = [0] * len(self.input_poly)
+        self.input_poly_hws = [0] * len(self.input_poly)
+        self.input_poly_ref_hws = [0] * len(self.input_poly)
+
+    def precompute_input_poly(self):
+        """
+        Precompute expected values for input polynomials
+        :return:
+        """
+        self.input_poly_exp = []
+        for poly in self.input_poly:
+            self.input_poly_exp.append(self.term_eval.expp_poly(poly))
 
     def proces_chunk(self, bits, ref_bits=None):
+        """
+        Processes input chunk of bits for analysis.
+        :param bits:
+        :param ref_bits:
+        :return:
+        """
         # Compute the basis.
         self.term_eval.load(bits)
         ln = len(bits)
+        hws2, hws_input = None, None
 
         # Evaluate all terms of degrees 1..deg
-        logger.info('Evaluating all terms, bitlen: %d, bytes: %d' % (ln, ln//8))
-        hws2 = self.term_eval.eval_all_terms(self.deg)
-        logger.info('Done: %s' % [len(x) for x in hws2])
+        if self.all_deg_compute:
+            logger.info('Evaluating all terms, bitlen: %d, bytes: %d' % (ln, ln//8))
+            hws2 = self.term_eval.eval_all_terms(self.deg)
+            logger.info('Done: %s' % [len(x) for x in hws2])
 
-        # Accumulate hws to the results.
-        for d in range(1, self.deg+1):
-            for i in range(len(self.total_hws[d])):
-                self.total_hws[d][i] += hws2[d][i]
+            # Accumulate hws to the results.
+            for d in range(1, self.deg+1):
+                for i in range(len(self.total_hws[d])):
+                    self.total_hws[d][i] += hws2[d][i]
+
+        # Evaluate given polynomials
+        if len(self.input_poly) > 0:
+            comb_res = self.term_eval.new_buffer()
+            comb_subres = self.term_eval.new_buffer()
+            hws_input = [0] * len(self.input_poly)
+            for idx, poly in enumerate(self.input_poly):
+                obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
+                hws_input[idx] = obs_cnt
+                self.input_poly_hws[idx] += obs_cnt
+
         self.total_n += self.term_eval.cur_evals
 
         # Reference stream
         ref_hws = self.process_ref(ref_bits, ln)
 
         # Done.
-        self.analyse(hws2, self.term_eval.cur_evals, ref_hws)
+        self.analyse(num_evals=self.term_eval.cur_evals, hws=hws2, hws_input=hws_input, ref_hws=ref_hws)
 
     def process_ref(self, ref_bits, ln):
         """
@@ -100,12 +147,16 @@ class HWAnalysis(object):
             raise ValueError('Reference data stream has a different size')
 
         logger.info('Evaluating ref data stream')
-        self.ref_term_eval.load(ref_bits)
-        ref_hws = self.ref_term_eval.eval_all_terms(self.deg)
-        for d in range(1, self.deg+1):
-            for i in range(len(self.ref_total_hws[d])):
-                self.ref_total_hws[d][i] += ref_hws[d][i]
-        return ref_hws
+        if self.all_deg_compute:
+            self.ref_term_eval.load(ref_bits)
+            ref_hws = self.ref_term_eval.eval_all_terms(self.deg)
+            for d in range(1, self.deg+1):
+                for i in range(len(self.ref_total_hws[d])):
+                    self.ref_total_hws[d][i] += ref_hws[d][i]
+            return ref_hws
+
+        else:
+            return None
 
     def finished(self):
         """
@@ -114,14 +165,48 @@ class HWAnalysis(object):
         """
         self.analyse(self.total_hws, self.total_n)
 
-    def analyse(self, hws, num_evals, ref_hws=None):
+    def analyse_input(self, num_evals, hws_input=None):
         """
-        Analyse hamming weights
-        :param hws:
+        Analyses input polynomials result on the data
         :param num_evals:
-        :param ref_hws:
+        :param hws_input:
         :return:
         """
+        if hws_input is None:
+            return
+
+        results = [None] * len(self.input_poly)
+        for idx, poly in enumerate(self.input_poly):
+            expp = self.input_poly_exp[idx]
+            exp_cnt = num_evals * expp
+            obs_cnt = hws_input[idx]
+            zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
+            results[idx] = CombinedIdx(poly, expp, exp_cnt, obs_cnt, zscore, idx)
+
+        # Sort by the zscore
+        results.sort(key=lambda x: abs(x.zscore), reverse=True)
+
+        for res in results:
+            fail = 'x' if abs(res.zscore) > self.zscore_thresh else ' '
+            print(' - zscore[idx%d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, poly: %s'
+                  % (res.idx, res.zscore, res.obs_cnt, res.exp_cnt, fail, res.idx, poly))
+
+    def analyse(self, num_evals, hws=None, hws_input=None, ref_hws=None):
+        """
+        Analyse hamming weights
+        :param num_evals:
+        :param hws: hamming weights on results for all degrees
+        :param hws_input: hamming weights on results for input polynomials
+        :param ref_hws: reference hamming weights
+        :return:
+        """
+
+        # Input polynomials
+        self.analyse_input(num_evals=num_evals, hws_input=hws_input)
+
+        # All degrees polynomials + combinations
+        if not self.all_deg_compute:
+            return
 
         probab = [self.term_eval.expp_term_deg(deg) for deg in range(0, self.deg + 1)]
         exp_count = [num_evals * x for x in probab]
@@ -168,22 +253,19 @@ class HWAnalysis(object):
         # Combine & store the results - XOR
         top_res = []
         logger.info('Combining...')
-        Combined = collections.namedtuple('Combined', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore'])
 
         comb_res = self.term_eval.new_buffer()
         comb_subres = self.term_eval.new_buffer()
         for top_comb_cur in range(1, self.top_comb + 1):
+
+            # Combine * store results - XOR
             for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1)):
-                # Create a new polynomial
                 poly = [top_terms[x] for x in places]
-                # Compute expected value
                 expp = self.term_eval.expp_poly(poly)
-                # Expected counts
                 exp_cnt = num_evals * expp
-                # Evaluate polynomial
                 obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
-                # ZScore
                 zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
+
                 comb = None
                 if ref_hws is None:
                     comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
@@ -195,16 +277,12 @@ class HWAnalysis(object):
 
             # Combine & store results - AND
             for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1)):
-                # Create a new polynomial
                 poly = [reduce(lambda x, y: x + y, [top_terms[x] for x in places])]
-                # Compute expected value
                 expp = self.term_eval.expp_poly(poly)
-                # Expected counts
                 exp_cnt = self.term_eval.cur_evals * expp
-                # Evaluate polynomial
                 obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
-                # ZScore
                 zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
+
                 comb = None
                 if ref_hws is None:
                     comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
@@ -325,6 +403,7 @@ class App(object):
         multiplier = self.get_multiplier(mult_char, is_ib)
         return int(float(matches.group(1)) * multiplier)
 
+    # noinspection PyMethodMayBeStatic
     def _fix_poly(self, poly):
         """
         Checks if the input polynomial is a valid polynomial
@@ -429,6 +508,10 @@ class App(object):
             hwanalysis.combine_all_deg = all_deg
             hwanalysis.zscore_thresh = zscore_thresh
             hwanalysis.do_ref = reffile is not None
+            hwanalysis.input_poly = self.input_poly
+
+            # compute classical analysis only if there are no input polynomials
+            hwanalysis.all_deg_compute = len(self.input_poly) == 0
             logger.info('Initializing test')
             hwanalysis.init()
 
