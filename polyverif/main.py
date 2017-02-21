@@ -3,9 +3,12 @@ import logging, coloredlogs
 import common
 import os
 import re
+import six
 import sys
 import math
 import random
+import json
+import types
 import collections
 import matplotlib
 import matplotlib.pyplot as plt
@@ -224,6 +227,7 @@ class App(object):
         self.args = None
         self.tester = None
         self.term_map = []
+        self.input_poly = []
 
     def defset(self, val, default=None):
         return val if val is not None else default
@@ -319,6 +323,58 @@ class App(object):
         multiplier = self.get_multiplier(mult_char, is_ib)
         return long(float(matches.group(1)) * multiplier)
 
+    def _fix_poly(self, poly):
+        """
+        Checks if the input polynomial is a valid polynomial
+        :param poly:
+        :return:
+        """
+        if not isinstance(poly, types.ListType):
+            raise ValueError('Polynomial is not valid (list expected) %s' % poly)
+
+        if len(poly) == 0:
+            raise ValueError('Empty polynomial not allowed')
+
+        first_elem = poly[0]
+        if not isinstance(first_elem, types.ListType):
+            poly = [poly]
+
+        for term in poly:
+            if not isinstance(term, types.ListType):
+                raise ValueError('Term %s in the polynomial %s is not valid (list expected)' % (term, poly))
+            for var in term:
+                if not isinstance(var, (types.IntType, types.LongType)):
+                    raise ValueError('Variable %s not valid in the polynomial %s (number expected)' % (var, poly))
+
+        return poly
+
+    def load_input_poly(self):
+        """
+        Loads input polynomials.
+        :return:
+        """
+        for poly in self.args.polynomials:
+            poly_js = self._fix_poly(json.loads(poly))
+            self.input_poly.append(poly_js)
+
+        for poly_file in self.args.poly_file:
+            with open(poly_file, 'r') as fh:
+                for line in fh:
+                    line = line.strip()
+                    if len(line) == 0:
+                        continue
+                    if line.startswith('#'):
+                        continue
+                    if line.startswith('//'):
+                        continue
+
+                    poly_js = self._fix_poly(json.loads(line))
+                    self.input_poly.append(poly_js)
+
+                logger.debug('Poly file %s loaded' % poly_file)
+
+        logger.debug('Input polynomials length: %s' % len(self.input_poly))
+
     def work(self):
         blocklen = int(self.defset(self.args.blocklen, 128))
         deg = int(self.defset(self.args.degree, 3))
@@ -329,6 +385,9 @@ class App(object):
         top_comb = int(self.defset(self.args.combdeg, 2))
         reffile = self.defset(self.args.reffile)
         all_deg = self.args.alldeg
+
+        # Load input polynomials
+        self.load_input_poly()
 
         logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s, rounds: %s'
                     % (deg, blocklen, tvsize_orig, rounds))
@@ -444,6 +503,12 @@ class App(object):
 
         parser.add_argument('--stdin', dest='stdin', action='store_const', const=True,
                             help='read data from STDIN')
+
+        parser.add_argument('--poly', dest='polynomials', nargs=argparse.ZERO_OR_MORE, default=[],
+                            help='input polynomial to evaluate on the input data instead of generated one')
+
+        parser.add_argument('--poly-file', dest='poly_file', nargs=argparse.ZERO_OR_MORE, default=[],
+                            help='input file with polynomials to test, one polynomial per line, in json array notation')
 
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='files to process')
