@@ -39,6 +39,7 @@ class HWAnalysis(object):
     def __init__(self, *args, **kwargs):
         self.term_map = []
         self.term_eval = None
+        self.ref_term_eval = None
 
         self.blocklen = None
         self.deg = 3
@@ -46,17 +47,21 @@ class HWAnalysis(object):
         self.top_comb = None
         self.zscore_thresh = 1.96
         self.combine_all_deg = False
+        self.do_ref = False
 
         self.total_hws = []
+        self.ref_total_hws = []
         self.total_n = 0
 
     def init(self):
         logger.info('Precomputing term mappings')
         self.term_map = common.build_term_map(self.deg, self.blocklen)
         self.term_eval = common.TermEval(blocklen=self.blocklen, deg=self.deg)
+        self.ref_term_eval = common.TermEval(blocklen=self.blocklen, deg=self.deg)
         self.total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
+        self.ref_total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
 
-    def proces_chunk(self, bits):
+    def proces_chunk(self, bits, ref_bits=None):
         # Compute the basis.
         self.term_eval.load(bits)
         ln = len(bits)
@@ -72,8 +77,30 @@ class HWAnalysis(object):
                 self.total_hws[d][i] += hws2[d][i]
         self.total_n += self.term_eval.cur_evals
 
+        # Reference stream
+        ref_hws = self.process_ref(ref_bits, ln)
+
         # Done.
-        self.analyse(hws2, self.term_eval.cur_evals)
+        self.analyse(hws2, self.term_eval.cur_evals, ref_hws)
+
+    def process_ref(self, ref_bits, ln):
+        """
+        Process reference data stream
+        :return:
+        """
+        if ref_bits is None:
+            return None
+
+        if len(ref_bits) != ln:
+            raise ValueError('Reference data stream has a different size')
+
+        logger.info('Evaluating ref data stream')
+        self.ref_term_eval.load(ref_bits)
+        ref_hws = self.ref_term_eval.eval_all_terms(self.deg)
+        for d in range(1, self.deg+1):
+            for i in range(len(self.ref_total_hws[d])):
+                self.ref_total_hws[d][i] += ref_hws[d][i]
+        return ref_hws
 
     def finished(self):
         """
@@ -82,10 +109,12 @@ class HWAnalysis(object):
         """
         self.analyse(self.total_hws, self.total_n)
 
-    def analyse(self, hws, num_evals):
+    def analyse(self, hws, num_evals, ref_hws=None):
         """
         Analyse hamming weights
         :param hws:
+        :param num_evals:
+        :param ref_hws:
         :return:
         """
 
@@ -95,30 +124,34 @@ class HWAnalysis(object):
         print(exp_count)
 
         top_terms = []
-        difs = [[]] * (self.deg + 1)
-        zscores = [[]] * (self.deg + 1)
+        zscores = [[0] * len(x) for x in hws]
+        zscores_ref = [[0] * len(x) for x in hws]
         for deg in range(1, self.deg+1):
-            difs[deg] = [(abs(x - exp_count[deg]), idx, deg) for idx, x in enumerate(hws[deg])]
-            difs[deg].sort(key=lambda x: x[0], reverse=True)
-            zscores[deg] = [common.zscore(x, exp_count[deg], num_evals) for x in hws[deg]]
+            # Compute (zscore, idx)
+            # If reference stream is used, compute diff zscore.
+            if ref_hws is not None:
+                zscores_ref[deg] = [common.zscore(x, exp_count[deg], num_evals) for x in ref_hws[deg]]
+                zscores[deg] = [((common.zscore(x, exp_count[deg], num_evals)), idx, x) for idx, x in enumerate(hws[deg])] #- zscores_ref[deg][idx]
+                zscores_ref[deg].sort(key=lambda x: abs(x), reverse=True)
+            else:
+                zscores[deg] = [(common.zscore(x, exp_count[deg], num_evals), idx, x) for idx, x in enumerate(hws[deg])]
+            zscores[deg].sort(key=lambda x: abs(x[0]), reverse=True)
 
             # Selecting TOP k polynomials
-            for x in difs[deg][0:15]:
-                observed = hws[deg][x[1]]
-                zscore = common.zscore(observed, exp_count[deg], num_evals)
-                fail = 'x' if abs(zscore) > self.zscore_thresh else ' '
-                print(' - zscore[deg=%d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
-                      % (deg, zscore, observed, exp_count[deg], fail, x[1], self.term_map[deg][x[1]]))
+            for idx, x in enumerate(zscores[deg][0:15]):
+                fail = 'x' if abs(x[0]) > self.zscore_thresh else ' '
+                print(' - zscore[deg=%d]: %+05.5f, %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
+                      % (deg, x[0], zscores_ref[deg][idx]-x[0], x[2], exp_count[deg], fail, x[1], self.term_map[deg][x[1]]))
 
             # Take top X best polynomials
             if self.top_k is None:
                 continue
 
             if self.combine_all_deg or deg == self.deg:
-                top_terms += [self.term_map[deg][x[1]] for x in difs[deg][0: (None if self.top_k < 0 else self.top_k)]]
+                top_terms += [self.term_map[deg][x[1]] for x in zscores[deg][0: (None if self.top_k < 0 else self.top_k)]]
 
-            mean_zscore = sum(zscores[deg])/float(len(zscores[deg]))
-            fails = sum([1 for x in zscores[deg] if abs(x) > self.zscore_thresh])
+            mean_zscore = sum([x[0] for x in zscores[deg]])/float(len(zscores[deg]))
+            fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
             fails_fraction = float(fails)/len(zscores[deg])
             # total_fails.append(fails_fraction)
             print('Mean zscore[deg=%d]: %s' % (deg, mean_zscore))
@@ -146,7 +179,13 @@ class HWAnalysis(object):
                 obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
                 # ZScore
                 zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
-                comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+                comb = None
+                if ref_hws is None:
+                    comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+                else:
+                    ref_obs_cnt = self.ref_term_eval.hw(self.ref_term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
+                    zscore_ref = common.zscore(ref_obs_cnt, exp_cnt, num_evals)
+                    comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
                 top_res.append(comb)
 
             # Combine & store results - AND
@@ -161,7 +200,13 @@ class HWAnalysis(object):
                 obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
                 # ZScore
                 zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
-                comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+                comb = None
+                if ref_hws is None:
+                    comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+                else:
+                    ref_obs_cnt = self.ref_term_eval.hw(self.ref_term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
+                    zscore_ref = common.zscore(ref_obs_cnt, exp_cnt, num_evals)
+                    comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
                 top_res.append(comb)
 
         logger.info('Evaluating')
@@ -322,21 +367,21 @@ class App(object):
             hwanalysis.top_k = top_k
             hwanalysis.combine_all_deg = all_deg
             hwanalysis.zscore_thresh = zscore_thresh
+            hwanalysis.do_ref = reffile is not None
             logger.info('Initializing test')
             hwanalysis.init()
 
-            term_eval = common.TermEval(blocklen=blocklen, deg=deg)
             total_terms = long(scipy.misc.comb(blocklen, deg, True))
             logger.info('BlockLength: %d, deg: %d, terms: %d' % (blocklen, deg, total_terms))
 
             # read the file until there is no data.
             # TODO: sys.stdin
+            fref = None
+            if reffile is not None:
+                fref = open(reffile, 'r')
             with open(file, 'r') as fh:
                 data_read = 0
                 cur_round = 0
-                total_fails = []
-                total_hws = [0] * total_terms
-                total_n = 0
 
                 while data_read < size:
                     if rounds is not None and cur_round > rounds:
@@ -348,14 +393,20 @@ class App(object):
                         logger.info('File read completely')
                         break
 
-                    # pre-compute
+                    ref_bits = None
+                    if fref is not None:
+                        ref_data = fref.read(tvsize)
+                        ref_bits = common.to_bitarray(ref_data)
+
                     logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d, round: %d, avail: %d' %
                                 (deg, blocklen, tvsize, cur_round, len(bits)))
 
-                    hwanalysis.proces_chunk(bits)
+                    hwanalysis.proces_chunk(bits, ref_bits)
                     cur_round += 1
                 pass
-            pass
+
+            if fref is not None:
+                fref.close()
 
     def main(self):
         logger.debug('App started')
