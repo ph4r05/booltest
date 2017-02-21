@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-pip install --upgrade --find-links=. .
+pip install --upgrade --find-links=. --no-cache .
