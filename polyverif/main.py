@@ -1,3 +1,4 @@
+from past.builtins import basestring
 import argparse
 import logging, coloredlogs
 import common
@@ -283,13 +284,13 @@ class App(object):
 
         char = char[:1].lower()
         if char == 'k':
-            return 1024L if is_ib else 1000L
+            return 1024 if is_ib else 1000
         elif char == 'm':
-            return 1024L * 1024L if is_ib else 1000L * 1000L
+            return 1024 * 1024 if is_ib else 1000 * 1000
         elif char == 'g':
-            return 1024L * 1024L * 1024L if is_ib else 1000L * 1000L * 1000L
+            return 1024 * 1024 * 1024 if is_ib else 1000 * 1000 * 1000
         elif char == 't':
-            return 1024L * 1024L * 1024L * 1024L if is_ib else 1000L * 1000L * 1000L * 1000L
+            return 1024 * 1024 * 1024 * 1024 if is_ib else 1000 * 1000 * 1000 * 1000
         else:
             raise ValueError('Unknown multiplier %s' % char)
 
@@ -312,7 +313,7 @@ class App(object):
             return None
 
         if size_param.isdigit():
-            return long(size_param)
+            return int(size_param)
 
         matches = re.match('^([0-9a-fA-F]+(.[0-9]+)?)([kKmMgGtT]([iI])?)?$', size_param)
         if matches is None:
@@ -321,7 +322,7 @@ class App(object):
         is_ib = matches.group(4) is not None
         mult_char = matches.group(3)
         multiplier = self.get_multiplier(mult_char, is_ib)
-        return long(float(matches.group(1)) * multiplier)
+        return int(float(matches.group(1)) * multiplier)
 
     def _fix_poly(self, poly):
         """
@@ -430,7 +431,7 @@ class App(object):
             logger.info('Initializing test')
             hwanalysis.init()
 
-            total_terms = long(scipy.misc.comb(blocklen, deg, True))
+            total_terms = int(scipy.misc.comb(blocklen, deg, True))
             logger.info('BlockLength: %d, deg: %d, terms: %d' % (blocklen, deg, total_terms))
 
             # read the file until there is no data.
