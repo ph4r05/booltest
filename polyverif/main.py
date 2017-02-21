@@ -322,7 +322,7 @@ class App(object):
     def work(self):
         blocklen = int(self.defset(self.args.blocklen, 128))
         deg = int(self.defset(self.args.degree, 3))
-        tvsize_orig = long(self.defset(self.process_size(self.args.tvsize), 1024*256))
+        tvsize_orig = int(self.defset(self.process_size(self.args.tvsize), 1024*256))
         zscore_thresh = float(self.args.conf)
         rounds = int(self.args.rounds) if self.args.rounds is not None else None
         top_k = int(self.args.topk) if self.args.topk is not None else None
