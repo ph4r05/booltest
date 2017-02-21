@@ -264,6 +264,9 @@ class HWAnalysis(object):
                 poly = [top_terms[x] for x in places]
                 expp = self.term_eval.expp_poly(poly)
                 exp_cnt = num_evals * expp
+                if exp_cnt == 0:
+                    continue
+
                 obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
                 zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
 
@@ -281,6 +284,9 @@ class HWAnalysis(object):
                 poly = [reduce(lambda x, y: x + y, [top_terms[x] for x in places])]
                 expp = self.term_eval.expp_poly(poly)
                 exp_cnt = self.term_eval.cur_evals * expp
+                if exp_cnt == 0:
+                    continue
+
                 obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
                 zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
 
