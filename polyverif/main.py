@@ -559,8 +559,9 @@ class App(object):
                         ref_data = fref.read(tvsize)
                         ref_bits = common.to_bitarray(ref_data)
 
-                    logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d, round: %d, avail: %d' %
-                                (deg, self.blocklen, tvsize, cur_round, len(bits)))
+                    logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d = %8.2f kB = %8.2f MB, '
+                                'round: %d, avail: %d' %
+                                (deg, self.blocklen, tvsize, tvsize/1024.0, tvsize/1024.0/1024.0, cur_round, len(bits)))
 
                     hwanalysis.proces_chunk(bits, ref_bits)
                     cur_round += 1
