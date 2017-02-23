@@ -40,9 +40,9 @@ docs_extras = [
 setup(
     name='polyverif',
     version=version,
-    description='Polynomial verification',
-    url='https://enigmabridge.com',
-    author="Dusan Klinec",
+    description='Polynomial randomness tester',
+    url='https://github.com/ph4r05/polynomial-distinguishers',
+    author='Dusan Klinec',
     author_email='dusan.klinec@gmail.com',
     license='MIT',
     classifiers=[
