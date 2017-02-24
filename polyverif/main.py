@@ -614,6 +614,7 @@ class App(object):
 
             if fref is not None:
                 fref.close()
+        logger.info('Processing finished')
 
     def main(self):
         logger.debug('App started')
