@@ -7,6 +7,7 @@ import sys
 import math
 import random
 import logging
+import hashlib
 import crypto_util
 import scipy.misc
 import ufx.uf_hash as ufh
@@ -206,7 +207,8 @@ class InputObject(object):
     Can be a file, stream, or something else
     """
     def __init__(self, *args, **kwargs):
-        pass
+        self.sha1 = hashlib.sha1()
+        self.data_read = 0
 
     def __enter__(self):
         pass
@@ -273,7 +275,10 @@ class FileInputObject(InputObject):
         return os.path.getsize(self.fname)
 
     def read(self, size):
-        return self.fh.read(size)
+        data = self.fh.read(size)
+        self.sha1.update(data)
+        self.data_read += len(data)
+        return data
 
 
 class StdinInputObject(InputObject):
@@ -289,6 +294,7 @@ class StdinInputObject(InputObject):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         super(StdinInputObject, self).__exit__(exc_type, exc_val, exc_tb)
+        sys.stdin.close()
 
     def __repr__(self):
         return 'StdinInputObject()'
@@ -302,7 +308,10 @@ class StdinInputObject(InputObject):
         return -1
 
     def read(self, size):
-        return sys.stdin.read(size)
+        data = sys.stdin.read(size)
+        self.sha1.update(data)
+        self.data_read += len(data)
+        return data
 
 
 class TermEval(object):

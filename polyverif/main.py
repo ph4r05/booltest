@@ -638,6 +638,10 @@ class App(object):
                     cur_round += 1
                 pass
 
+            logger.info('Finished processing %s ' % iobj)
+            logger.info('Data read %s ' % iobj.data_read)
+            logger.info('Read data hash %s ' % iobj.sha1.hexdigest())
+
             if fref is not None:
                 fref.close()
         logger.info('Processing finished')
