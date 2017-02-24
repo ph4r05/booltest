@@ -508,7 +508,6 @@ class App(object):
                         continue
                     if line.startswith('//'):
                         continue
-                    print(line)
                     poly_js = self._fix_poly(json.loads(line))
                     if poly_js is None:
                         continue
@@ -531,7 +530,26 @@ class App(object):
         if len(self.input_objects) == 0 or self.args.stdin:
             self.input_objects.append(common.StdinInputObject(desc=self.args.stdin_desc))
 
+    def test_polynomials_exp_values(self):
+        """
+        Simple testing routine to validate expected polynomial results on static polynomials
+        :return:
+        """
+        poly_test = self.get_testing_polynomials()
+        poly_acc = [0] * len(poly_test)
+
+        # test polynomials
+        term_eval = common.TermEval(blocklen=self.blocklen, deg=deg)
+        for idx, poly in enumerate(poly_test):
+            print('Test polynomial: %02d, %s' % (idx, poly))
+            expp = term_eval.expp_poly(poly)
+            print('  Expected probability: %s' % expp)
+
     def work(self):
+        """
+        Main entry point - data processing
+        :return:
+        """
         self.blocklen = int(self.defset(self.args.blocklen, 128))
         deg = int(self.defset(self.args.degree, 3))
         tvsize_orig = int(self.defset(self.process_size(self.args.tvsize), 1024*256))
@@ -551,15 +569,6 @@ class App(object):
 
         # specific polynomial testing
         logger.info('Initialising')
-        poly_test = self.get_testing_polynomials()
-        poly_acc = [0] * len(poly_test)
-
-        # test polynomials
-        term_eval = common.TermEval(blocklen=self.blocklen, deg=deg)
-        for idx, poly in enumerate(poly_test):
-            print('Test polynomial: %02d, %s' % (idx, poly))
-            expp = term_eval.expp_poly(poly)
-            print('  Expected probability: %s' % expp)
 
         # read file by file
         for iobj in self.input_objects:
