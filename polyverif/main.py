@@ -433,15 +433,20 @@ class App(object):
         if not isinstance(first_elem, types.ListType):
             poly = [poly]
 
-        for term in poly:
+        for idxt, term in enumerate(poly):
             if not isinstance(term, types.ListType):
                 raise ValueError('Term %s in the polynomial %s is not valid (list expected)' % (term, poly))
-            for var in term:
+            for idxv, var in enumerate(term):
                 if not isinstance(var, (types.IntType, types.LongType)):
                     raise ValueError('Variable %s not valid in the polynomial %s (number expected)' % (var, poly))
                 if var >= self.blocklen:
-                    raise ValueError('Variable %s not valid in the polynomial %s (blocklen is %d)'
-                                     % (var, poly, self.blocklen))
+                    if self.args.poly_ignore:
+                        return None
+                    elif self.args.poly_mod:
+                        poly[idxt][idxv] = var % self.blocklen
+                    else:
+                        raise ValueError('Variable %s not valid in the polynomial %s (blocklen is %d)'
+                                         % (var, poly, self.blocklen))
 
         return poly
 
@@ -464,8 +469,10 @@ class App(object):
                         continue
                     if line.startswith('//'):
                         continue
-
+                    print(line)
                     poly_js = self._fix_poly(json.loads(line))
+                    if poly_js is None:
+                        continue
                     self.input_poly.append(poly_js)
 
                 logger.debug('Poly file %s loaded' % poly_file)
@@ -617,6 +624,12 @@ class App(object):
 
         parser.add_argument('--poly-file', dest='poly_file', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='input file with polynomials to test, one polynomial per line, in json array notation')
+
+        parser.add_argument('--poly-ignore', dest='poly_ignore', action='store_const', const=True, default=False,
+                            help='Ignore input polynomial variables out of range')
+
+        parser.add_argument('--poly-mod', dest='poly_mod', action='store_const', const=True, default=False,
+                            help='Mod input polynomial variables out of range')
 
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='files to process')
