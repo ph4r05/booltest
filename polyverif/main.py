@@ -1,7 +1,8 @@
 from past.builtins import basestring
 from functools import reduce
 import argparse
-import logging, coloredlogs
+import logging
+import coloredlogs
 import common
 import os
 import re
@@ -358,6 +359,7 @@ class App(object):
         self.blocklen = None
         self.term_map = []
         self.input_poly = []
+        self.input_objects = []
 
     def defset(self, val, default=None):
         return val if val is not None else default
@@ -516,6 +518,19 @@ class App(object):
 
         logger.debug('Input polynomials length: %s' % len(self.input_poly))
 
+    def load_input_objects(self):
+        """
+        Loads input objects to an array
+        :return:
+        """
+        for file in self.args.files:
+            io = common.FileInputObject(fname=file)
+            io.check()
+            self.input_objects.append(io)
+
+        if len(self.input_objects) == 0 or self.args.stdin:
+            self.input_objects.append(common.StdinInputObject(desc=self.args.stdin_desc))
+
     def work(self):
         self.blocklen = int(self.defset(self.args.blocklen, 128))
         deg = int(self.defset(self.args.degree, 3))
@@ -529,6 +544,7 @@ class App(object):
 
         # Load input polynomials
         self.load_input_poly()
+        self.load_input_objects()
 
         logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s, rounds: %s'
                     % (deg, self.blocklen, tvsize_orig, rounds))
@@ -546,17 +562,15 @@ class App(object):
             print('  Expected probability: %s' % expp)
 
         # read file by file
-        for file in self.args.files:
+        for iobj in self.input_objects:
             tvsize = tvsize_orig
 
-            if not os.path.exists(file):
-                logger.error('File does not exist: %s' % file)
-
-            size = os.path.getsize(file)
-            logger.info('Testing file: %s, size: %d kB' % (file, size/1024.0))
+            iobj.check()
+            size = iobj.size()
+            logger.info('Testing input object: %s, size: %d kB' % (iobj, size/1024.0))
 
             # size smaller than TV? Adapt tv then
-            if size < tvsize:
+            if size >= 0 and size < tvsize:
                 logger.info('File size is smaller than TV, updating TV to %d' % size)
                 tvsize = size
 
@@ -582,20 +596,21 @@ class App(object):
             total_terms = int(scipy.misc.comb(self.blocklen, deg, True))
             logger.info('BlockLength: %d, deg: %d, terms: %d' % (self.blocklen, deg, total_terms))
 
-            # read the file until there is no data.
-            # TODO: sys.stdin
+            # Reference data stream reading
+            # Read the file until there is no data.
             fref = None
             if reffile is not None:
                 fref = open(reffile, 'r')
-            with open(file, 'r') as fh:
+
+            with iobj:
                 data_read = 0
                 cur_round = 0
 
-                while data_read < size:
+                while size < 0 or data_read < size:
                     if rounds is not None and cur_round > rounds:
                         break
 
-                    data = fh.read(tvsize)
+                    data = iobj.read(tvsize)
                     bits = common.to_bitarray(data)
                     if len(bits) == 0:
                         logger.info('File read completely')
@@ -657,9 +672,6 @@ class App(object):
         parser.add_argument('--alldeg', dest='alldeg', action='store_const', const=True, default=False,
                             help='Add top K best terms to the combination group also for lower degree, not just top one')
 
-        parser.add_argument('--stdin', dest='stdin', action='store_const', const=True,
-                            help='read data from STDIN')
-
         parser.add_argument('--poly', dest='polynomials', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='input polynomial to evaluate on the input data instead of generated one')
 
@@ -683,6 +695,12 @@ class App(object):
 
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='files to process')
+
+        parser.add_argument('--stdin', dest='stdin', action='store_const', const=True, default=False,
+                            help='Read from the stdin')
+
+        parser.add_argument('--stdin-desc', dest='stdin_desc', default=None,
+                            help='Stdin descriptor')
 
         self.args = parser.parse_args()
         self.work()

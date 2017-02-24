@@ -2,6 +2,8 @@ import numpy as np
 from bitstring import Bits, BitArray, BitStream, ConstBitStream
 import bitarray
 import types
+import os
+import sys
 import math
 import random
 import logging
@@ -196,6 +198,111 @@ def build_term_map(deg, blocklen):
         for idx, x in enumerate(term_generator(dg, blocklen - 1)):
             term_map[dg][idx] = x
     return term_map
+
+
+class InputObject(object):
+    """
+    Input stream object.
+    Can be a file, stream, or something else
+    """
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    def __repr__(self):
+        return 'InputObject()'
+
+    def check(self):
+        """
+        Checks if stream is readable
+        :return:
+        """
+
+    def size(self):
+        """
+        Returns the size of the data
+        :return:
+        """
+        return -1
+
+    def read(self, size):
+        """
+        Reads size of data
+        :param size:
+        :return:
+        """
+        raise NotImplementedError('Not implemented - base class')
+
+
+class FileInputObject(InputObject):
+    """
+    File input object - reading from the file
+    """
+    def __init__(self, fname, *args, **kwargs):
+        super(FileInputObject, self).__init__(*args, **kwargs)
+        self.fname = fname
+        self.fh = None
+
+    def __enter__(self):
+        super(FileInputObject, self).__enter__()
+        self.fh = open(self.fname, 'r')
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        super(FileInputObject, self).__exit__(exc_type, exc_val, exc_tb)
+        try:
+            self.fh.close()
+        except:
+            logger.error('Error when closing file %s descriptor' % self.fname)
+
+    def __repr__(self):
+        return 'FileInputObject(file=%r)' % self.fname
+
+    def __str__(self):
+        return self.fname
+
+    def check(self):
+        if not os.path.exists(self.fname):
+            raise ValueError('File %s was not found' % self.fname)
+
+    def size(self):
+        return os.path.getsize(self.fname)
+
+    def read(self, size):
+        return self.fh.read(size)
+
+
+class StdinInputObject(InputObject):
+    """
+    Reads data from the stdin
+    """
+    def __init__(self, desc=None, *args, **kwargs):
+        super(StdinInputObject, self).__init__(*args, **kwargs)
+        self.desc = desc
+
+    def __enter__(self):
+        super(StdinInputObject, self).__enter__()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        super(StdinInputObject, self).__exit__(exc_type, exc_val, exc_tb)
+
+    def __repr__(self):
+        return 'StdinInputObject()'
+
+    def __str__(self):
+        if self.desc is not None:
+            return 'stdin-%s' % self.desc
+        return 'stdin'
+
+    def size(self):
+        return -1
+
+    def read(self, size):
+        return sys.stdin.read(size)
 
 
 class TermEval(object):
