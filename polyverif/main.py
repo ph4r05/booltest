@@ -59,6 +59,8 @@ class HWAnalysis(object):
         self.zscore_thresh = 1.96
         self.combine_all_deg = False
         self.do_ref = False
+        self.no_comb_xor = False
+        self.no_comb_and = False
 
         self.total_hws = []
         self.ref_total_hws = []
@@ -69,6 +71,10 @@ class HWAnalysis(object):
         self.input_poly_exp = []
         self.input_poly_hws = []
         self.input_poly_ref_hws = []
+
+        # Buffers - allocated during computation for fast copy evaluation
+        self.comb_res = None
+        self.comb_subres = None
 
     def init(self):
         """
@@ -260,49 +266,19 @@ class HWAnalysis(object):
         top_res = []
         logger.info('Combining %d terms in %d degree...' % (len(top_terms), self.top_comb))
 
-        comb_res = self.term_eval.new_buffer()
-        comb_subres = self.term_eval.new_buffer()
+        self.comb_res = self.term_eval.new_buffer()
+        self.comb_subres = self.term_eval.new_buffer()
         for top_comb_cur in range(1, self.top_comb + 1):
 
             # Combine * store results - XOR
-            for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1)):
-                poly = [top_terms[x] for x in places]
-                expp = self.term_eval.expp_poly(poly)
-                exp_cnt = num_evals * expp
-                if exp_cnt == 0:
-                    continue
-
-                obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
-                zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
-
-                comb = None
-                if ref_hws is None:
-                    comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
-                else:
-                    ref_obs_cnt = self.ref_term_eval.hw(self.ref_term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
-                    zscore_ref = common.zscore(ref_obs_cnt, exp_cnt, num_evals)
-                    comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
-                top_res.append(comb)
+            if not self.no_comb_xor:
+                self.comb_xor(top_comb_cur=top_comb_cur, top_terms=top_terms, top_res=top_res, num_evals=num_evals,
+                              ref_hws=ref_hws)
 
             # Combine & store results - AND
-            for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1)):
-                poly = [reduce(lambda x, y: x + y, [top_terms[x] for x in places])]
-                expp = self.term_eval.expp_poly(poly)
-                exp_cnt = self.term_eval.cur_evals * expp
-                if exp_cnt == 0:
-                    continue
-
-                obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
-                zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
-
-                comb = None
-                if ref_hws is None:
-                    comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
-                else:
-                    ref_obs_cnt = self.ref_term_eval.hw(self.ref_term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
-                    zscore_ref = common.zscore(ref_obs_cnt, exp_cnt, num_evals)
-                    comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
-                top_res.append(comb)
+            if not self.no_comb_and:
+                self.comb_and(top_comb_cur=top_comb_cur, top_terms=top_terms, top_res=top_res, num_evals=num_evals,
+                              ref_hws=ref_hws)
 
         logger.info('Evaluating')
         top_res.sort(key=lambda x: abs(x.zscore), reverse=True)
@@ -311,6 +287,66 @@ class HWAnalysis(object):
             print(' - best poly zscore %9.5f, expp: %.4f, exp: %4d, obs: %s, diff: %f %%, poly: %s'
                   % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
                      100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, sorted(comb.poly)))
+
+    def comb_xor(self, top_comb_cur, top_terms, top_res, num_evals, ref_hws=None):
+        """
+        Combines top terms with XOR operation
+        :param top_comb_cur: current degree of the combination
+        :param top_terms: top terms buffer to choose terms out of
+        :param top_res: top results accumulator to put
+        :param num_evals: number of evaluations in this round - zscore computation
+        :param ref_hws: reference results
+        :return:
+        """
+        for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1)):
+            poly = [top_terms[x] for x in places]
+            expp = self.term_eval.expp_poly(poly)
+            exp_cnt = num_evals * expp
+            if exp_cnt == 0:
+                continue
+
+            obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=self.comb_res, subres=self.comb_subres))
+            zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
+
+            comb = None
+            if ref_hws is None:
+                comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+            else:
+                ref_obs_cnt = self.ref_term_eval.hw(
+                    self.ref_term_eval.eval_poly(poly, res=self.comb_res, subres=self.comb_subres))
+                zscore_ref = common.zscore(ref_obs_cnt, exp_cnt, num_evals)
+                comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
+            top_res.append(comb)
+
+    def comb_and(self, top_comb_cur, top_terms, top_res, num_evals, ref_hws=None):
+        """
+        Combines top terms with AND operation
+        :param top_comb_cur: current degree of the combination
+        :param top_terms: top terms buffer to choose terms out of
+        :param top_res: top results accumulator to put
+        :param num_evals: number of evaluations in this round - zscore computation
+        :param ref_hws: reference results
+        :return:
+        """
+        for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1)):
+            poly = [reduce(lambda x, y: x + y, [top_terms[x] for x in places])]
+            expp = self.term_eval.expp_poly(poly)
+            exp_cnt = self.term_eval.cur_evals * expp
+            if exp_cnt == 0:
+                continue
+
+            obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=self.comb_res, subres=self.comb_subres))
+            zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
+
+            comb = None
+            if ref_hws is None:
+                comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+            else:
+                ref_obs_cnt = self.ref_term_eval.hw(
+                    self.ref_term_eval.eval_poly(poly, res=self.comb_res, subres=self.comb_subres))
+                zscore_ref = common.zscore(ref_obs_cnt, exp_cnt, num_evals)
+                comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
+            top_res.append(comb)
 
 
 # Main - argument parsing + processing
@@ -533,6 +569,8 @@ class App(object):
             hwanalysis.zscore_thresh = zscore_thresh
             hwanalysis.do_ref = reffile is not None
             hwanalysis.input_poly = self.input_poly
+            hwanalysis.no_comb_and = self.args.no_comb_and
+            hwanalysis.no_comb_xor = self.args.no_comb_xor
 
             # compute classical analysis only if there are no input polynomials
             hwanalysis.all_deg_compute = len(self.input_poly) == 0
@@ -630,6 +668,12 @@ class App(object):
 
         parser.add_argument('--poly-mod', dest='poly_mod', action='store_const', const=True, default=False,
                             help='Mod input polynomial variables out of range')
+
+        parser.add_argument('--no-comb-xor', dest='no_comb_xor', action='store_const', const=True, default=False,
+                            help='Disables XOR combinations')
+
+        parser.add_argument('--no-comb-and', dest='no_comb_and', action='store_const', const=True, default=False,
+                            help='Disables AND combinations')
 
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='files to process')
