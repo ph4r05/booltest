@@ -3,6 +3,7 @@ from bitstring import Bits, BitArray, BitStream, ConstBitStream
 import bitarray
 import types
 import math
+import random
 import logging
 import crypto_util
 import scipy.misc
@@ -56,7 +57,7 @@ def pos_generator(spec=None, dim=None, maxelem=None):
             return
 
 
-def term_generator(deg, maxelem):
+def term_generator(deg, maxelem, prob_choose=1.0):
     """
     Generates all terms of the given degree with given max len.
 
@@ -64,6 +65,7 @@ def term_generator(deg, maxelem):
     [0,1,2] .. [7,8,9]
     :param deg:
     :param maxelem:
+    :param prob_choose: probability the given element will be chosen
     :return:
     """
     idx = [0] * deg
@@ -73,7 +75,10 @@ def term_generator(deg, maxelem):
             raise ValueError('deg too big for the maxelem')
 
     while True:
-        yield list(idx)
+        if prob_choose >= 1.0:
+            yield list(idx)
+        elif random.random() < prob_choose:
+            yield list(idx)
 
         # increment with overflow
         c = deg - 1

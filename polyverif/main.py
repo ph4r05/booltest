@@ -61,6 +61,7 @@ class HWAnalysis(object):
         self.do_ref = False
         self.no_comb_xor = False
         self.no_comb_and = False
+        self.prob_comb = 1.0
 
         self.total_hws = []
         self.ref_total_hws = []
@@ -298,7 +299,7 @@ class HWAnalysis(object):
         :param ref_hws: reference results
         :return:
         """
-        for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1)):
+        for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1, self.prob_comb)):
             poly = [top_terms[x] for x in places]
             expp = self.term_eval.expp_poly(poly)
             exp_cnt = num_evals * expp
@@ -328,7 +329,7 @@ class HWAnalysis(object):
         :param ref_hws: reference results
         :return:
         """
-        for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1)):
+        for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1, self.prob_comb)):
             poly = [reduce(lambda x, y: x + y, [top_terms[x] for x in places])]
             expp = self.term_eval.expp_poly(poly)
             exp_cnt = self.term_eval.cur_evals * expp
@@ -571,6 +572,7 @@ class App(object):
             hwanalysis.input_poly = self.input_poly
             hwanalysis.no_comb_and = self.args.no_comb_and
             hwanalysis.no_comb_xor = self.args.no_comb_xor
+            hwanalysis.prob_comb = self.args.prob_comb
 
             # compute classical analysis only if there are no input polynomials
             hwanalysis.all_deg_compute = len(self.input_poly) == 0
@@ -675,6 +677,9 @@ class App(object):
 
         parser.add_argument('--no-comb-and', dest='no_comb_and', action='store_const', const=True, default=False,
                             help='Disables AND combinations')
+
+        parser.add_argument('--prob-comb', dest='prob_comb', type=float, default=1.0,
+                            help='Probability the given combination is going to be chosen.')
 
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='files to process')
