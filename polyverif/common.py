@@ -201,6 +201,10 @@ def build_term_map(deg, blocklen):
     return term_map
 
 
+def get_script_path():
+    return os.path.dirname(os.path.realpath(sys.argv[0]))
+
+
 class InputObject(object):
     """
     Input stream object.
@@ -309,6 +313,33 @@ class StdinInputObject(InputObject):
 
     def read(self, size):
         data = sys.stdin.read(size)
+        self.sha1.update(data)
+        self.data_read += len(data)
+        return data
+
+
+class FileLikeInputObject(InputObject):
+    """
+    Reads data from the stdin
+    """
+    def __init__(self, fh=None, desc=None, *args, **kwargs):
+        super(FileLikeInputObject, self).__init__(*args, **kwargs)
+        self.fh = fh
+        self.desc = desc
+
+    def __repr__(self):
+        return 'FileLikeInputObject()'
+
+    def __str__(self):
+        if self.desc is not None:
+            return '%s' % self.desc
+        return 'file-handle'
+
+    def size(self):
+        return -1
+
+    def read(self, size):
+        data = self.fh.read(size)
         self.sha1.update(data)
         self.data_read += len(data)
         return data
