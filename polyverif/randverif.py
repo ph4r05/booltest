@@ -135,7 +135,7 @@ class RandVerif(App):
                 proc.stdout.close()
                 proc.terminate()
                 proc.kill()
-                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
             except Exception as e:
                 logger.debug('Exception killing process: %s' % e)
 
