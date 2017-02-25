@@ -1,5 +1,6 @@
-CC = gcc -Wall -O3 -std=c99 -Wall
+CC = gcc -Wall -O3 -std=c99 -Wall -lm
 U01 = u01/ugfsr.c u01/util.c u01/unif01.c u01/addstr.c u01/num.c u01/chrono.c u01/bitset.c u01/usoft.c u01/ulcg.c
+LINKOPT = -lm
 
 all:  rand-tt400 rand-tt403 rand-tt775 rand-tt800 rand-t800 rand-toot73 rand-kirk81 rand-ripley90 rand-fushimi90 rand-ziff98
 
