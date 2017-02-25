@@ -20,6 +20,7 @@ import scipy
 import scipy.misc
 import scipy.stats
 import subprocess
+import signal
 from main import *
 
 logger = logging.getLogger(__name__)
@@ -90,7 +91,8 @@ class RandVerif(App):
                 raise ValueError('No generator to test')
 
             # Subprocess to redirect generator to a pipe we can read from
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=1024, close_fds=True, shell=True)
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    bufsize=1024, close_fds=True, shell=True, preexec_fn=os.setsid)
             iobj = common.FileLikeInputObject(fh=proc.stdout, desc=cmd)
 
             size = iobj.size()
@@ -125,7 +127,18 @@ class RandVerif(App):
                     cur_round += 1
                 pass
 
-            proc.kill()
+            res = hwanalysis.input_poly_last_res
+            res_top = res[0]
+            print(res_top)
+
+            try:
+                proc.stdout.close()
+                proc.terminate()
+                proc.kill()
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            except Exception as e:
+                logger.debug('Exception killing process: %s' % e)
+
             logger.info('Finished processing %s ' % iobj)
             logger.info('Data read %s ' % iobj.data_read)
             logger.info('Read data hash %s ' % iobj.sha1.hexdigest())
