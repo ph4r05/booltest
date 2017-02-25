@@ -127,6 +127,7 @@ class RandVerif(App):
                     cur_round += 1
                 pass
 
+            proc.kill()
             logger.info('Finished processing %s ' % iobj)
             logger.info('Data read %s ' % iobj.data_read)
             logger.info('Read data hash %s ' % iobj.sha1.hexdigest())
