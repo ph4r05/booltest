@@ -95,6 +95,19 @@ class HWAnalysis(object):
         self.input_poly_ref_hws = [0] * len(self.input_poly)
         self.precompute_input_poly()
 
+    def reset(self):
+        """
+        Reset internal stats - for use with new test vector set
+        :return:
+        """
+        self.total_n = 0
+        self.total_hws = []
+        self.ref_total_hws = []
+        self.total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
+        self.ref_total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
+        self.input_poly_hws = [0] * len(self.input_poly)
+        self.input_poly_ref_hws = [0] * len(self.input_poly)
+
     def precompute_input_poly(self):
         """
         Precompute expected values for input polynomials
@@ -228,8 +241,7 @@ class HWAnalysis(object):
 
         probab = [self.term_eval.expp_term_deg(deg) for deg in range(0, self.deg + 1)]
         exp_count = [num_evals * x for x in probab]
-        print(probab)
-        print(exp_count)
+        logger.info('Probabilities: %s, expected count: %s' % (probab, exp_count))
 
         top_terms = []
         zscores = [[0] * len(x) for x in hws]
@@ -245,7 +257,7 @@ class HWAnalysis(object):
                 zscores[deg] = [(common.zscore(x, exp_count[deg], num_evals), idx, x) for idx, x in enumerate(hws[deg])]
             zscores[deg].sort(key=lambda x: abs(x[0]), reverse=True)
 
-            # Selecting TOP k polynomials
+            # Selecting TOP k polynomials for further combinations
             for idx, x in enumerate(zscores[deg][0:15]):
                 fail = 'x' if abs(x[0]) > self.zscore_thresh else ' '
                 print(' - zscore[deg=%d]: %+05.5f, %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
@@ -265,14 +277,14 @@ class HWAnalysis(object):
             mean_zscore = sum([x[0] for x in zscores[deg]])/float(len(zscores[deg]))
             fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
             fails_fraction = float(fails)/len(zscores[deg])
-            # total_fails.append(fails_fraction)
+
             print('Mean zscore[deg=%d]: %s' % (deg, mean_zscore))
             print('Num of fails[deg=%d]: %s = %02f.5%%' % (deg, fails, 100.0*fails_fraction))
 
         if self.top_k is None:
             return
 
-        # Combine & store the results - XOR
+        # Combine & store the results - XOR, AND combination
         top_res = []
         logger.info('Combining %d terms in %d degree...' % (len(top_terms), self.top_comb))
 
