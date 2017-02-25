@@ -33,14 +33,14 @@ int main(int argc, char * argv[])
     }
     
     // Generates random numbers ad infinitum.
-    char buff[BUFSIZE];
+    char buff[BUFSIZE+24];
     for(;;){
-        for(int i = 0; i<BUFSIZE; i+=4){
+        for(int i = 0; i<BUFSIZE; i+=3){
             uint32_t cur = (uint32_t) lcgrand();
             buff[i+0] = cur & 0xff;
             buff[i+1] = (cur >> 8)  & 0xff;
             buff[i+2] = (cur >> 16) & 0xff;
-            buff[i+3] = (cur >> 24) & 0xff;
+            //buff[i+3] = (cur >> 24) & 0xff;
         }
         write(fileno(stdout), buff, BUFSIZE);
 	    fflush(stdout);
