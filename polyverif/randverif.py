@@ -59,6 +59,24 @@ class RandVerif(App):
         logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s, rounds: %s'
                     % (deg, self.blocklen, tvsize_orig, rounds))
 
+        total_terms = int(scipy.misc.comb(self.blocklen, deg, True))
+        hwanalysis = HWAnalysis()
+        hwanalysis.deg = deg
+        hwanalysis.blocklen = self.blocklen
+        hwanalysis.top_comb = top_comb
+        hwanalysis.comb_random = self.args.comb_random
+        hwanalysis.top_k = top_k
+        hwanalysis.combine_all_deg = all_deg
+        hwanalysis.zscore_thresh = zscore_thresh
+        hwanalysis.do_ref = reffile is not None
+        hwanalysis.input_poly = self.input_poly
+        hwanalysis.no_comb_and = self.args.no_comb_and
+        hwanalysis.no_comb_xor = self.args.no_comb_xor
+        hwanalysis.prob_comb = self.args.prob_comb
+        hwanalysis.all_deg_compute = len(self.input_poly) == 0
+        logger.info('Initializing test')
+        hwanalysis.init()
+
         for test_idx in range(self.args.tests):
             seed = random.randint(0, 2**32-1)
             cmd = ''
@@ -76,35 +94,15 @@ class RandVerif(App):
             iobj = common.FileLikeInputObject(fh=proc.stdout, desc=cmd)
 
             size = iobj.size()
-            logger.info('Testing input object: %s, size: %d kB' % (iobj, size/1024.0))
+            logger.info('Testing input object: %s, size: %d kB, iteration: %d' % (iobj, size/1024.0, test_idx))
 
             # size smaller than TV? Adapt tv then
             if size >= 0 and size < tvsize:
                 logger.info('File size is smaller than TV, updating TV to %d' % size)
                 tvsize = size
 
-            hwanalysis = HWAnalysis()
-            hwanalysis.deg = deg
-            hwanalysis.blocklen = self.blocklen
-            hwanalysis.top_comb = top_comb
-            hwanalysis.comb_random = self.args.comb_random
-            hwanalysis.top_k = top_k
-            hwanalysis.combine_all_deg = all_deg
-            hwanalysis.zscore_thresh = zscore_thresh
-            hwanalysis.do_ref = reffile is not None
-            hwanalysis.input_poly = self.input_poly
-            hwanalysis.no_comb_and = self.args.no_comb_and
-            hwanalysis.no_comb_xor = self.args.no_comb_xor
-            hwanalysis.prob_comb = self.args.prob_comb
-
-            # compute classical analysis only if there are no input polynomials
-            hwanalysis.all_deg_compute = len(self.input_poly) == 0
-            logger.info('Initializing test')
-            hwanalysis.init()
-
-            total_terms = int(scipy.misc.comb(self.blocklen, deg, True))
+            hwanalysis.reset()
             logger.info('BlockLength: %d, deg: %d, terms: %d' % (self.blocklen, deg, total_terms))
-
             with iobj:
                 data_read = 0
                 cur_round = 0
