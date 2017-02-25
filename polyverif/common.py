@@ -479,19 +479,20 @@ class TermEval(object):
 
         return term_generator(deg, self.blocklen-1)
 
-    def load(self, block):
+    def load(self, block, **kwargs):
         """
         Precomputes data
         :param block:
         :return:
         """
-        self.gen_base(block)
+        self.gen_base(block, **kwargs)
 
-    def gen_base(self, block):
+    def gen_base(self, block, eval_only_vars=None, **kwargs):
         """
         Generate base for term evaluation from the block.
         Evaluates each base term (deg=1) on the input, creates a base for further evaluation of high order terms.
         :param block: bit representation of the input
+        :param eval_only_vars: if not None, evals only those variables mentioned
         :return:
         """
         if (len(block) % self.blocklen) != 0:
@@ -507,8 +508,9 @@ class TermEval(object):
             self.base = [None] * self.blocklen
 
         for bitpos in range(0, self.blocklen):
-            # logger.info('bitpos %d' % bitpos)
             ctr = 0
+            if bitpos != 0 and eval_only_vars is not None and bitpos not in eval_only_vars:
+                continue
 
             if self.last_base_size != (self.blocklen, res_size):
                 self.base[bitpos] = empty_bitarray(res_size)

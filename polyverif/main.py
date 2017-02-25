@@ -73,6 +73,7 @@ class HWAnalysis(object):
         self.input_poly_exp = []
         self.input_poly_hws = []
         self.input_poly_ref_hws = []
+        self.input_poly_vars = set()
 
         # Buffers - allocated during computation for fast copy evaluation
         self.comb_res = None
@@ -104,6 +105,11 @@ class HWAnalysis(object):
             exp_cnt = self.term_eval.expp_poly(poly)
             self.input_poly_exp.append(exp_cnt)
 
+            # Used variables in input polynomials
+            for term in poly:
+                for var in term:
+                    self.input_poly_vars.add(var)
+
     def proces_chunk(self, bits, ref_bits=None):
         """
         Processes input chunk of bits for analysis.
@@ -111,8 +117,10 @@ class HWAnalysis(object):
         :param ref_bits:
         :return:
         """
+
         # Compute the basis.
-        self.term_eval.load(bits)
+        # Input polynomials optimization - evaluate basis only for variables used in polynomials.
+        self.term_eval.load(bits, eval_only_vars=None if len(self.input_poly_vars) == 0 else self.input_poly_vars)
         ln = len(bits)
         hws2, hws_input = None, None
 
