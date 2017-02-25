@@ -1,2 +1,3 @@
 #!/bin/bash
-java -cp . Main $*
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+java -cp "${DIR}" Main $*
