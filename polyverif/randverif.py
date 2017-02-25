@@ -53,6 +53,8 @@ class RandVerif(App):
         all_deg = self.args.alldeg
         tvsize = tvsize_orig
 
+        top_distinguishers = []
+
         # Load input polynomials
         self.load_input_poly()
         script_path = common.get_script_path()
@@ -129,7 +131,7 @@ class RandVerif(App):
 
             res = hwanalysis.input_poly_last_res
             res_top = res[0]
-            print(res_top)
+            top_distinguishers.append(res_top)
 
             try:
                 proc.stdout.close()
@@ -142,6 +144,15 @@ class RandVerif(App):
             logger.info('Finished processing %s ' % iobj)
             logger.info('Data read %s ' % iobj.data_read)
             logger.info('Read data hash %s ' % iobj.sha1.hexdigest())
+
+        js = []
+        for dist in top_distinguishers:
+            cr = collections.OrderedDict()
+            cr['z'] = dist.zscore
+            cr['d'] = dist.idx
+            js.append(cr)
+        print(json.dumps(js, indent=2))
+
         logger.info('Processing finished')
 
     def main(self):
