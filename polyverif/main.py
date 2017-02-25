@@ -67,6 +67,7 @@ class HWAnalysis(object):
         self.total_hws = []
         self.ref_total_hws = []
         self.total_n = 0
+        self.last_res = None
 
         self.all_deg_compute = True
         self.input_poly = []
@@ -74,6 +75,7 @@ class HWAnalysis(object):
         self.input_poly_hws = []
         self.input_poly_ref_hws = []
         self.input_poly_vars = set()
+        self.input_poly_last_res = None
 
         # Buffers - allocated during computation for fast copy evaluation
         self.comb_res = None
@@ -107,6 +109,8 @@ class HWAnalysis(object):
         self.ref_total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
         self.input_poly_hws = [0] * len(self.input_poly)
         self.input_poly_ref_hws = [0] * len(self.input_poly)
+        self.last_res = None
+        self.input_poly_last_res = None
 
     def precompute_input_poly(self):
         """
@@ -194,7 +198,7 @@ class HWAnalysis(object):
         All data read - final analysis.
         :return:
         """
-        self.analyse(self.total_hws, self.total_n)
+        return self.analyse(self.total_hws, self.total_n)
 
     def analyse_input(self, num_evals, hws_input=None):
         """
@@ -221,6 +225,9 @@ class HWAnalysis(object):
             fail = 'x' if abs(res.zscore) > self.zscore_thresh else ' '
             print(' - zscore[idx%02d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, poly: %s'
                   % (res.idx, res.zscore, res.obs_cnt, res.exp_cnt, fail, res.idx, self.input_poly[res.idx]))
+
+        self.input_poly_last_res = results
+        return results
 
     def analyse(self, num_evals, hws=None, hws_input=None, ref_hws=None):
         """
@@ -309,6 +316,9 @@ class HWAnalysis(object):
             print(' - best poly zscore %9.5f, expp: %.4f, exp: %4d, obs: %s, diff: %f %%, poly: %s'
                   % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
                      100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, sorted(comb.poly)))
+
+        self.last_res = top_res
+        return top_res
 
     def comb_xor(self, top_comb_cur, top_terms, top_res, num_evals, ref_hws=None):
         """
