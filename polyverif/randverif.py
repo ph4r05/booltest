@@ -73,6 +73,7 @@ class RandVerif(App):
         hwanalysis.combine_all_deg = all_deg
         hwanalysis.zscore_thresh = zscore_thresh
         hwanalysis.do_ref = reffile is not None
+        hwanalysis.skip_print_res = True
         hwanalysis.input_poly = self.input_poly
         hwanalysis.no_comb_and = self.args.no_comb_and
         hwanalysis.no_comb_xor = self.args.no_comb_xor
@@ -155,8 +156,8 @@ class RandVerif(App):
             logger.info('Finished processing %s ' % iobj)
             logger.info('Data read %s ' % iobj.data_read)
             logger.info('Read data hash %s ' % iobj.sha1.hexdigest())
-            print('-'*80)
 
+        all_zscores = []
         print('-----BEGIN JSON-----')
         js = []
         for dist in top_distinguishers:
@@ -165,6 +166,7 @@ class RandVerif(App):
             cr['d'] = dist[0].idx
             cr['seed'] = dist[1]
             js.append(cr)
+            all_zscores.append(dist[0].zscore)
         print(json.dumps(js, indent=2))
 
         print('-----BEGIN JSON-STATS-----')
@@ -179,6 +181,11 @@ class RandVerif(App):
             cr['zscores'] = cur
             js.append(cr)
         print(json.dumps(js, indent=2))
+
+        print('-----BEGIN Z-SCORES-NORM-----')
+        print(all_zscores)
+        print('-----BEGIN Z-SCORES-ABS-----')
+        print([abs(x) for x in all_zscores])
 
         logger.info('Processing finished')
 

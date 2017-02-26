@@ -1,3 +1,4 @@
+from __future__ import print_function
 from past.builtins import basestring
 from functools import reduce
 import argparse
@@ -63,6 +64,7 @@ class HWAnalysis(object):
         self.no_comb_xor = False
         self.no_comb_and = False
         self.prob_comb = 1.0
+        self.skip_print_res = False
 
         self.total_hws = []
         self.ref_total_hws = []
@@ -200,6 +202,11 @@ class HWAnalysis(object):
         """
         return self.analyse(self.total_hws, self.total_n)
 
+    def tprint(self, *args, **kwargs):
+        if self.skip_print_res:
+            return
+        print(*args, **kwargs)
+
     def analyse_input(self, num_evals, hws_input=None):
         """
         Analyses input polynomials result on the data
@@ -223,8 +230,8 @@ class HWAnalysis(object):
 
         for res in results:
             fail = 'x' if abs(res.zscore) > self.zscore_thresh else ' '
-            print(' - zscore[idx%02d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, poly: %s'
-                  % (res.idx, res.zscore, res.obs_cnt, res.exp_cnt, fail, res.idx, self.input_poly[res.idx]))
+            self.tprint(' - zscore[idx%02d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, poly: %s'
+                        % (res.idx, res.zscore, res.obs_cnt, res.exp_cnt, fail, res.idx, self.input_poly[res.idx]))
 
         self.input_poly_last_res = results
         return results
@@ -267,8 +274,8 @@ class HWAnalysis(object):
             # Selecting TOP k polynomials for further combinations
             for idx, x in enumerate(zscores[deg][0:15]):
                 fail = 'x' if abs(x[0]) > self.zscore_thresh else ' '
-                print(' - zscore[deg=%d]: %+05.5f, %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
-                      % (deg, x[0], zscores_ref[deg][idx]-x[0], x[2], exp_count[deg], fail, x[1], self.term_map[deg][x[1]]))
+                self.tprint(' - zscore[deg=%d]: %+05.5f, %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
+                            % (deg, x[0], zscores_ref[deg][idx]-x[0], x[2], exp_count[deg], fail, x[1], self.term_map[deg][x[1]]))
 
             # Take top X best polynomials
             if self.top_k is None:
@@ -285,8 +292,8 @@ class HWAnalysis(object):
             fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
             fails_fraction = float(fails)/len(zscores[deg])
 
-            print('Mean zscore[deg=%d]: %s' % (deg, mean_zscore))
-            print('Num of fails[deg=%d]: %s = %02f.5%%' % (deg, fails, 100.0*fails_fraction))
+            self.tprint('Mean zscore[deg=%d]: %s' % (deg, mean_zscore))
+            self.tprint('Num of fails[deg=%d]: %s = %02f.5%%' % (deg, fails, 100.0*fails_fraction))
 
         if self.top_k is None:
             return
@@ -314,9 +321,9 @@ class HWAnalysis(object):
         top_res.sort(key=lambda x: abs(x.zscore), reverse=True)
         for i in range(min(len(top_res), 30)):
             comb = top_res[i]
-            print(' - best poly zscore %9.5f, expp: %.4f, exp: %4d, obs: %s, diff: %f %%, poly: %s'
-                  % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
-                     100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, sorted(comb.poly)))
+            self.tprint(' - best poly zscore %9.5f, expp: %.4f, exp: %4d, obs: %s, diff: %f %%, poly: %s'
+                        % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
+                           100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, sorted(comb.poly)))
 
         self.last_res = top_res
         return top_res
