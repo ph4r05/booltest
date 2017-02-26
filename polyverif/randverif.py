@@ -150,6 +150,7 @@ class RandVerif(App):
             logger.info('Read data hash %s ' % iobj.sha1.hexdigest())
             print('-'*80)
 
+        print('-----BEGIN JSON-----')
         js = []
         for dist in top_distinguishers:
             cr = collections.OrderedDict()
