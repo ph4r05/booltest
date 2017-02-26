@@ -148,6 +148,7 @@ class RandVerif(App):
             logger.info('Finished processing %s ' % iobj)
             logger.info('Data read %s ' % iobj.data_read)
             logger.info('Read data hash %s ' % iobj.sha1.hexdigest())
+            print('-'*80)
 
         js = []
         for dist in top_distinguishers:
