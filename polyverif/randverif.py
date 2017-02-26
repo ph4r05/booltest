@@ -135,7 +135,7 @@ class RandVerif(App):
 
             res = hwanalysis.input_poly_last_res
             res_top = res[0]
-            top_distinguishers.append(res_top)
+            top_distinguishers.append((res_top, seed))
 
             try:
                 proc.stdout.close()
@@ -152,8 +152,9 @@ class RandVerif(App):
         js = []
         for dist in top_distinguishers:
             cr = collections.OrderedDict()
-            cr['z'] = dist.zscore
-            cr['d'] = dist.idx
+            cr['z'] = dist[0].zscore
+            cr['d'] = dist[0].idx
+            cr['seed'] = dist[1]
             js.append(cr)
         print(json.dumps(js, indent=2))
 
