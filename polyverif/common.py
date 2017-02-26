@@ -205,6 +205,19 @@ def get_script_path():
     return os.path.dirname(os.path.realpath(sys.argv[0]))
 
 
+def poly2str(poly):
+    """
+    Converts polynomial to a string representation.
+    :param poly:
+    :return:
+    """
+    terms = []
+    for term in poly:
+        vars = ''.join(['x_{%d}' % x for x in term])
+        terms.append(vars)
+    return ' + '.join(terms)
+
+
 class InputObject(object):
     """
     Input stream object.

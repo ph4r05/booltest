@@ -81,6 +81,10 @@ class RandVerif(App):
         logger.info('Initializing test')
         hwanalysis.init()
 
+        dist_result_map = {}
+        for idx, poly in enumerate(self.input_poly):
+            dist_result_map[idx] = []
+
         for test_idx in range(self.args.tests):
             seed = random.randint(0, 2**32-1)
             cmd = ''
@@ -137,6 +141,9 @@ class RandVerif(App):
             res_top = res[0]
             top_distinguishers.append((res_top, seed))
 
+            for cur in res:
+                dist_result_map[cur.idx].append(cur.zscore)
+
             try:
                 proc.stdout.close()
                 proc.terminate()
@@ -157,6 +164,19 @@ class RandVerif(App):
             cr['z'] = dist[0].zscore
             cr['d'] = dist[0].idx
             cr['seed'] = dist[1]
+            js.append(cr)
+        print(json.dumps(js, indent=2))
+
+        print('-----BEGIN JSON-STATS-----')
+        js = []
+        for idx in dist_result_map:
+            cur = dist_result_map[idx]
+            cr = collections.OrderedDict()
+            cr['idx'] = idx
+            cr['poly'] = common.poly2str(self.input_poly[idx])
+            cr['avg'] = sum([abs(x) for x in cur])/float(len(cur))
+            cr['cnt'] = len(cur)
+            cr['zscores'] = cur
             js.append(cr)
         print(json.dumps(js, indent=2))
 
