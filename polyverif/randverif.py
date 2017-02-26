@@ -21,6 +21,7 @@ import scipy.misc
 import scipy.stats
 import subprocess
 import signal
+import psutil
 from main import *
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,9 @@ class RandVerif(App):
             cmd = ''
             if self.args.test_randc:
                 path = os.path.realpath(os.path.join(script_path, '../assets/rndgen-c/rand'))
+                cmd = '%s %s' % (path, seed)
+            elif self.args.test_randc_small:
+                path = os.path.realpath(os.path.join(script_path, '../assets/rndgen-c-small/rand'))
                 cmd = '%s %s' % (path, seed)
             elif self.args.test_java:
                 path = os.path.realpath(os.path.join(script_path, '../assets/rndgen-java/'))
@@ -222,6 +226,9 @@ class RandVerif(App):
 
         parser.add_argument('--test-randc', dest='test_randc', action='store_const', const=True, default=False,
                             help='Test randc generator')
+
+        parser.add_argument('--test-randc-small', dest='test_randc_small', action='store_const', const=True, default=False,
+                            help='Test randc_small generator')
 
         parser.add_argument('--test-java', dest='test_java', action='store_const', const=True, default=False,
                             help='Test java generator')
