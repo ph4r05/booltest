@@ -80,6 +80,7 @@ class RandVerif(App):
         hwanalysis.no_comb_xor = self.args.no_comb_xor
         hwanalysis.prob_comb = self.args.prob_comb
         hwanalysis.all_deg_compute = len(self.input_poly) == 0
+        hwanalysis.do_only_top_comb = self.args.only_top_comb
         logger.info('Initializing test')
         hwanalysis.init()
 
@@ -269,6 +270,9 @@ class RandVerif(App):
 
         parser.add_argument('--no-comb-and', dest='no_comb_and', action='store_const', const=True, default=False,
                             help='Disables AND combinations')
+
+        parser.add_argument('--only-top-comb', dest='only_top_comb', action='store_const', const=True, default=False,
+                            help='If set only the top combination is performed, otherwise all up to given combination degree')
 
         parser.add_argument('--prob-comb', dest='prob_comb', type=float, default=1.0,
                             help='Probability the given combination is going to be chosen.')

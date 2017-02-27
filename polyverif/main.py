@@ -65,6 +65,7 @@ class HWAnalysis(object):
         self.no_comb_and = False
         self.prob_comb = 1.0
         self.skip_print_res = False
+        self.do_only_top_comb = False
 
         self.total_hws = []
         self.ref_total_hws = []
@@ -305,7 +306,8 @@ class HWAnalysis(object):
 
         self.comb_res = self.term_eval.new_buffer()
         self.comb_subres = self.term_eval.new_buffer()
-        for top_comb_cur in range(1, self.top_comb + 1):
+        start_deg = self.top_comb if self.do_only_top_comb else 1
+        for top_comb_cur in range(start_deg, self.top_comb + 1):
 
             # Combine * store results - XOR
             if not self.no_comb_xor:
@@ -634,6 +636,7 @@ class App(object):
             hwanalysis.no_comb_and = self.args.no_comb_and
             hwanalysis.no_comb_xor = self.args.no_comb_xor
             hwanalysis.prob_comb = self.args.prob_comb
+            hwanalysis.do_only_top_comb = self.args.only_top_comb
 
             # compute classical analysis only if there are no input polynomials
             hwanalysis.all_deg_compute = len(self.input_poly) == 0
@@ -740,6 +743,9 @@ class App(object):
 
         parser.add_argument('--no-comb-and', dest='no_comb_and', action='store_const', const=True, default=False,
                             help='Disables AND combinations')
+
+        parser.add_argument('--only-top-comb', dest='only_top_comb', action='store_const', const=True, default=False,
+                            help='If set only the top combination is performed, otherwise all up to given combination degree')
 
         parser.add_argument('--prob-comb', dest='prob_comb', type=float, default=1.0,
                             help='Probability the given combination is going to be chosen.')
