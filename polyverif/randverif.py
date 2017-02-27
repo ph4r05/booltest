@@ -186,6 +186,10 @@ class RandVerif(App):
         print(all_zscores)
         print('-----BEGIN Z-SCORES-ABS-----')
         print([abs(x) for x in all_zscores])
+        print('-----BEGIN Z-SCORES-CSV-----')
+        print('zscore')
+        for x in [abs(x) for x in all_zscores]:
+            print(x)
 
         logger.info('Processing finished')
 
