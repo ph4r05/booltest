@@ -11,6 +11,9 @@ import hashlib
 import crypto_util
 import scipy.misc
 import ufx.uf_hash as ufh
+import subprocess
+import signal
+from crypto_util import aes_ctr, get_zero_vector
 
 
 # Enables bitarray - with native C extension
@@ -333,7 +336,7 @@ class StdinInputObject(InputObject):
 
 class FileLikeInputObject(InputObject):
     """
-    Reads data from the stdin
+    Reads data from file like objects - e.g., stdout, sockets, ...
     """
     def __init__(self, fh=None, desc=None, *args, **kwargs):
         super(FileLikeInputObject, self).__init__(*args, **kwargs)
@@ -353,6 +356,82 @@ class FileLikeInputObject(InputObject):
 
     def read(self, size):
         data = self.fh.read(size)
+        self.sha1.update(data)
+        self.data_read += len(data)
+        return data
+
+
+class CommandStdoutInputObject(InputObject):
+    """
+    Executes command, reads from its stdout - used with generators.
+    """
+    def __init__(self, cmd=None, seed=None, desc=None, *args, **kwargs):
+        super(CommandStdoutInputObject, self).__init__(*args, **kwargs)
+        self.cmd = cmd
+        self.seed = seed
+        self.desc = desc
+        self.proc = None
+        self.subio = None
+
+    def __repr__(self):
+        return 'CommandStdoutInputObject()'
+
+    def __str__(self):
+        if self.desc is not None:
+            return '%s' % self.desc
+        return 'cmd: %s' % self.cmd
+
+    def __enter__(self):
+        super(CommandStdoutInputObject, self).__enter__()
+
+        self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                     bufsize=1024, close_fds=True, shell=True, preexec_fn=os.setsid)
+        self.subio = FileLikeInputObject(fh=self.proc.stdout, desc=self.cmd)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            self.proc.stdout.close()
+            self.proc.terminate()
+            self.proc.kill()
+            os.killpg(os.getpgid(self.proc.pid), signal.SIGKILL)
+        except Exception as e:
+            logger.debug('Exception killing process: %s' % e)
+
+        super(CommandStdoutInputObject, self).__exit__(exc_type, exc_val, exc_tb)
+
+    def size(self):
+        return -1
+
+    def read(self, size):
+        data = self.subio.read(size)
+        self.sha1.update(data)
+        self.data_read += len(data)
+        return data
+
+
+class AESInputObject(InputObject):
+    """
+    AES data input generation.
+    """
+    def __init__(self, seed=None, desc=None, *args, **kwargs):
+        super(AESInputObject, self).__init__(*args, **kwargs)
+        self.seed = seed
+        self.desc = desc
+
+    def __repr__(self):
+        return 'AESInputObject(seed=%r)' % self.seed
+
+    def __str__(self):
+        if self.desc is not None:
+            return '%s' % self.desc
+        return 'aes-ctr(sha256(0x%x))' % self.seed
+
+    def size(self):
+        return -1
+
+    def read(self, size):
+        aes = aes_ctr(hashlib.sha256('%x' % self.seed).digest())
+        data = aes.encrypt(get_zero_vector(size))
         self.sha1.update(data)
         self.data_read += len(data)
         return data
