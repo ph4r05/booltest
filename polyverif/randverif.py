@@ -192,6 +192,18 @@ class RandVerif(App):
             js.append(cr)
         print(json.dumps(js, indent=2))
 
+        print('-----BEGIN RUN-CONFIG-----')
+        js = collections.OrderedDict()
+        js['block'] = self.blocklen
+        js['deg'] = deg
+        js['top_comb'] = top_comb
+        js['top_k'] = top_k
+        js['tvsize'] = tvsize
+        js['tests'] = self.args.tests
+        js['prob_comb'] = self.args.prob_comb
+        js['all_deg'] = all_deg
+        print(json.dumps(js))
+
         print('-----BEGIN Z-SCORES-NORM-----')
         print(all_zscores)
         print('-----BEGIN Z-SCORES-ABS-----')
