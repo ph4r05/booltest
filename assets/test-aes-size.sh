@@ -19,5 +19,6 @@ for block in 128 256; do
         done
     done
 done
+done
 echo "Done `date`"
 
