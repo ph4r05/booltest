@@ -88,23 +88,27 @@ class RandVerif(App):
 
         for test_idx in range(self.args.tests):
             seed = random.randint(0, 2**32-1)
-            cmd = ''
+            iobj = None
             if self.args.test_randc:
                 path = os.path.realpath(os.path.join(script_path, '../assets/rndgen-c/rand'))
                 cmd = '%s %s' % (path, seed)
+                iobj = common.CommandStdoutInputObject(cmd=cmd, seed=seed, desc='randc-%s' % seed)
+
             elif self.args.test_randc_small:
                 path = os.path.realpath(os.path.join(script_path, '../assets/rndgen-c-small/rand'))
                 cmd = '%s %s' % (path, seed)
+                iobj = common.CommandStdoutInputObject(cmd=cmd, seed=seed, desc='randc-small-%s' % seed)
+
             elif self.args.test_java:
                 path = os.path.realpath(os.path.join(script_path, '../assets/rndgen-java/'))
                 cmd = 'java -cp %s Main %s' % (path, seed)
+                iobj = common.CommandStdoutInputObject(cmd=cmd, seed=seed, desc='randjava-%s' % seed)
+
+            elif self.args.test_aes:
+                iobj = common.AESInputObject(seed=seed)
+
             else:
                 raise ValueError('No generator to test')
-
-            # Subprocess to redirect generator to a pipe we can read from
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    bufsize=1024, close_fds=True, shell=True, preexec_fn=os.setsid)
-            iobj = common.FileLikeInputObject(fh=proc.stdout, desc=cmd)
 
             size = iobj.size()
             logger.info('Testing input object: %s, size: %d kB, iteration: %d' % (iobj, size/1024.0, test_idx))
@@ -139,19 +143,12 @@ class RandVerif(App):
                 pass
 
             res = hwanalysis.input_poly_last_res
-            res_top = res[0]
-            top_distinguishers.append((res_top, seed))
+            if res is not None and len(res) > 0:
+                res_top = res[0]
+                top_distinguishers.append((res_top, seed))
 
-            for cur in res:
-                dist_result_map[cur.idx].append(cur.zscore)
-
-            try:
-                proc.stdout.close()
-                proc.terminate()
-                proc.kill()
-                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-            except Exception as e:
-                logger.debug('Exception killing process: %s' % e)
+                for cur in res:
+                    dist_result_map[cur.idx].append(cur.zscore)
 
             logger.info('Finished processing %s ' % iobj)
             logger.info('Data read %s ' % iobj.data_read)
@@ -266,6 +263,9 @@ class RandVerif(App):
 
         parser.add_argument('--test-java', dest='test_java', action='store_const', const=True, default=False,
                             help='Test java generator')
+
+        parser.add_argument('--test-aes', dest='test_aes', action='store_const', const=True, default=False,
+                            help='AES test')
 
         parser.add_argument('--tests', dest='tests', type=int, default=100,
                             help='Number of tests to do')
