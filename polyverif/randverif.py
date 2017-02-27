@@ -38,6 +38,7 @@ class RandVerif(App):
         self.term_map = []
         self.input_poly = []
 
+    # noinspection PyBroadException
     def work(self):
         """
         Main entry point - data processing
@@ -150,6 +151,13 @@ class RandVerif(App):
                 for cur in res:
                     dist_result_map[cur.idx].append(cur.zscore)
 
+            elif hwanalysis.last_res is not None and len(hwanalysis.last_res) > 0:
+                res_top = hwanalysis.last_res[0]
+                top_distinguishers.append((res_top, seed))
+
+            else:
+                raise ValueError('No data from the analysis')
+
             logger.info('Finished processing %s ' % iobj)
             logger.info('Data read %s ' % iobj.data_read)
             logger.info('Read data hash %s ' % iobj.sha1.hexdigest())
@@ -160,7 +168,11 @@ class RandVerif(App):
         for dist in top_distinguishers:
             cr = collections.OrderedDict()
             cr['z'] = dist[0].zscore
-            cr['d'] = dist[0].idx
+            try:
+                cr['d'] = dist[0].idx
+            except:
+                pass
+
             cr['seed'] = dist[1]
             js.append(cr)
             all_zscores.append(dist[0].zscore)
@@ -183,10 +195,16 @@ class RandVerif(App):
         print(all_zscores)
         print('-----BEGIN Z-SCORES-ABS-----')
         print([abs(x) for x in all_zscores])
-        print('-----BEGIN Z-SCORES-CSV-----')
-        print('zscore')
-        for x in [abs(x) for x in all_zscores]:
-            print(x)
+        print('-----BEGIN Z-SCORES-AVG-----')
+        print(sum([abs(x) for x in all_zscores])/float(len(all_zscores)))
+        print('-----BEGIN Z-SCORES-NAVG-----')
+        print(sum([x for x in all_zscores])/float(len(all_zscores)))
+
+        if self.args.csv_zscore:
+            print('-----BEGIN Z-SCORES-CSV-----')
+            print('zscore')
+            for x in [abs(x) for x in all_zscores]:
+                print(x)
 
         logger.info('Processing finished')
 
@@ -254,6 +272,9 @@ class RandVerif(App):
 
         parser.add_argument('--prob-comb', dest='prob_comb', type=float, default=1.0,
                             help='Probability the given combination is going to be chosen.')
+
+        parser.add_argument('--csv-zscore', dest='csv_zscore', action='store_const', const=True, default=False,
+                            help='CSV output with zscores')
 
         parser.add_argument('--test-randc', dest='test_randc', action='store_const', const=True, default=False,
                             help='Test randc generator')
