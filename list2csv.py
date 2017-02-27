@@ -27,7 +27,6 @@ def main():
 
     js = json.loads(buff)
 
-    print('label,zscore')
     for x in js:
         print('%s,%s' % (os.environ['LABEL'], abs(x)))
 
