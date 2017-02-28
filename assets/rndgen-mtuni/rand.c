@@ -30,59 +30,70 @@ static void init_genrand (unsigned long * S, unsigned cnt, unsigned long s)
 }
 
 int main(int argc, char * argv[]){
-    unsigned long S[100];
+    unsigned long S[10000];
     unsigned long seed = 1;
     if (argc > 1){
         seed = atoi(argv[1]);
     }
 
     // Seed generators with S[]
-    init_genrand(S, 100, seed);
+    init_genrand(S, 10000, seed);
 
     // Generators
 #if defined(TT400)
     unif01_Gen * gen = ugfsr_CreateTT400(S);
 #   define GENWIDTH 2
+#   define GENOFFSET 0
 
 #elif defined(TT403)
     unif01_Gen * gen = ugfsr_CreateTT403(S);
 #   define GENWIDTH 3
+#   define GENOFFSET 0
 
 #elif defined(TT775)
     unif01_Gen * gen = ugfsr_CreateTT775(S);
 #   define GENWIDTH 3
+#   define GENOFFSET 0
 
 #elif defined(TT800)
     unif01_Gen * gen = ugfsr_CreateTT800(S);
 #   define GENWIDTH 4
+#   define GENOFFSET 0
 
 #elif defined(T800)
     unif01_Gen * gen = ugfsr_CreateT800(S);
 #   define GENWIDTH 4
+#   define GENOFFSET 0
 
 #elif defined(TOOT73)
     unif01_Gen * gen = ugfsr_CreateToot73(S);
 #   define GENWIDTH 2
+#   define GENOFFSET 8  // reaaly weird, bottom 8 bits are 0
 
 #elif defined(KIRK81)
     unif01_Gen * gen = ugfsr_CreateKirk81(seed);
 #   define GENWIDTH 4
+#   define GENOFFSET 0
 
 #elif defined(RIPLEY90)
     unif01_Gen * gen = ugfsr_CreateRipley90(seed);
 #   define GENWIDTH 3
+#   define GENOFFSET 0
 
 #elif defined(FUSHIMI90)
     unif01_Gen * gen = ugfsr_CreateFushimi90((int)seed);
 #   define GENWIDTH 3
+#   define GENOFFSET 0
 
 #elif defined(ZIFF98)
     unif01_Gen * gen = ugfsr_CreateZiff98(S);
 #   define GENWIDTH 4
+#   define GENOFFSET 0
 
 #else
     unif01_Gen * gen = NULL;
 #   define GENWIDTH 2
+#   define GENOFFSET 0
 #   error No generator defined
 #endif
 
@@ -91,12 +102,14 @@ int main(int argc, char * argv[]){
     for(;;){
         for(int i = 0; i<BUFSIZE; i+=GENWIDTH){
             unsigned long cur = gen->GetBits(gen->param, gen->state);
-            buff[i+0] = cur & 0xff;
-            buff[i+1] = (cur >> 8)  & 0xff;
+            buff[i+0] = (cur >> GENOFFSET) & 0xff;
+#if GENWIDTH >= 2
+            buff[i+1] = (cur >> (GENOFFSET+8))  & 0xff;
 #if GENWIDTH >= 3
-            buff[i+2] = (cur >> 16) & 0xff;
+            buff[i+2] = (cur >> (GENOFFSET+16)) & 0xff;
 #if GENWIDTH == 4
-            buff[i+3] = (cur >> 24) & 0xff;
+            buff[i+3] = (cur >> (GENOFFSET+24)) & 0xff;
+#endif
 #endif
 #endif
         }
