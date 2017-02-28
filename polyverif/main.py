@@ -66,6 +66,7 @@ class HWAnalysis(object):
         self.prob_comb = 1.0
         self.skip_print_res = False
         self.do_only_top_comb = False
+        self.no_term_map = False
 
         self.total_hws = []
         self.ref_total_hws = []
@@ -89,8 +90,12 @@ class HWAnalysis(object):
         Initializes state, term_eval engine, input polynomials expected probability.
         :return:
         """
-        logger.info('Precomputing term mappings')
-        self.term_map = common.build_term_map(self.deg, self.blocklen)
+        logger.info('Initializing HWanalysis')
+
+        if not self.no_term_map:
+            logger.info('Precomputing term mappings')
+            self.term_map = common.build_term_map(self.deg, self.blocklen)
+
         self.term_eval = common.TermEval(blocklen=self.blocklen, deg=self.deg)
         self.ref_term_eval = common.TermEval(blocklen=self.blocklen, deg=self.deg)
         self.total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
@@ -208,6 +213,18 @@ class HWAnalysis(object):
             return
         print(*args, **kwargs)
 
+    def unrank(self, deg, index):
+        """
+        Converts index to the polynomial of given degree
+        :param deg:
+        :param index:
+        :return:
+        """
+        if self.no_term_map:
+            return common.unrank(index, self.blocklen, deg)
+        else:
+            return self.term_map[deg][index]
+
     def analyse_input(self, num_evals, hws_input=None):
         """
         Analyses input polynomials result on the data
@@ -276,18 +293,18 @@ class HWAnalysis(object):
             for idx, x in enumerate(zscores[deg][0:15]):
                 fail = 'x' if abs(x[0]) > self.zscore_thresh else ' '
                 self.tprint(' - zscore[deg=%d]: %+05.5f, %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
-                            % (deg, x[0], zscores_ref[deg][idx]-x[0], x[2], exp_count[deg], fail, x[1], self.term_map[deg][x[1]]))
+                            % (deg, x[0], zscores_ref[deg][idx]-x[0], x[2], exp_count[deg], fail, x[1], self.unrank(deg, x[1])))
 
             # Take top X best polynomials
             if self.top_k is None:
                 continue
 
             if self.combine_all_deg or deg == self.deg:
-                top_terms += [self.term_map[deg][x[1]] for x in zscores[deg][0: (None if self.top_k < 0 else self.top_k)]]
+                top_terms += [self.unrank(deg, x[1]) for x in zscores[deg][0: (None if self.top_k < 0 else self.top_k)]]
 
                 if self.comb_random > 0:
                     random_subset = random.sample(zscores[deg], self.comb_random)
-                    top_terms += [self.term_map[deg][x[1]] for x in random_subset]
+                    top_terms += [self.unrank(deg, x[1]) for x in random_subset]
 
             mean_zscore = sum([x[0] for x in zscores[deg]])/float(len(zscores[deg]))
             fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
@@ -397,7 +414,6 @@ class App(object):
         self.args = None
         self.tester = None
         self.blocklen = None
-        self.term_map = []
         self.input_poly = []
         self.input_objects = []
 
@@ -637,6 +653,7 @@ class App(object):
             hwanalysis.no_comb_xor = self.args.no_comb_xor
             hwanalysis.prob_comb = self.args.prob_comb
             hwanalysis.do_only_top_comb = self.args.only_top_comb
+            hwanalysis.no_term_map = self.args.no_term_map
 
             # compute classical analysis only if there are no input polynomials
             hwanalysis.all_deg_compute = len(self.input_poly) == 0
@@ -746,6 +763,9 @@ class App(object):
 
         parser.add_argument('--only-top-comb', dest='only_top_comb', action='store_const', const=True, default=False,
                             help='If set only the top combination is performed, otherwise all up to given combination degree')
+
+        parser.add_argument('--no-term-map', dest='no_term_map', action='store_const', const=True, default=False,
+                            help='Disables term map precomputation, uses unranking algorithm instead')
 
         parser.add_argument('--prob-comb', dest='prob_comb', type=float, default=1.0,
                             help='Probability the given combination is going to be chosen.')

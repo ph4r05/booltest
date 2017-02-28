@@ -13,6 +13,7 @@ import scipy.misc
 import ufx.uf_hash as ufh
 import subprocess
 import signal
+from repoze.lru import lru_cache
 from crypto_util import aes_ctr, get_zero_vector
 
 
@@ -102,6 +103,7 @@ def term_generator(deg, maxelem, prob_choose=1.0):
             return
 
 
+@lru_cache(maxsize=1024)
 def comb(n, k, exact=False):
     return scipy.misc.comb(n, k, exact=exact)
 
@@ -202,6 +204,40 @@ def build_term_map(deg, blocklen):
         for idx, x in enumerate(term_generator(dg, blocklen - 1)):
             term_map[dg][idx] = x
     return term_map
+
+
+@lru_cache(maxsize=1024)
+def comb_cached(n, k):
+    """
+    Computes C(n,k) - combinatorial number of N elements, k choices
+    :param n:
+    :param k:
+    :return:
+    """
+    if (k > n) or (n < 0) or (k < 0):
+        return 0
+    val = 1
+    for j in range(min(k, n - k)):
+        val = (val * (n - j)) // (j + 1)
+    return val
+
+
+@lru_cache(maxsize=1024)
+def unrank(i, n, k):
+    """
+    returns the i-th combination of k numbers chosen from 0,2,...,n-1, indexing from 0
+    """
+    c = []
+    r = i+0
+    j = 0
+    for s in range(1, k+1):
+        cs = j+1
+        while r-comb_cached(n-cs, k-s) >= 0:
+            r -= comb_cached(n-cs, k-s)
+            cs += 1
+        c.append(cs-1)
+        j = cs
+    return c
 
 
 def get_script_path():

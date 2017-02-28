@@ -35,7 +35,6 @@ class RandVerif(App):
         self.args = None
         self.tester = None
         self.blocklen = None
-        self.term_map = []
         self.input_poly = []
 
     # noinspection PyBroadException
@@ -81,6 +80,7 @@ class RandVerif(App):
         hwanalysis.prob_comb = self.args.prob_comb
         hwanalysis.all_deg_compute = len(self.input_poly) == 0
         hwanalysis.do_only_top_comb = self.args.only_top_comb
+        hwanalysis.no_term_map = self.args.no_term_map
         logger.info('Initializing test')
         hwanalysis.init()
 
@@ -285,6 +285,9 @@ class RandVerif(App):
 
         parser.add_argument('--only-top-comb', dest='only_top_comb', action='store_const', const=True, default=False,
                             help='If set only the top combination is performed, otherwise all up to given combination degree')
+
+        parser.add_argument('--no-term-map', dest='no_term_map', action='store_const', const=True, default=False,
+                            help='Disables term map precomputation, uses unranking algorithm instead')
 
         parser.add_argument('--prob-comb', dest='prob_comb', type=float, default=1.0,
                             help='Probability the given combination is going to be chosen.')
