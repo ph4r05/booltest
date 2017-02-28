@@ -2,7 +2,7 @@
 
 DATA=$((1024*1024*10))
 TOPK=128
-TESTS=1000
+TESTS=100
 
 for block in 128 256 384 512; do
     for deg in 1 2 3; do
