@@ -281,19 +281,30 @@ class HWAnalysis(object):
         for deg in range(1, self.deg+1):
             # Compute (zscore, idx)
             # If reference stream is used, compute diff zscore.
+
+            zscore_denom = common.zscore_denominator(exp_count[deg], num_evals)
             if ref_hws is not None:
-                zscores_ref[deg] = [common.zscore(x, exp_count[deg], num_evals) for x in ref_hws[deg]]
-                zscores[deg] = [((common.zscore(x, exp_count[deg], num_evals)), idx, x) for idx, x in enumerate(hws[deg])] #- zscores_ref[deg][idx]
+                zscores_ref[deg] = [common.zscore_den(x, exp_count[deg], num_evals, zscore_denom)
+                                    for x in ref_hws[deg]]
+
+                zscores[deg] = [((common.zscore_den(x, exp_count[deg], num_evals, zscore_denom)), idx, x)
+                                for idx, x in enumerate(hws[deg])]  # - zscores_ref[deg][idx]
+
                 zscores_ref[deg].sort(key=lambda x: abs(x), reverse=True)
+
             else:
-                zscores[deg] = [(common.zscore(x, exp_count[deg], num_evals), idx, x) for idx, x in enumerate(hws[deg])]
+                zscores[deg] = [(common.zscore_den(x, exp_count[deg], num_evals, zscore_denom), idx, x)
+                                for idx, x in enumerate(hws[deg])]
+
+            logger.info('Sorting...')
             zscores[deg].sort(key=lambda x: abs(x[0]), reverse=True)
 
             # Selecting TOP k polynomials for further combinations
             for idx, x in enumerate(zscores[deg][0:15]):
                 fail = 'x' if abs(x[0]) > self.zscore_thresh else ' '
                 self.tprint(' - zscore[deg=%d]: %+05.5f, %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
-                            % (deg, x[0], zscores_ref[deg][idx]-x[0], x[2], exp_count[deg], fail, x[1], self.unrank(deg, x[1])))
+                            % (deg, x[0], zscores_ref[deg][idx]-x[0], x[2],
+                               exp_count[deg], fail, x[1], self.unrank(deg, x[1])))
 
             # Take top X best polynomials
             if self.top_k is None:
@@ -306,7 +317,7 @@ class HWAnalysis(object):
                     random_subset = random.sample(zscores[deg], self.comb_random)
                     top_terms += [self.unrank(deg, x[1]) for x in random_subset]
 
-            mean_zscore = sum([x[0] for x in zscores[deg]])/float(len(zscores[deg]))
+            mean_zscore = sum([x[0] for x in zscores[deg]]) / float(len(zscores[deg]))
             fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
             fails_fraction = float(fails)/len(zscores[deg])
 
