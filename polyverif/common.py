@@ -779,10 +779,11 @@ class TermEval(object):
         # Lower degree generators for filling up missing pieces
         subgen = [self.term_generator(x) for x in range(1, deg+1)]
 
-        # last term indices to detect changes in orders
-        # lst = [0,1,2,3,4,5] - for deg 6
+        # Last term indices to detect changes in high orders
+        # lst = [0,1,2,3,4,5] - for deg 6, triggers new caching if top 5 indices changes: [0,1,2,3,5,6]
         lst = [-1] * deg
 
+        # Do the combination of the highest degree, cache when lower degree sub-combination changes.
         for idx, term in enumerate(self.term_generator(deg)):
             # Has high order cached element changed?
             # Make a diff term vs lst. If there is a diff, recompute cached sub-results.
@@ -827,7 +828,9 @@ class TermEval(object):
             # copy the last term
             lst = term
 
-        # Finish generators - add missing pieces
+        # Finish generators - add missing combinations not reached by the caching from the higher ones.
+        # E.g. for (128, 3) the higher combination is [125, 126, 127] so the maximal cached deg 2
+        # is [125, 126]. This finishes the sequence for [126, 127].
         for finish_deg in range(2, deg):
             for missing_piece in subgen[finish_deg-1]:
                 res.fast_copy(self.base[missing_piece[0]])
