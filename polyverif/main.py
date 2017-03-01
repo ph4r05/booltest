@@ -639,6 +639,13 @@ class App(object):
                 logger.info('File size is smaller than TV, updating TV to %d' % size)
                 tvsize = size
 
+            if tvsize*8 % self.blocklen != 0:
+                rem = tvsize*8 % self.blocklen
+                logger.warning('Input data size not aligned to the block size. '
+                               'Input bytes: %d, block bits: %d, rem: %d' % (tvsize, self.blocklen, rem))
+                tvsize -= rem//8
+                logger.info('Updating TV to %d' % tvsize)
+
             hwanalysis = HWAnalysis()
             hwanalysis.deg = deg
             hwanalysis.blocklen = self.blocklen
