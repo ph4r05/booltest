@@ -121,6 +121,29 @@ def zscore(observed, expected, N):
     return (observed-expected) / math.sqrt((expected*(1.0-expected))/float(N))
 
 
+@lru_cache(maxsize=32)
+def zscore_denominator(expected, N):
+    """
+    Computes denominator for the zscore computation, denominator is fixed for expected, N
+    :param expected:
+    :param N:
+    :return:
+    """
+    expected = float(expected) / float(N)
+    return math.sqrt((expected*(1.0-expected))/float(N))
+
+
+def zscore_den(observed, expected, N, denom):
+    """
+    Computes zscore with precomputed denominator.
+    :param observed:
+    :param denom:
+    :return:
+    """
+    x = float(observed - expected) / float(N)
+    return x / denom
+
+
 def zscore_p(observed, expected, N):
     """
     Computes z-score for the normal distribution
