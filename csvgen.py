@@ -8,6 +8,7 @@ import argparse
 import fileinput
 import json
 import sys
+import collections
 
 
 def main():
@@ -15,24 +16,49 @@ def main():
     Reads stdin jboss output, writes json on output
     :return:
     """
-    # parser = argparse.ArgumentParser(description='json2csv')
-    # parser.add_argument('files', dest='files', nargs=argparse.ZERO_OR_MORE, default=[],
-    #                     help='files to process')
-    # args = parser.parse_args()
+    parser = argparse.ArgumentParser(description='json2csv')
 
-    buff = ''
-    for line in fileinput.input():
-        buff += line
+    parser.add_argument('--start-char', dest='start_char', default='a',
+                        help='Default character to start with - numbering')
 
-    js = json.loads(buff)
+    parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
+                        help='files to process')
+
+    args = parser.parse_args()
+
+    # Process the input
+    buff = []
+    extended_parse = False
+    delim_start_found = False
+    for idx, line in enumerate(fileinput.input(args.files)):
+        if idx == 0:
+            if not line.startswith('{') and not line.startswith('['):
+                extended_parse = True
+
+        if extended_parse:
+            if not delim_start_found and line.strip().startswith('-----BEGIN JSON-----'):
+                delim_start_found = True
+                continue
+            if delim_start_found and line.strip().startswith('-----BEGIN'):
+                break
+            if delim_start_found:
+                buff.append(line)
+        else:
+            buff.append(line)
+
+    js = json.loads('\n'.join(buff))
+
+    # counts - give first char to the most frequent distinguisher
+    cnt = collections.Counter()
+    for row in js:
+        cnt[row['d']] += 1
 
     ctr = 0
     mapping = {}
-    for row in js:
-        d = row['d']
-        if d not in mapping:
-            mapping[d] = chr(ord('a') + ctr)
-            ctr += 1
+    for elem in cnt.most_common():
+        d = elem[0]
+        mapping[d] = chr(ord(args.start_char) + ctr)
+        ctr += 1
 
     sys.stderr.write(json.dumps(mapping) + '\n')
 
