@@ -10,6 +10,7 @@ import re
 import six
 import sys
 import math
+import heapq
 import random
 import json
 import types
@@ -67,6 +68,8 @@ class HWAnalysis(object):
         self.skip_print_res = False
         self.do_only_top_comb = False
         self.no_term_map = False
+        self.use_zscore_heap = False
+        self.sort_best_zscores = -1
 
         self.total_hws = []
         self.ref_total_hws = []
@@ -215,7 +218,8 @@ class HWAnalysis(object):
 
     def unrank(self, deg, index):
         """
-        Converts index to the polynomial of given degree
+        Converts index to the polynomial of given degree.
+        Uses either memoryzed table or unranking algorithm
         :param deg:
         :param index:
         :return:
@@ -254,6 +258,101 @@ class HWAnalysis(object):
         self.input_poly_last_res = results
         return results
 
+    def best_zscored_base_poly(self, deg, zscores, zscores_ref, num_evals, hws=None, ref_hws=None, exp_count=None):
+        """
+        Computes best X zscores
+        :param deg:
+        :param zscores:
+        :return: (zscore mean, number of zscores above threshold)
+        """
+        if self.use_zscore_heap:
+            return self.best_zscored_base_poly_heap(deg, zscores, zscores_ref, num_evals, hws, ref_hws, exp_count)
+        else:
+            return self.best_zscored_base_poly_all(deg, zscores, zscores_ref, num_evals, hws, ref_hws, exp_count)
+
+    def best_zscored_base_poly_heap(self, deg, zscores, zscores_ref, num_evals, hws=None, ref_hws=None, exp_count=None):
+        """
+        Uses heap to keep X best base distinguishers in the zscores array
+        :param deg:
+        :param zscores:
+        :return: (zscore mean, number of zscores above threshold)
+        """
+        zscore_denom = common.zscore_denominator(exp_count[deg], num_evals)
+        if ref_hws is not None:
+            raise ValueError('Heap optimization not allowed with ref stream')
+
+        # zscore = hwdiff * 1/zscore_denom
+        # zscore mean = \sum_{i=0}^{cnt} (hwdiff) * 1/zscore_denom / cnt
+        hw_diff_sum = 0
+
+        # threshold zscore = self.zscore_thresh,
+        # threshold hw_diff = self.zscore_thresh * zscore_denom
+        hw_diff_threshold = self.zscore_thresh * zscore_denom
+        hw_diff_over = 0
+
+        # After this iteration hp will be a heap with sort_best_zscores elements
+        hp = []
+        hp_size = 0
+        for (idx, hw) in enumerate(hws[deg]):
+            hw_diff = abs(hw - exp_count[deg])
+            hw_diff_sum += hw_diff
+            hw_diff_over += 1 if hw_diff >= hw_diff_threshold else 0
+
+            if self.sort_best_zscores < 0 or hp_size <= self.sort_best_zscores:
+                heapq.heappush(hp, (hw_diff, hw, idx))
+                hp_size += 1
+
+            elif hw_diff > hp[0]:   # this difference is larger than minimum in heap
+                heapq.heapreplace(hp, (hw_diff, hw, idx))
+
+        # Take n largest from the heap, zscore
+        for i in range(self.sort_best_zscores):
+            hw_diff, hw, idx = heapq.heappop(hp)
+            zscores[deg][i] = (common.zscore_den(hw, exp_count[deg], num_evals, zscore_denom), idx, hw)
+
+        # stats
+        zscore_mean = hw_diff_sum / zscore_denom / float(len(hws[deg]))
+        return zscore_mean, hw_diff_over
+
+    def best_zscored_base_poly_all(self, deg, zscores, zscores_ref, num_evals, hws=None, ref_hws=None, exp_count=None):
+        """
+        Computes all zscores
+        :param deg:
+        :param zscores:
+        :return: (zscore mean, number of zscores above threshold)
+        """
+        zscore_denom = common.zscore_denominator(exp_count[deg], num_evals)
+
+        # zscore = hwdiff * 1/zscore_denom
+        # zscore mean = \sum_{i=0}^{cnt} (hwdiff) * 1/zscore_denom / cnt
+        hw_diff_sum = 0
+
+        # threshold zscore = self.zscore_thresh,
+        # threshold hw_diff = self.zscore_thresh * zscore_denom
+        hw_diff_threshold = self.zscore_thresh * zscore_denom
+        hw_diff_over = 0
+
+        if ref_hws is not None:
+            zscores_ref[deg] = [common.zscore_den(x, exp_count[deg], num_evals, zscore_denom)
+                                for x in ref_hws[deg]]
+
+            zscores[deg] = [((common.zscore_den(x, exp_count[deg], num_evals, zscore_denom)), idx, x)
+                            for idx, x in enumerate(hws[deg])]  # - zscores_ref[deg][idx]
+
+            zscores_ref[deg].sort(key=lambda x: abs(x), reverse=True)
+
+        else:
+            zscores[deg] = [(common.zscore_den(x, exp_count[deg], num_evals, zscore_denom), idx, x)
+                            for idx, x in enumerate(hws[deg])]
+
+        logger.info('Sorting...')
+        zscores[deg].sort(key=lambda x: abs(x[0]), reverse=True)
+        logger.info('Sorted...')
+
+        mean_zscore = sum([x[0] for x in zscores[deg]]) / float(len(zscores[deg]))
+        fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
+        return mean_zscore, fails
+
     def analyse(self, num_evals, hws=None, hws_input=None, ref_hws=None):
         """
         Analyse hamming weights
@@ -280,24 +379,11 @@ class HWAnalysis(object):
         zscores_ref = [[0] * len(x) for x in hws]
         for deg in range(1, self.deg+1):
             # Compute (zscore, idx)
-            # If reference stream is used, compute diff zscore.
-
-            zscore_denom = common.zscore_denominator(exp_count[deg], num_evals)
-            if ref_hws is not None:
-                zscores_ref[deg] = [common.zscore_den(x, exp_count[deg], num_evals, zscore_denom)
-                                    for x in ref_hws[deg]]
-
-                zscores[deg] = [((common.zscore_den(x, exp_count[deg], num_evals, zscore_denom)), idx, x)
-                                for idx, x in enumerate(hws[deg])]  # - zscores_ref[deg][idx]
-
-                zscores_ref[deg].sort(key=lambda x: abs(x), reverse=True)
-
-            else:
-                zscores[deg] = [(common.zscore_den(x, exp_count[deg], num_evals, zscore_denom), idx, x)
-                                for idx, x in enumerate(hws[deg])]
-
-            logger.info('Sorting...')
-            zscores[deg].sort(key=lambda x: abs(x[0]), reverse=True)
+            # Memory optimizations:
+            #  1. for ranking avoid z-score computation - too expensive.
+            #  2. add polynomials to the heap, keep there max 1-10k elements.
+            mean_zscore, fails = self.best_zscored_base_poly(deg, zscores, zscores_ref, num_evals,
+                                                             hws, ref_hws, exp_count)
 
             # Selecting TOP k polynomials for further combinations
             for idx, x in enumerate(zscores[deg][0:15]):
@@ -310,6 +396,7 @@ class HWAnalysis(object):
             if self.top_k is None:
                 continue
 
+            logger.info('Comb...')
             if self.combine_all_deg or deg == self.deg:
                 top_terms += [self.unrank(deg, x[1]) for x in zscores[deg][0: (None if self.top_k < 0 else self.top_k)]]
 
@@ -317,8 +404,7 @@ class HWAnalysis(object):
                     random_subset = random.sample(zscores[deg], self.comb_random)
                     top_terms += [self.unrank(deg, x[1]) for x in random_subset]
 
-            mean_zscore = sum([x[0] for x in zscores[deg]]) / float(len(zscores[deg]))
-            fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
+            logger.info('Stats...')
             fails_fraction = float(fails)/len(zscores[deg])
 
             self.tprint('Mean zscore[deg=%d]: %s' % (deg, mean_zscore))
@@ -606,7 +692,7 @@ class App(object):
         poly_acc = [0] * len(poly_test)
 
         # test polynomials
-        term_eval = common.TermEval(blocklen=self.blocklen, deg=deg)
+        term_eval = common.TermEval(blocklen=self.blocklen, deg=3)
         for idx, poly in enumerate(poly_test):
             print('Test polynomial: %02d, %s' % (idx, poly))
             expp = term_eval.expp_poly(poly)
@@ -672,6 +758,8 @@ class App(object):
             hwanalysis.prob_comb = self.args.prob_comb
             hwanalysis.do_only_top_comb = self.args.only_top_comb
             hwanalysis.no_term_map = self.args.no_term_map
+            hwanalysis.use_zscore_heap = self.args.topterm_heap
+            hwanalysis.topterm_heap_k = max(self.args.topterm_heap_k, top_k, 100)
 
             # compute classical analysis only if there are no input polynomials
             hwanalysis.all_deg_compute = len(self.input_poly) == 0
@@ -784,6 +872,12 @@ class App(object):
 
         parser.add_argument('--no-term-map', dest='no_term_map', action='store_const', const=True, default=False,
                             help='Disables term map precomputation, uses unranking algorithm instead')
+
+        parser.add_argument('--topterm-heap', dest='topterm_heap', action='store_const', const=True, default=False,
+                            help='Use heap to compute best X terms for stats & input to the combinations')
+
+        parser.add_argument('--topterm-heap-k', dest='topterm_heap_k', default=None, type=int,
+                            help='Number of terms to keep in the heap')
 
         parser.add_argument('--prob-comb', dest='prob_comb', type=float, default=1.0,
                             help='Probability the given combination is going to be chosen.')

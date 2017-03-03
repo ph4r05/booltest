@@ -81,6 +81,8 @@ class RandVerif(App):
         hwanalysis.all_deg_compute = len(self.input_poly) == 0
         hwanalysis.do_only_top_comb = self.args.only_top_comb
         hwanalysis.no_term_map = self.args.no_term_map
+        hwanalysis.use_zscore_heap = self.args.topterm_heap
+        hwanalysis.topterm_heap_k = max(self.args.topterm_heap_k, top_k, 100)
         logger.info('Initializing test')
         hwanalysis.init()
 
@@ -298,6 +300,12 @@ class RandVerif(App):
 
         parser.add_argument('--prob-comb', dest='prob_comb', type=float, default=1.0,
                             help='Probability the given combination is going to be chosen.')
+
+        parser.add_argument('--topterm-heap', dest='topterm_heap', action='store_const', const=True, default=False,
+                            help='Use heap to compute best X terms for stats & input to the combinations')
+
+        parser.add_argument('--topterm-heap-k', dest='topterm_heap_k', default=None, type=int,
+                            help='Number of terms to keep in the heap')
 
         parser.add_argument('--csv-zscore', dest='csv_zscore', action='store_const', const=True, default=False,
                             help='CSV output with zscores')
