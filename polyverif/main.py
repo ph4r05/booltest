@@ -265,7 +265,7 @@ class HWAnalysis(object):
         :param zscores:
         :return: (zscore mean, number of zscores above threshold)
         """
-        if self.use_zscore_heap:
+        if self.use_zscore_heap and deg > 1:
             return self.best_zscored_base_poly_heap(deg, zscores, zscores_ref, num_evals, hws, ref_hws, exp_count)
         else:
             return self.best_zscored_base_poly_all(deg, zscores, zscores_ref, num_evals, hws, ref_hws, exp_count)
@@ -281,13 +281,13 @@ class HWAnalysis(object):
         if ref_hws is not None:
             raise ValueError('Heap optimization not allowed with ref stream')
 
-        # zscore = hwdiff * 1/zscore_denom
-        # zscore mean = \sum_{i=0}^{cnt} (hwdiff) * 1/zscore_denom / cnt
+        # zscore = hwdiff * 1/num_evals * 1/zscore_denom
+        # zscore mean = \sum_{i=0}^{cnt} (hwdiff) * 1/num_evals * 1/zscore_denom / cnt
         hw_diff_sum = 0
 
         # threshold zscore = self.zscore_thresh,
-        # threshold hw_diff = self.zscore_thresh * zscore_denom
-        hw_diff_threshold = self.zscore_thresh * zscore_denom
+        # threshold hw_diff = self.zscore_thresh * zscore_denom * num_evals
+        hw_diff_threshold = self.zscore_thresh * zscore_denom * num_evals
         hw_diff_over = 0
 
         # After this iteration hp will be a heap with sort_best_zscores elements
@@ -304,14 +304,25 @@ class HWAnalysis(object):
 
             elif hw_diff > hp[0]:   # this difference is larger than minimum in heap
                 heapq.heapreplace(hp, (hw_diff, hw, idx))
+        logger.info('Heap done')
 
-        # Take n largest from the heap, zscore
-        for i in range(self.sort_best_zscores):
-            hw_diff, hw, idx = heapq.heappop(hp)
-            zscores[deg][i] = (common.zscore_den(hw, exp_count[deg], num_evals, zscore_denom), idx, hw)
+        # zscores[deg] space allocation
+        top_range = self.sort_best_zscores if self.sort_best_zscores >= 0 else len(hp)
+        if len(zscores[deg]) < top_range:
+            zscores[deg] = [0] * top_range
 
+        # Take n largest from the heap, zscore.
+        # Size of the queue ~ number of elements to sort, using sorted on the heap array is faster.
+        hp.sort(reverse=True)
+
+        for i in range(top_range):
+            hw_diff, hw, idx = hp[i]
+            zscores[deg][i] = common.zscore_den(hw, exp_count[deg], num_evals, zscore_denom), idx, hw
+
+        logger.info('Heap sorted, len: %s' % top_range)
         # stats
-        zscore_mean = hw_diff_sum / zscore_denom / float(len(hws[deg]))
+        total_n = float(len(hws[deg]))
+        zscore_mean = hw_diff_sum / zscore_denom / num_evals / total_n
         return zscore_mean, hw_diff_over
 
     def best_zscored_base_poly_all(self, deg, zscores, zscores_ref, num_evals, hws=None, ref_hws=None, exp_count=None):
@@ -322,16 +333,6 @@ class HWAnalysis(object):
         :return: (zscore mean, number of zscores above threshold)
         """
         zscore_denom = common.zscore_denominator(exp_count[deg], num_evals)
-
-        # zscore = hwdiff * 1/zscore_denom
-        # zscore mean = \sum_{i=0}^{cnt} (hwdiff) * 1/zscore_denom / cnt
-        hw_diff_sum = 0
-
-        # threshold zscore = self.zscore_thresh,
-        # threshold hw_diff = self.zscore_thresh * zscore_denom
-        hw_diff_threshold = self.zscore_thresh * zscore_denom
-        hw_diff_over = 0
-
         if ref_hws is not None:
             zscores_ref[deg] = [common.zscore_den(x, exp_count[deg], num_evals, zscore_denom)
                                 for x in ref_hws[deg]]
@@ -349,7 +350,7 @@ class HWAnalysis(object):
         zscores[deg].sort(key=lambda x: abs(x[0]), reverse=True)
         logger.info('Sorted...')
 
-        mean_zscore = sum([x[0] for x in zscores[deg]]) / float(len(zscores[deg]))
+        mean_zscore = sum([abs(x[0]) for x in zscores[deg]]) / float(len(zscores[deg]))
         fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
         return mean_zscore, fails
 
@@ -759,7 +760,7 @@ class App(object):
             hwanalysis.do_only_top_comb = self.args.only_top_comb
             hwanalysis.no_term_map = self.args.no_term_map
             hwanalysis.use_zscore_heap = self.args.topterm_heap
-            hwanalysis.topterm_heap_k = max(self.args.topterm_heap_k, top_k, 100)
+            hwanalysis.sort_best_zscores = max(self.args.topterm_heap_k, top_k, 100)
 
             # compute classical analysis only if there are no input polynomials
             hwanalysis.all_deg_compute = len(self.input_poly) == 0
