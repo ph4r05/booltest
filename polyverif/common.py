@@ -1,3 +1,8 @@
+from __future__ import print_function
+from past.builtins import basestring
+from past.builtins import xrange
+from functools import reduce
+
 import numpy as np
 from bitstring import Bits, BitArray, BitStream, ConstBitStream
 import bitarray
@@ -278,6 +283,29 @@ def poly2str(poly):
         vars = ''.join(['x_{%d}' % x for x in term])
         terms.append(vars)
     return ' + '.join(terms)
+
+
+def range2(*args):
+    """
+    xrange optimization, py2, py3 compatible, takes xrange limits into account
+    :param args:
+    :return:
+    """
+    largs = len(args)
+    idx_from = 0
+    idx_to = 0
+    if largs > 1:
+        idx_from = args[0]
+        idx_to = args[1]
+    elif largs == 1:
+        idx_to = args[0]
+    else:
+        raise ValueError('No args in range()')
+
+    if idx_from > 2147483647 or idx_to > 2147483647:
+        return range(idx_from, idx_to)
+    else:
+        return xrange(idx_from, idx_to)
 
 
 class InputObject(object):
