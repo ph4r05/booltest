@@ -71,6 +71,7 @@ class HWAnalysis(object):
         self.use_zscore_heap = False
         self.sort_best_zscores = -1
 
+        self.total_rounds = 0
         self.total_hws = []
         self.ref_total_hws = []
         self.total_n = 0
@@ -114,6 +115,7 @@ class HWAnalysis(object):
         :return:
         """
         self.total_n = 0
+        self.total_rounds = 0
         self.total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
         self.ref_total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
         self.input_poly_hws = [0] * len(self.input_poly)
@@ -157,12 +159,19 @@ class HWAnalysis(object):
             logger.info('Done: %s' % [len(x) for x in hws2])
 
             # Accumulate hws to the results.
-            for d in range(1, self.deg+1):
-                for i in range(len(self.total_hws[d])):
-                    self.total_hws[d][i] += hws2[d][i]
-            logger.info('HWS merged')
+            # If the first round, use the returned array directly to reduce time & memory for copying.
+            if self.total_rounds == 0:
+                self.total_hws = hws2
+                logger.info('HWS merged - move')
 
-        # Evaluate given polynomials
+            else:
+                for d in range(1, self.deg+1):
+                    for i in common.range2(len(self.total_hws[d])):
+                        self.total_hws[d][i] += hws2[d][i]
+                logger.info('HWS merged - merge')
+            self.total_rounds += 1
+
+        # Evaluate given input polynomials
         if len(self.input_poly) > 0:
             comb_res = self.term_eval.new_buffer()
             comb_subres = self.term_eval.new_buffer()
