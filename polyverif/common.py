@@ -961,7 +961,7 @@ class TermEval(object):
         Remaps the polynomial to lower indices
         e.g., x7x8x9 + x110x112 -> x0x1x2 + x3x4
         :param poly:
-        :return:
+        :return: new normalized polynomial, var idx -> new var idx map
         """
         # mapping phase
         idx = 0
@@ -1034,17 +1034,16 @@ class TermEval(object):
         :return: number of polynomial evaluations to 1
         """
         npoly, idx_map_rev = self.poly_remap(poly)
-        return self.expnum_poly_sim_norm(poly, idx_map_rev)
+        return self.expnum_poly_sim_norm(poly, len(idx_map_rev))
 
-    def expnum_poly_sim_norm(self, poly, idx_map_rev):
+    def expnum_poly_sim_norm(self, poly, deg):
         """
         Computes how many times the given polynomial evaluates to 1 for all variable combinations.
         :param poly:
-        :param idx_set:
+        :param deg:
         :return: number of polynomial evaluations to 1
         """
         # current evaluation is simple - iterate over all possible values of variables.
-        deg = len(idx_map_rev)
         num_one = 0
 
         gen = pos_generator(dim=deg, maxelem=1)
@@ -1088,7 +1087,7 @@ class TermEval(object):
         deg = len(idx_map_rev)
 
         # if degree is small do the all combinations algorithm
-        ones = self.expnum_poly_sim_norm(npoly, idx_map_rev)
+        ones = self.expnum_poly_sim_norm(npoly, deg)
         return float(ones) / float(2**deg)
 
         # for long degree or long polynomial we can do this:
