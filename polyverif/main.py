@@ -114,8 +114,6 @@ class HWAnalysis(object):
         :return:
         """
         self.total_n = 0
-        self.total_hws = []
-        self.ref_total_hws = []
         self.total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
         self.ref_total_hws = [[0] * common.comb(self.blocklen, x, True) for x in range(self.deg + 1)]
         self.input_poly_hws = [0] * len(self.input_poly)
@@ -162,6 +160,7 @@ class HWAnalysis(object):
             for d in range(1, self.deg+1):
                 for i in range(len(self.total_hws[d])):
                     self.total_hws[d][i] += hws2[d][i]
+            logger.info('HWS merged')
 
         # Evaluate given polynomials
         if len(self.input_poly) > 0:
@@ -277,6 +276,7 @@ class HWAnalysis(object):
         :param zscores:
         :return: (zscore mean, number of zscores above threshold)
         """
+        logger.info('Find best with heap start deg: %d' % deg)
         zscore_denom = common.zscore_denominator(exp_count[deg], num_evals)
         if ref_hws is not None:
             raise ValueError('Heap optimization not allowed with ref stream')
@@ -304,7 +304,7 @@ class HWAnalysis(object):
 
             elif hw_diff > hp[0]:   # this difference is larger than minimum in heap
                 heapq.heapreplace(hp, (hw_diff, hw, idx))
-        logger.info('Heap done')
+        logger.info('Heap done: %d' % len(hp))
 
         # zscores[deg] space allocation
         top_range = self.sort_best_zscores if self.sort_best_zscores >= 0 else len(hp)
@@ -314,15 +314,16 @@ class HWAnalysis(object):
         # Take n largest from the heap, zscore.
         # Size of the queue ~ number of elements to sort, using sorted on the heap array is faster.
         hp.sort(reverse=True)
+        logger.info('Heap sorted, len: %s' % top_range)
 
         for i in range(top_range):
             hw_diff, hw, idx = hp[i]
             zscores[deg][i] = common.zscore_den(hw, exp_count[deg], num_evals, zscore_denom), idx, hw
 
-        logger.info('Heap sorted, len: %s' % top_range)
         # stats
         total_n = float(len(hws[deg]))
         zscore_mean = hw_diff_sum / zscore_denom / num_evals / total_n
+        logger.info('Stats done [%d], mean zscore: %s' % (deg, zscore_mean))
         return zscore_mean, hw_diff_over
 
     def best_zscored_base_poly_all(self, deg, zscores, zscores_ref, num_evals, hws=None, ref_hws=None, exp_count=None):
