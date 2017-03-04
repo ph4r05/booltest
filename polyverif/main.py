@@ -342,6 +342,7 @@ class HWAnalysis(object):
         :param zscores:
         :return: (zscore mean, number of zscores above threshold)
         """
+        logger.info('Find best with allsort start deg: %d' % deg)
         zscore_denom = common.zscore_denominator(exp_count[deg], num_evals)
         if ref_hws is not None:
             zscores_ref[deg] = [common.zscore_den(x, exp_count[deg], num_evals, zscore_denom)
@@ -358,10 +359,11 @@ class HWAnalysis(object):
 
         logger.info('Sorting...')
         zscores[deg].sort(key=lambda x: abs(x[0]), reverse=True)
-        logger.info('Sorted...')
+        logger.info('Sorted... len: %d' % len(zscores[deg]))
 
         mean_zscore = sum([abs(x[0]) for x in zscores[deg]]) / float(len(zscores[deg]))
         fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
+        logger.info('Stats computed [%d], mean zscore: %s' % (deg, mean_zscore))
         return mean_zscore, fails
 
     def analyse(self, num_evals, hws=None, hws_input=None, ref_hws=None):
