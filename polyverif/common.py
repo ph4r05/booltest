@@ -694,9 +694,9 @@ class TermEval(object):
 
         rng = range(1 if include_all_below else deg, deg+1)
         if exact:
-            return sum([long(comb(self.blocklen, x, True)) for x in rng])
+            return sum([(comb(self.blocklen, x, True)) for x in rng])
         else:
-            return sum([long(comb(self.blocklen, x, False) + 2) for x in rng])
+            return sum([(comb(self.blocklen, x, False) + 2) for x in rng])
 
     def eval_term(self, term, res=None):
         """
