@@ -80,6 +80,7 @@ class RandVerif(App):
         hwanalysis.prob_comb = self.args.prob_comb
         hwanalysis.all_deg_compute = len(self.input_poly) == 0
         hwanalysis.do_only_top_comb = self.args.only_top_comb
+        hwanalysis.do_only_top_deg = self.args.only_top_deg
         hwanalysis.no_term_map = self.args.no_term_map
         hwanalysis.use_zscore_heap = self.args.topterm_heap
         hwanalysis.sort_best_zscores = max(self.args.topterm_heap_k, top_k, 100)
@@ -294,6 +295,10 @@ class RandVerif(App):
 
         parser.add_argument('--only-top-comb', dest='only_top_comb', action='store_const', const=True, default=False,
                             help='If set only the top combination is performed, otherwise all up to given combination degree')
+
+        parser.add_argument('--only-top-deg', dest='only_top_deg', action='store_const', const=True, default=False,
+                            help='If set only the top degree if base polynomials combinations are considered, otherwise '
+                                 'also lower degrees are input to the topk for next state - combinations')
 
         parser.add_argument('--no-term-map', dest='no_term_map', action='store_const', const=True, default=False,
                             help='Disables term map precomputation, uses unranking algorithm instead')
