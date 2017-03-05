@@ -311,7 +311,7 @@ class HWAnalysis(object):
                 heapq.heappush(hp, (hw_diff, hw, idx))
                 hp_size += 1
 
-            elif hw_diff > hp[0]:   # this difference is larger than minimum in heap
+            elif hw_diff > hp[0][0]:   # this difference is larger than minimum in heap
                 heapq.heapreplace(hp, (hw_diff, hw, idx))
         logger.info('Heap done: %d' % len(hp))
 
