@@ -87,7 +87,10 @@ def main():
                     continue
 
                 with open(file_path, 'r') as fh:
-                    process_file(fh.read(), bl, deg, k, ctr)
+                    try:
+                        process_file(fh.read(), bl, deg, k, ctr)
+                    except Exception as e:
+                        logger.error('Exception in processing %s: %s' % (file_path, e))
 
 
 if __name__ == '__main__':
