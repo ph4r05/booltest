@@ -317,7 +317,7 @@ class HWAnalysis(object):
         logger.info('Heap done: %d' % len(hp))
 
         # zscores[deg] space allocation
-        top_range = self.sort_best_zscores if self.sort_best_zscores >= 0 else len(hp)
+        top_range = min(len(hp), self.sort_best_zscores if self.sort_best_zscores >= 0 else len(hp))
         if len(zscores[deg]) < top_range:
             zscores[deg] = [0] * top_range
 
