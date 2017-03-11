@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
 
 
-def process_file(data, bl, deg, k, ctr):
+def process_file(data, bl, deg, k, ctr, split_key=False, delim=','):
     """
     Process file
     :param file_path:
@@ -50,8 +50,12 @@ def process_file(data, bl, deg, k, ctr):
 
     js = json.loads('\n'.join(buff))
     label = '%d-%d-%d' % (bl, deg, k)
+
+    if split_key:
+        label = '%d%s%d%s%d%s%d' % (bl, delim, deg, delim, k, delim, size)
+
     for z in js:
-        print('%s,%s' % (label, abs(z)))
+        print('%s%s%s' % (label, delim, abs(z)))
 
 
 def main():
@@ -63,6 +67,12 @@ def main():
 
     parser.add_argument('--start-char', dest='start_char', default='a',
                         help='Default character to start with - numbering')
+
+    parser.add_argument('--split-key', dest='split_key', default=False, action='store_const', const=True,
+                        help='Splits CSV key to multiple columns')
+
+    parser.add_argument('--delim', dest='delim', default=',',
+                        help='CSV delimiter')
 
     parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                         help='folder with aes results')
@@ -76,9 +86,9 @@ def main():
 
     ctr = -1
     main_dir = args.files[0]
-    for bl in [128, 256, 384, 512]:
+    for k in [1, 2, 3]:
         for deg in [1, 2, 3]:
-            for k in [1, 2, 3]:
+            for bl in [128, 256, 384, 512]:
                 file_name = 'aestest-%dbl-%ddeg-%dk-10485760B-100tests.out' % (bl, deg, k)
                 file_path = os.path.join(main_dir, file_name)
                 ctr += 1
@@ -88,7 +98,7 @@ def main():
 
                 with open(file_path, 'r') as fh:
                     try:
-                        process_file(fh.read(), bl, deg, k, ctr)
+                        process_file(fh.read(), bl, deg, k, ctr, split_key=args.split_key, delim=args.delim)
                     except Exception as e:
                         logger.error('Exception in processing %s: %s' % (file_path, e))
 
