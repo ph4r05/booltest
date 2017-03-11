@@ -52,7 +52,7 @@ def process_file(data, bl, deg, k, ctr, split_key=False, delim=','):
     label = '%d-%d-%d' % (bl, deg, k)
 
     if split_key:
-        label = '%d%s%d%s%d%s%d' % (bl, delim, deg, delim, k, delim, size)
+        label = '%d%s%d%s%d' % (bl, delim, deg, delim, k)
 
     for z in js:
         print('%s%s%s' % (label, delim, abs(z)))
