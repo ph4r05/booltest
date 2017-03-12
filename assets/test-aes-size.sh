@@ -11,7 +11,7 @@ for block in 128 256; do
             echo "Computing block: $block, deg: $deg, k: $k, date: `date`"
             python ~/poly-verif/polyverif/randverif.py --block ${block} --deg ${deg} --rounds 0 \
                     --tv ${DATA} --combine-deg ${k} --top ${TOPK} --test-aes  --tests ${TESTS} \
-                    --csv-zscore --no-comb-and --only-top-comb  --no-term-map \
+                    --csv-zscore --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap --topterm-heap-k 256 \
                     > ~/aessize-${block}bl-${deg}deg-${k}k-${DATA}B-${TESTS}tests.out \
                     2> ~/aessize-${block}bl-${deg}deg-${k}k-${DATA}B-${TESTS}tests.err
 
