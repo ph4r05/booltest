@@ -72,6 +72,9 @@ def main():
     parser.add_argument('--alpha', dest='alpha', default=0.05, type=float,
                         help='Confidence')
 
+    parser.add_argument('--avg', dest='avg', default=False, action='store_const', const=True,
+                        help='Compute average')
+
     parser.add_argument('--json', dest='json', default=False, action='store_const', const=True,
                         help='JSON output')
 
@@ -108,12 +111,18 @@ def main():
                             try:
                                 vals = process_file(fh.read(), bl, deg, k, ctr)
                                 zscores = sorted([abs(x) for x in vals])
-
                                 ln = len(vals)
+                                zscores_avg = sum(zscores)/float(ln)
+
                                 idx = min(ln-1, int(ln - math.floor(ln * args.alpha)))
                                 dbkey = (bl, deg, k)
-                                db[dbkey] = zscores[idx]
 
+                                db[dbkey] = zscores[idx]
+                                if args.avg:
+                                    db[dbkey] = zscores_avg
+
+                                # logging of the competed val, one can verify results 100 vs. 1000 tests
+                                logger.info('%s t=%s, %s avg=%s' % (dbkey, tests, zscores[idx], zscores_avg))
                             except Exception as e:
                                 logger.error('Exception in processing %s: %s' % (file_path, e))
 
