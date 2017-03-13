@@ -462,18 +462,19 @@ class HWAnalysis(object):
         self.last_res = top_res
         return top_res
 
-    def comb_xor(self, top_comb_cur, top_terms, top_res, num_evals, ref_hws=None):
+    def comb_base(self, top_comb_cur, top_terms, top_res, num_evals, poly_builder, ref_hws=None):
         """
-        Combines top terms with XOR operation
+        Base skeleton for generating all combinations from top_terms up to degree top_comb_cur
         :param top_comb_cur: current degree of the combination
         :param top_terms: top terms buffer to choose terms out of
         :param top_res: top results accumulator to put
         :param num_evals: number of evaluations in this round - zscore computation
+        :param poly_builder: function of (places, top_terms) returns a new polynomial
         :param ref_hws: reference results
         :return:
         """
         for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1, self.prob_comb)):
-            poly = [top_terms[x] for x in places]
+            poly = poly_builder(places, top_terms)
             expp = self.term_eval.expp_poly(poly)
             exp_cnt = num_evals * expp
             if exp_cnt == 0:
@@ -492,6 +493,19 @@ class HWAnalysis(object):
                 comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
             top_res.append(comb)
 
+    def comb_xor(self, top_comb_cur, top_terms, top_res, num_evals, ref_hws=None):
+        """
+        Combines top terms with XOR operation
+        :param top_comb_cur: current degree of the combination
+        :param top_terms: top terms buffer to choose terms out of
+        :param top_res: top results accumulator to put
+        :param num_evals: number of evaluations in this round - zscore computation
+        :param ref_hws: reference results
+        :return:
+        """
+        poly_builder = lambda places, top_terms: [top_terms[x] for x in places]
+        return self.comb_base(top_comb_cur, top_terms, top_res, num_evals, poly_builder, ref_hws)
+
     def comb_and(self, top_comb_cur, top_terms, top_res, num_evals, ref_hws=None):
         """
         Combines top terms with AND operation
@@ -502,25 +516,8 @@ class HWAnalysis(object):
         :param ref_hws: reference results
         :return:
         """
-        for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1, self.prob_comb)):
-            poly = [reduce(lambda x, y: x + y, [top_terms[x] for x in places])]
-            expp = self.term_eval.expp_poly(poly)
-            exp_cnt = self.term_eval.cur_evals * expp
-            if exp_cnt == 0:
-                continue
-
-            obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=self.comb_res, subres=self.comb_subres))
-            zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
-
-            comb = None
-            if ref_hws is None:
-                comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
-            else:
-                ref_obs_cnt = self.ref_term_eval.hw(
-                    self.ref_term_eval.eval_poly(poly, res=self.comb_res, subres=self.comb_subres))
-                zscore_ref = common.zscore(ref_obs_cnt, exp_cnt, num_evals)
-                comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
-            top_res.append(comb)
+        poly_builder = lambda places, top_terms: [reduce(lambda x, y: x + y, [top_terms[x] for x in places])]
+        return self.comb_base(top_comb_cur, top_terms, top_res, num_evals, poly_builder, ref_hws)
 
 
 # Main - argument parsing + processing
