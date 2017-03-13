@@ -191,12 +191,28 @@ def get_tv_size(stream_type, function_name=None):
     return 16
 
 
+# noinspection PyUnusedLocal
 def get_config(function_name, rounds=None, seed='1fe40505e131963c', stream_type=None,
                tvsize=None, tvcount=None, data=None,
                generator='pcg32', init_frequency='only-once', mode='ECB', plaintext_type='counter',
                *args, **kwargs):
     """
-    Generates generator configuration
+    Generates generator configuration object.
+
+    :param function_name: algorithm to use as a generator. e.g., AES
+    :param rounds: number of rounds of function_name
+    :param seed: seed of the PRNG used to generate input/keys/IVs
+    :param stream_type: type of the algorithm user, e.g., estream, sha3,... Optional, determined automatically.
+    :param tvsize: size of the test vector / block length of the primitive. Determined automatically.
+    :param tvcount: number of testvectors to produce on the output
+    :param data: number of bytes to produce on the output
+    :param generator: PRNG used to generate inputs/keys/IVs to the generating algorithm
+    :param init_frequency: initialization frequency for keys/IVs
+    :param mode: encryption mode for block ciphers, ECB by default
+    :param plaintext_type: algorithm for generating input of the algorithm to process, counter mode is the
+            only one supported at the moment.
+    :param args:
+    :param kwargs:
     :return:
     """
     if function_name is None:
