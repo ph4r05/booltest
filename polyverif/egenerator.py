@@ -138,6 +138,19 @@ ROUNDS = {
 }
 
 
+# lower(function_name) -> function_name
+FUNCTION_CASEMAP = {x.lower(): x for x in list(ESTREAM.keys() + SHA3.keys() + BLOCK.keys())}
+
+
+def normalize_function_name(function_name):
+    """
+    Fixes case of the function name
+    :param function_name:
+    :return:
+    """
+    return FUNCTION_CASEMAP[function_name.lower()]
+
+
 def get_stream_type(stream_name):
     """
     Resolves stream type code to the stream name
@@ -157,6 +170,7 @@ def function_to_stream_type(function_name):
     :param function_name:
     :return:
     """
+    function_name = normalize_function_name(function_name)
     if function_name in ESTREAM:
         return FUNCTION_ESTREAM
     elif function_name in SHA3:
@@ -173,7 +187,7 @@ def get_tv_size(stream_type, function_name=None):
     if stream_type == FUNCTION_SHA3:
         return 32
     if stream_type == FUNCTION_BLOCK:
-        return BLOCK[function_name].block_size
+        return BLOCK[normalize_function_name(function_name)].block_size
     return 16
 
 
@@ -187,6 +201,7 @@ def get_config(function_name, rounds=None, seed='1fe40505e131963c', stream_type=
     """
     if function_name is None:
         raise ValueError('Function is null')
+    function_name = normalize_function_name(function_name)
 
     if stream_type is None:
         stream_type = function_to_stream_type(function_name=function_name)
