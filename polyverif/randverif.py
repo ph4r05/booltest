@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 from past.builtins import basestring
 from functools import reduce
 import argparse

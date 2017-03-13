@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import collections
 
 # Regex for parsing arg names from source codes

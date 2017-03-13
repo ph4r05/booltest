@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 """
 Provides basic cryptographic utilities for the Python EnigmaBridge client, e.g.,
 generating random numbers, encryption, decryption, padding, etc...
