@@ -244,8 +244,11 @@ def get_config(function_name, rounds=None, seed='1fe40505e131963c', stream_type=
         stream_obj['init-frequency'] = init_frequency
         stream_obj['key-size'] = 16
         stream_obj['plaintext'] = {'type': plaintext_type}
+        stream_obj['plaintext-type'] = {'type': plaintext_type}
+        stream_obj['key-type'] = {'type': 'random'}
+        stream_obj['key-type'] = 'random'
         stream_obj['iv'] = {'type': 'zeros'}
-        stream_obj['key'] = {'type': 'random'}
+        stream_obj['iv-type'] = 'zeros'
 
     elif stream_type == FUNCTION_SHA3:
         stream_obj['source'] = {'type': plaintext_type}
