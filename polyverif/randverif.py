@@ -87,6 +87,7 @@ class RandVerif(App):
         hwanalysis.no_term_map = self.args.no_term_map
         hwanalysis.use_zscore_heap = self.args.topterm_heap
         hwanalysis.sort_best_zscores = max(self.args.topterm_heap_k, top_k, 100)
+        hwanalysis.best_x_combinations = self.args.best_x_combinations
         logger.info('Initializing test')
         hwanalysis.init()
 
@@ -314,6 +315,9 @@ class RandVerif(App):
 
         parser.add_argument('--topterm-heap-k', dest='topterm_heap_k', default=None, type=int,
                             help='Number of terms to keep in the heap')
+
+        parser.add_argument('--best-x-combs', dest='best_x_combinations', default=None, type=int,
+                            help='Number of best combinations to return. If defined, heap is used')
 
         parser.add_argument('--csv-zscore', dest='csv_zscore', action='store_const', const=True, default=False,
                             help='CSV output with zscores')

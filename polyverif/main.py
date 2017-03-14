@@ -74,6 +74,7 @@ class HWAnalysis(object):
         self.no_term_map = False
         self.use_zscore_heap = False
         self.sort_best_zscores = -1
+        self.best_x_combinations = None  # if a number is here, best combinations are done by heap
 
         self.total_rounds = 0
         self.total_hws = []
@@ -112,6 +113,8 @@ class HWAnalysis(object):
         self.input_poly_hws = [0] * len(self.input_poly)
         self.input_poly_ref_hws = [0] * len(self.input_poly)
         self.precompute_input_poly()
+        if self.best_x_combinations <= 0:
+            self.best_x_combinations = None
 
     def reset(self):
         """
@@ -433,8 +436,9 @@ class HWAnalysis(object):
 
         # Combine & store the results - XOR, AND combination
         top_res = []
-        logger.info('Combining %d terms in %d degree, total = %s evals'
-                    % (len(top_terms), self.top_comb, scipy.misc.comb(len(top_terms), self.top_comb, True)))
+        logger.info('Combining %d terms in %d degree, total = %s evals, keep best limit: %s'
+                    % (len(top_terms), self.top_comb, scipy.misc.comb(len(top_terms), self.top_comb, True),
+                       self.best_x_combinations))
 
         self.comb_res = self.term_eval.new_buffer()
         self.comb_subres = self.term_eval.new_buffer()
@@ -452,7 +456,8 @@ class HWAnalysis(object):
                               ref_hws=ref_hws)
 
         logger.info('Evaluating')
-        top_res.sort(key=lambda x: abs(x.zscore), reverse=True)
+        top_res = self.sort_top_res(top_res)
+
         for i in range(min(len(top_res), 30)):
             comb = top_res[i]
             self.tprint(' - best poly zscore %9.5f, expp: %.4f, exp: %4d, obs: %s, diff: %f %%, poly: %s'
@@ -461,6 +466,39 @@ class HWAnalysis(object):
 
         self.last_res = top_res
         return top_res
+
+    def sort_top_res(self, top_res):
+        """
+        Sorts top_res. After this call it should be top_res = list(comb1, comb2, ...)
+        :param top_res:
+        :return:
+        """
+        if self.best_x_combinations is not None:  # de-heapify, project only the comb element.
+            top_res = [x[1] for x in top_res]
+
+        top_res.sort(key=lambda x: abs(x.zscore), reverse=True)
+        return top_res
+
+    def comb_add_result(self, comb, top_res):
+        """
+        Adds result to the top results.
+        Can use heap to optimize eval speed if caller does not require all results.
+        :param comb:
+        :param top_res:
+        :return:
+        """
+        if self.best_x_combinations is None:
+            top_res.append(comb)
+            return
+
+        # Using heap to store only top self.best_x_combinations distinguishers here.
+        # If comb contains pvalue in the future, compare better pval.
+        new_item = (abs(comb.zscore), comb)
+        if len(top_res) <= self.best_x_combinations:
+            heapq.heappush(top_res, new_item)
+
+        elif abs(comb.zscore) > top_res[0][0]:  # this difference is larger than minimum in heap
+            heapq.heapreplace(top_res, new_item)
 
     def comb_base(self, top_comb_cur, top_terms, top_res, num_evals, poly_builder, ref_hws=None):
         """
@@ -491,7 +529,8 @@ class HWAnalysis(object):
                     self.ref_term_eval.eval_poly(poly, res=self.comb_res, subres=self.comb_subres))
                 zscore_ref = common.zscore(ref_obs_cnt, exp_cnt, num_evals)
                 comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
-            top_res.append(comb)
+
+            self.comb_add_result(comb, top_res)
 
     def comb_xor(self, top_comb_cur, top_terms, top_res, num_evals, ref_hws=None):
         """
@@ -776,6 +815,7 @@ class App(object):
             hwanalysis.no_term_map = self.args.no_term_map
             hwanalysis.use_zscore_heap = self.args.topterm_heap
             hwanalysis.sort_best_zscores = max(self.args.topterm_heap_k, top_k, 100)
+            hwanalysis.best_x_combinations = self.args.best_x_combinations
 
             # compute classical analysis only if there are no input polynomials
             hwanalysis.all_deg_compute = len(self.input_poly) == 0
@@ -898,6 +938,9 @@ class App(object):
 
         parser.add_argument('--topterm-heap-k', dest='topterm_heap_k', default=None, type=int,
                             help='Number of terms to keep in the heap')
+
+        parser.add_argument('--best-x-combs', dest='best_x_combinations', default=None, type=int,
+                            help='Number of best combinations to return. If defined, heap is used')
 
         parser.add_argument('--prob-comb', dest='prob_comb', type=float, default=1.0,
                             help='Probability the given combination is going to be chosen.')
