@@ -21,7 +21,7 @@ import scipy.misc
 import ufx.uf_hash as ufh
 import subprocess
 import signal
-from repoze.lru import lru_cache
+from repoze.lru import lru_cache, LRUCache
 from crypto_util import aes_ctr, get_zero_vector
 
 
@@ -541,6 +541,9 @@ class TermEval(object):
         self.cur_evals = None
         self.last_base_size = None
 
+        # caches
+        self.sim_norm_cache = LRUCache(64)
+
     def base_size(self):
         """
         Returns base size of the vector - same as size of the base
@@ -1009,7 +1012,7 @@ class TermEval(object):
                 else:
                     res_term.append(idx_map_rev[bitpos])
             if len(res_term) > 0:
-                res_poly.append(res_term)
+                res_poly.append(sorted(res_term))
 
         return res_poly, idx_map_rev
 
@@ -1065,7 +1068,27 @@ class TermEval(object):
         :return: number of polynomial evaluations to 1
         """
         npoly, idx_map_rev = self.poly_remap(poly)
-        return self.expnum_poly_sim_norm(poly, len(idx_map_rev))
+        return self.expnum_poly_sim_norm_cached(poly, len(idx_map_rev))
+
+    def expnum_poly_sim_norm_cached(self, poly, deg):
+        """
+        Computes how many times the given polynomial evaluates to 1 for all variable combinations.
+        :param poly:
+        :param deg:
+        :return: number of polynomial evaluations to 1
+        """
+        if self.sim_norm_cache is None:
+            return self.expnum_poly_sim_norm(poly, deg)
+
+        # LRU cached sim variant
+        key = ','.join(['-'.join([str(y) for y in x]) for x in poly])
+        val = self.sim_norm_cache.get(key)
+        if val is not None:
+            return val
+
+        val = self.expnum_poly_sim_norm(poly, deg)
+        self.sim_norm_cache.put(key, val)
+        return val
 
     def expnum_poly_sim_norm(self, poly, deg):
         """
@@ -1118,7 +1141,7 @@ class TermEval(object):
         deg = len(idx_map_rev)
 
         # if degree is small do the all combinations algorithm
-        ones = self.expnum_poly_sim_norm(npoly, deg)
+        ones = self.expnum_poly_sim_norm_cached(npoly, deg)
         return float(ones) / float(2**deg)
 
         # for long degree or long polynomial we can do this:
