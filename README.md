@@ -69,6 +69,22 @@ library(scales)
 ggplot(data = df, aes(x=V1, y=V2)) + geom_boxplot(aes(V1))  + ylab("Z-score") + xlab("data size") + scale_y_continuous(trans=log2_trans())
 ```
 
+## AES size
+
+```
+require(ggplot2)
+require(reshape2)
+df <- read.csv("/tmp/aes2.csv", header=F)
+df$V1 <- as.character(df$V1)
+df$V1 <- factor(df$V1, levels=unique(df$V1))
+ggplot(data = df, aes(x=V1, y=V2)) + geom_boxplot(aes(V1))  + ylab("Z-score") + xlab("data size") + coord_flip()
+
+df <- read.csv("/tmp/aess.csv", header=F)
+df$V1 <- as.character(df$V1)
+df$V1 <- factor(df$V1, levels=unique(df$V1))
+ggplot(data = df, aes(x=V1, y=V2)) + geom_boxplot(aes(V1))  + ylab("Z-score") + xlab("data size") + coord_flip()
+```
+
 # Java tests - version
 
 openjdk version "1.8.0_121"
