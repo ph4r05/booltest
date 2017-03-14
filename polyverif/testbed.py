@@ -133,7 +133,7 @@ class TestbedBenchmark(App):
 
         # Init logic, analysis.
         # Define test set.
-        test_sizes_mb = [10, 100, 1000]
+        test_sizes_mb = [1, 10, 100]
         test_block_sizes = [128, 256, 384, 512]
         test_degree = [1, 2]
         test_comb_k = [1, 2]
@@ -148,7 +148,7 @@ class TestbedBenchmark(App):
             for cur_round in rounds:
                 tmpdir = self.gen_randomdir(function, cur_round)
                 new_gen_path = os.path.join(tmpdir, 'generator')
-                data_to_gen = 1000 * 1024 * 1024
+                data_to_gen = max(test_sizes_mb) * 1024 * 1024
 
                 # Copy generator executable here, generate data.
                 os.makedirs(tmpdir)
@@ -168,8 +168,8 @@ class TestbedBenchmark(App):
                     continue
 
                 # Generated file:
-                data_files = [f for f in os.listdir(tmpdir) if os.path.isfile(os.path.join(tmpdir, f)
-                                                                              and f.endswith('bin'))]
+                data_files = [f for f in os.listdir(tmpdir) if os.path.isfile(os.path.join(tmpdir, f))
+                                                                              and f.endswith('bin')]
                 if len(data_files) != 1:
                     logger.error('Error in generating data to process. Files found: %s' % data_files)
                     continue
@@ -183,7 +183,7 @@ class TestbedBenchmark(App):
                     test_desc = 'idx: %04d, data: %04d, block: %d, deg: %d, comb-deg: %d' \
                                 % (test_idx, data_size, block_size, degree, comb_deg)
 
-                    if self.test_stride > 1 and test_idx % self.test_manuals != self.test_stride:
+                    if self.test_manuals > 1 and (test_idx % self.test_manuals) != self.test_stride:
                         logger.info('Skipping test %s' % test_desc)
                         continue
 
@@ -200,7 +200,7 @@ class TestbedBenchmark(App):
                         fh.write(json.dumps(jsres, indent=2))
 
                 # Remove test dir
-                # shutil.rmtree(tmpdir)  # TODO: uncomment
+                shutil.rmtree(tmpdir)
 
     def testcase(self, function, cur_round, size_mb, blocklen, degree, comb_deg, data_file, tmpdir):
         """
