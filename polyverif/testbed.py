@@ -123,6 +123,23 @@ class TestbedBenchmark(App):
                         yield test_idx, data_size, block_size, degree, comb_k
                         test_idx += 1
 
+    def check_res_file(self, path):
+        """
+        Returns True if the given result path seems valid
+        :param path:
+        :return:
+        """
+        if not os.path.exists(path):
+            return False
+
+        # noinspection PyBroadException
+        try:
+            with open(path, 'r') as fh:
+                js = json.load(fh)
+                return 'best_zscore' in js
+        except:
+            return False
+
     # noinspection PyBroadException
     def work(self):
         """
@@ -136,7 +153,7 @@ class TestbedBenchmark(App):
         test_sizes_mb = [1, 10, 100]
         test_block_sizes = [128, 256, 384, 512]
         test_degree = [1, 2]
-        test_comb_k = [1, 2]
+        test_comb_k = [1, 2, 3]
         results_acc = []
 
         # Test all functions
@@ -149,6 +166,23 @@ class TestbedBenchmark(App):
                 tmpdir = self.gen_randomdir(function, cur_round)
                 new_gen_path = os.path.join(tmpdir, 'generator')
                 data_to_gen = max(test_sizes_mb) * 1024 * 1024
+
+                # Check if already generated results
+                skip_cur_config = True
+                for test_case in self.test_case_generator(test_sizes_mb, test_block_sizes, test_degree, test_comb_k):
+                    test_idx, data_size, block_size, degree, comb_deg = test_case
+                    res_file = '%s-r%02d-seed%s-%04dMB-%sbl-%sdeg-%sk.json' \
+                               % (function, cur_round, self.config_js['seed'], data_size, block_size, degree, comb_deg)
+
+                    res_file_path = os.path.join(self.results_dir, res_file)
+
+                    if not self.check_res_file(res_file_path):
+                        skip_cur_config = False
+                        break
+
+                if skip_cur_config:
+                    logger.info('Skipping whole %s, r%s, all results generated' % (function, cur_round))
+                    continue
 
                 # Copy generator executable here, generate data.
                 os.makedirs(tmpdir)
@@ -187,15 +221,17 @@ class TestbedBenchmark(App):
                         logger.info('Skipping test %s' % test_desc)
                         continue
 
+                    res_file = '%s-r%02d-seed%s-%04dMB-%sbl-%sdeg-%sk.json' \
+                               % (function, cur_round, self.config_js['seed'], data_size, block_size, degree, comb_deg)
+                    res_file_path = os.path.join(self.results_dir, res_file)
+                    if not self.check_res_file(res_file_path):
+                        logger.info('Already computed test %s' % test_desc)
+                        continue
+
                     logger.info('Working on test: %s' % test_desc)
                     jsres = self.testcase(function, cur_round, data_size, block_size, degree, comb_deg,
                                           data_file, tmpdir)
 
-                    res_file = '%s-r%s-seed%s-%sMB-%sbl-%sdeg-%sk.json' \
-                               % (function, cur_round, self.config_js['seed'], data_size, block_size, degree,
-                                  comb_deg)
-
-                    res_file_path = os.path.join(self.results_dir, res_file)
                     with open(res_file_path, 'w') as fh:
                         fh.write(json.dumps(jsres, indent=2))
 
