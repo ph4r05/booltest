@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import collections
+import math
 
 # Regex for parsing arg names from source codes
 # if \(name == "(.+?)".+
@@ -232,7 +233,7 @@ def get_config(function_name, rounds=None, seed='1fe40505e131963c', stream_type=
 
     num = tvcount
     if data is not None:
-        num = data // tvsize
+        num = int(math.ceil(data / float(tvsize)))
 
     if num is None:
         raise ValueError('Length of data not specified')
