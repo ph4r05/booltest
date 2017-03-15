@@ -58,6 +58,7 @@ class TestbedBenchmark(App):
         self.test_random.seed(0)
 
         self.config_js = None
+        self.cur_data_file = None  # (tmpdir, config, file)
 
     def init_params(self):
         """
@@ -138,6 +139,56 @@ class TestbedBenchmark(App):
         except:
             return False
 
+    def data_generator(self, tmpdir, new_gen_path, function, cur_round):
+        """
+        Used to call generator to generate data to test. Prepares data to test.
+        If the file has already been generated, just returns the generated file.
+        :return:
+        """
+        if self.cur_data_file is not None \
+                and self.cur_data_file[0] == tmpdir \
+                and self.cur_data_file[1] == self.config_js:
+            logger.info('Using already generated data file: %s' % self.cur_data_file[2])
+            return self.cur_data_file[2]
+
+        # Copy generator executable here, generate data.
+        os.makedirs(tmpdir)
+        shutil.copy(self.generator_path, new_gen_path)
+
+        config_str = json.dumps(self.config_js, indent=2)
+        with open(os.path.join(tmpdir, 'generator.json'), 'w') as fh:
+            fh.write(config_str)
+
+        # Generate some data here
+        logger.info('Generating data for %s, round %s to %s' % (function, cur_round, tmpdir))
+        p = subprocess.Popen(new_gen_path, shell=True, cwd=tmpdir)
+        p.communicate()
+        if p.returncode != 0:
+            logger.error('Could not generate data, code: %s' % p.returncode)
+            return None
+
+        # Generated file:
+        data_files = [f for f in os.listdir(tmpdir) if os.path.isfile(os.path.join(tmpdir, f))
+                      and f.endswith('bin')]
+        if len(data_files) != 1:
+            logger.error('Error in generating data to process. Files found: %s' % data_files)
+            return None
+
+        data_file = os.path.join(tmpdir, data_files[0])
+        self.cur_data_file = (tmpdir, self.config_js, data_file)
+
+        logger.info('Data file generated to: %s' % data_file)
+        return data_file
+
+    def clean_temp_dir(self, tmpdir):
+        """
+        Cleans artifacts
+        :param tmpdir:
+        :return:
+        """
+        if os.path.exists(tmpdir):
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
     # noinspection PyBroadException
     def work(self):
         """
@@ -157,6 +208,7 @@ class TestbedBenchmark(App):
 
         # Test all functions
         functions = sorted(list(egenerator.ROUNDS.keys()))
+        total_test_idx = 0
         for function in functions:
             rounds = egenerator.ROUNDS[function]
 
@@ -167,61 +219,19 @@ class TestbedBenchmark(App):
                 data_to_gen = max(test_sizes_mb) * 1024 * 1024
                 self.config_js = egenerator.get_config(function_name=function, rounds=cur_round, data=data_to_gen)
 
+                # Reseed testcase scenario random generator
                 test_rand_seed = self.test_random.randint(0, 2**64-1)
                 self.test_random.seed(test_rand_seed)
 
-                # Check if already generated results
-                skip_cur_config = True
-                for test_idx, test_case in enumerate(self.test_case_generator(test_sizes_mb, test_block_sizes,
-                                                                              test_degree, test_comb_k)):
-                    data_size, block_size, degree, comb_deg = test_case
-                    res_file = '%s-r%02d-seed%s-%04dMB-%sbl-%sdeg-%sk.json' \
-                               % (function, cur_round, self.config_js['seed'], data_size, block_size, degree, comb_deg)
-
-                    res_file_path = os.path.join(self.results_dir, res_file)
-                    if not self.check_res_file(res_file_path):
-                        skip_cur_config = False
-                        break
-
-                if skip_cur_config:
-                    logger.info('Skipping whole %s, r%s, all results generated' % (function, cur_round))
-                    continue
-
-                # Copy generator executable here, generate data.
-                os.makedirs(tmpdir)
-                shutil.copy(self.generator_path, new_gen_path)
-
-                config_str = json.dumps(self.config_js, indent=2)
-                with open(os.path.join(tmpdir, 'generator.json'), 'w') as fh:
-                    fh.write(config_str)
-
-                # Generate some data here
-                logger.info('Generating data for %s, round %s to %s' % (function, cur_round, tmpdir))
-                p = subprocess.Popen(new_gen_path, shell=True, cwd=tmpdir)
-                p.communicate()
-                if p.returncode != 0:
-                    logger.error('Could not generate data, code: %s' % p.returncode)
-                    continue
-
-                # Generated file:
-                data_files = [f for f in os.listdir(tmpdir) if os.path.isfile(os.path.join(tmpdir, f))
-                                                                              and f.endswith('bin')]
-                if len(data_files) != 1:
-                    logger.error('Error in generating data to process. Files found: %s' % data_files)
-                    continue
-
-                data_file = os.path.join(tmpdir, data_files[0])
-                logger.info('Data file generated to: %s' % data_file)
-
                 # Generate test cases, run the analysis.
-                self.test_random.seed(test_rand_seed)
-                for test_idx, test_case in enumerate(self.test_case_generator(test_sizes_mb, test_block_sizes,
-                                                                              test_degree, test_comb_k)):
+                for test_case in self.test_case_generator(test_sizes_mb, test_block_sizes, test_degree, test_comb_k):
                     data_size, block_size, degree, comb_deg = test_case
-                    test_desc = 'idx: %04d, data: %04d, block: %d, deg: %d, comb-deg: %d' \
-                                % (test_idx, data_size, block_size, degree, comb_deg)
+                    total_test_idx += 1
 
-                    if self.test_manuals > 1 and (test_idx % self.test_manuals) != self.test_stride:
+                    test_desc = 'idx: %04d, data: %04d, block: %d, deg: %d, comb-deg: %d' \
+                                % (total_test_idx, data_size, block_size, degree, comb_deg)
+
+                    if self.test_manuals > 1 and (total_test_idx % self.test_manuals) != self.test_stride:
                         logger.info('Skipping test %s' % test_desc)
                         continue
 
@@ -232,6 +242,9 @@ class TestbedBenchmark(App):
                         logger.info('Already computed test %s' % test_desc)
                         continue
 
+                    data_file = self.data_generator(tmpdir=tmpdir, new_gen_path=new_gen_path,
+                                                    function=function, cur_round=cur_round)
+
                     logger.info('Working on test: %s' % test_desc)
                     jsres = self.testcase(function, cur_round, data_size, block_size, degree, comb_deg,
                                           data_file, tmpdir)
@@ -240,7 +253,7 @@ class TestbedBenchmark(App):
                         fh.write(json.dumps(jsres, indent=2))
 
                 # Remove test dir
-                shutil.rmtree(tmpdir)
+                self.clean_temp_dir(tmpdir)
 
     def testcase(self, function, cur_round, size_mb, blocklen, degree, comb_deg, data_file, tmpdir):
         """
