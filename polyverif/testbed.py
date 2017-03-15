@@ -31,6 +31,14 @@ coloredlogs.install(level=logging.DEBUG)
 
 # Main - argument parsing + processing
 class TestbedBenchmark(App):
+    """
+    Testbed run matrix of tests on multiple possible functions.
+
+    Used in conjunction with EACirc generator. A function \in generator is used with
+    different number of rounds to benchmark success rate of the polynomial approach.
+
+    Tests scenarios are generated in a way parallelization is possible.
+    """
     def __init__(self, *args, **kwargs):
         super(TestbedBenchmark, self).__init__(*args, **kwargs)
         self.args = None
@@ -144,7 +152,6 @@ class TestbedBenchmark(App):
         test_block_sizes = [128, 256, 384, 512]
         test_degree = [1, 2]
         test_comb_k = [1, 2, 3]
-        results_acc = []
 
         # Test all functions
         functions = sorted(list(egenerator.ROUNDS.keys()))
