@@ -49,7 +49,6 @@ ESTREAM = {
     'Salsa20': None,
     'SFINKS': None,
     'SOSEMANUK': None,
-    'TEA': None,
     'TSC-4': None,
     'WG': None,
     'Zk-Crypt': None
