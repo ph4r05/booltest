@@ -65,6 +65,23 @@ export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib64:$LD_LIBRARY_PATH
 ```
 
+## Compiling EACirc generator on Aura/Aisa
+
+```
+module add mpc-0.8.2
+module add gmp-4.3.2
+module add mpfr-3.0.0
+module add cmake-3.6.2
+export PATH=~/local/gcc-5.2.0/bin:$PATH
+export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib64:$LD_LIBRARY_PATH
+
+cd ~/eacirc
+mkdir -p build && cd build
+CC=gcc CXX=g++ cmake ..
+make
+```
+
 # Graphs in R
 
 Docs:
