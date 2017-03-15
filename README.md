@@ -55,7 +55,7 @@ mkdir -p ~/local/gcc-5.2.0
 cd local
 mkdir gcc-build  # objdir
 cd gcc-build
-../../gcc-5.2.0/configure --prefix=/path/to/destdir/local/gcc-5.2.0/ --enable-languages=c,c++,fortran,go --disable-multilib
+../../gcc-5.2.0/configure --prefix=~/local/gcc-5.2.0/ --enable-languages=c,c++,fortran,go --disable-multilib
 make -j4 # spend a long time
 make install
 
@@ -143,9 +143,11 @@ ggplot(data = df, aes(x=V1, y=V2)) + geom_boxplot(aes(V1))  + ylab("Z-score") + 
 
 # Java tests - version
 
+```
 openjdk version "1.8.0_121"
 OpenJDK Runtime Environment (build 1.8.0_121-8u121-b13-0ubuntu1.16.04.2-b13)
 OpenJDK 64-Bit Server VM (build 25.121-b13, mixed mode)
 Ubuntu 16.04.1 LTS (Xenial Xerus)
+```
 
 
