@@ -60,9 +60,9 @@ make -j4 # spend a long time
 make install
 
 # Add either to ~/.bashrc or just invoke on shell
-export PATH=~/gcc-5.2.0/bin:$PATH
-export LD_LIBRARY_PATH=~/gcc-5.2.0/lib:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=~/gcc-5.2.0/lib64:$LD_LIBRARY_PATH
+export PATH=~/local/gcc-5.2.0/bin:$PATH
+export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib64:$LD_LIBRARY_PATH
 ```
 
 # Graphs in R
