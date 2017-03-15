@@ -130,7 +130,7 @@ class TestbedBenchmark(App):
         try:
             with open(path, 'r') as fh:
                 js = json.load(fh)
-                return 'best_zscore' in js
+                return 'best_zscore' in js and 'best_dists' in js
         except:
             return False
 
