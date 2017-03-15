@@ -27,6 +27,7 @@ import subprocess
 import signal
 import psutil
 import shutil
+import itertools
 from main import *
 import egenerator
 
@@ -50,6 +51,10 @@ class TestbedBenchmark(App):
         self.top_k = 128
         self.zscore_thresh = None
         self.all_deg = None
+
+        self.randomize_tests = True
+        self.test_random = random.Random()
+        self.test_random.seed(0)
 
         self.config_js = None
 
@@ -106,22 +111,14 @@ class TestbedBenchmark(App):
         :param test_block_sizes:
         :param test_degree:
         :param test_comb_k:
-        :return: test_idx, data_size, block_size, degree, comb_k
+        :return: data_size, block_size, degree, comb_k
         """
-        test_idx = 0
+        cases = [list(test_sizes_mb), list(test_block_sizes), list(test_degree), list(test_comb_k)]
+        iterator = itertools.product(*cases)
 
-        # Several data sizes
-        for data_size in test_sizes_mb:
-
-            # parameters iteration, block, deg, k.
-            for block_size in test_block_sizes:
-
-                for degree in test_degree:
-
-                    for comb_k in test_comb_k:
-
-                        yield test_idx, data_size, block_size, degree, comb_k
-                        test_idx += 1
+        data = [x for x in iterator]
+        self.test_random.shuffle(data)
+        return data
 
     def check_res_file(self, path):
         """
@@ -168,15 +165,18 @@ class TestbedBenchmark(App):
                 data_to_gen = max(test_sizes_mb) * 1024 * 1024
                 self.config_js = egenerator.get_config(function_name=function, rounds=cur_round, data=data_to_gen)
 
+                test_rand_seed = self.test_random.randint(0, 2**64-1)
+                self.test_random.seed(test_rand_seed)
+
                 # Check if already generated results
                 skip_cur_config = True
-                for test_case in self.test_case_generator(test_sizes_mb, test_block_sizes, test_degree, test_comb_k):
-                    test_idx, data_size, block_size, degree, comb_deg = test_case
+                for test_idx, test_case in enumerate(self.test_case_generator(test_sizes_mb, test_block_sizes,
+                                                                              test_degree, test_comb_k)):
+                    data_size, block_size, degree, comb_deg = test_case
                     res_file = '%s-r%02d-seed%s-%04dMB-%sbl-%sdeg-%sk.json' \
                                % (function, cur_round, self.config_js['seed'], data_size, block_size, degree, comb_deg)
 
                     res_file_path = os.path.join(self.results_dir, res_file)
-
                     if not self.check_res_file(res_file_path):
                         skip_cur_config = False
                         break
@@ -212,8 +212,10 @@ class TestbedBenchmark(App):
                 logger.info('Data file generated to: %s' % data_file)
 
                 # Generate test cases, run the analysis.
-                for test_case in self.test_case_generator(test_sizes_mb, test_block_sizes, test_degree, test_comb_k):
-                    test_idx, data_size, block_size, degree, comb_deg = test_case
+                self.test_random.seed(test_rand_seed)
+                for test_idx, test_case in enumerate(self.test_case_generator(test_sizes_mb, test_block_sizes,
+                                                                              test_degree, test_comb_k)):
+                    data_size, block_size, degree, comb_deg = test_case
                     test_desc = 'idx: %04d, data: %04d, block: %d, deg: %d, comb-deg: %d' \
                                 % (test_idx, data_size, block_size, degree, comb_deg)
 
