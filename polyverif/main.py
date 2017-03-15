@@ -18,9 +18,6 @@ import random
 import json
 import types
 import collections
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
 import scipy
 import scipy.misc
 import scipy.stats
@@ -35,6 +32,9 @@ ValueIdx = collections.namedtuple('ValueIdx', ['value', 'idx'])
 
 
 def bar_chart(sources=None, values=None, res=None, error=None, xlabel=None, title=None):
+    import numpy as np
+    import matplotlib
+    import matplotlib.pyplot as plt
     if res is not None:
         sources = [x[0] for x in res]
         values = [x[1] for x in res]
