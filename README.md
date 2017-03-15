@@ -38,8 +38,32 @@ echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
 echo 'eval "$(pyenv init -)"' >> ~/.bashrc
 exec $SHELL
 pyenv install 2.7.13
+pyenv local 2.7.13
 ```
 
+## GCC 5.2
+
+```
+wget http://ftp.gnu.org/gnu/gcc/gcc-5.2.0/gcc-5.2.0.tar.bz2
+tar -xjvf gcc-5.2.0.tar.bz2
+
+module add mpc-0.8.2
+module add gmp-4.3.2
+module add mpfr-3.0.0
+
+mkdir -p ~/local/gcc-5.2.0
+cd local
+mkdir gcc-build  # objdir
+cd gcc-build
+../../gcc-5.2.0/configure --prefix=/path/to/destdir/local/gcc-5.2.0/ --enable-languages=c,c++,fortran,go --disable-multilib
+make -j4 # spend a long time
+make install
+
+# Add either to ~/.bashrc or just invoke on shell
+export PATH=~/gcc-5.2.0/bin:$PATH
+export LD_LIBRARY_PATH=~/gcc-5.2.0/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=~/gcc-5.2.0/lib64:$LD_LIBRARY_PATH
+```
 
 # Graphs in R
 
