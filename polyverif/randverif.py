@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from past.builtins import basestring
-from functools import reduce
 import argparse
 import logging
 import coloredlogs
@@ -18,7 +17,6 @@ import types
 import collections
 import scipy.misc
 import scipy.stats
-import subprocess
 import signal
 import psutil
 from main import *
@@ -39,7 +37,20 @@ class RandVerif(App):
     # noinspection PyBroadException
     def work(self):
         """
-        Main entry point - data processing
+        Main entry point - data processing.
+
+        RandVerif is used to benchmark particular data sources, with different seeds.
+        It takes e.g., AES-CTR(SHA256(random)), runs it 1000 times and stores the resutls. This particular
+        computation was used to determine reference z-scores of the test.
+
+        Another usual scenario is to take Java util.Random, seed it 1000 times with a different random seed
+        and analyze the results.
+
+        RandVerif supports supplying custom distinguishers so the whole space is not searched. This
+        setup is used to assess found distinguishers on more data / independent data streams with different seeds.
+
+        RandVerif produces results on STDOUT, it contains multiple sections, separated by -----BEGIN SECTION-----
+        Sections contain stats (avg. z-score), all z-scores, the best distinguishers for further analysis...
         :return:
         """
         self.blocklen = int(self.defset(self.args.blocklen, 128))
