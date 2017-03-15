@@ -166,6 +166,7 @@ class TestbedBenchmark(App):
                 tmpdir = self.gen_randomdir(function, cur_round)
                 new_gen_path = os.path.join(tmpdir, 'generator')
                 data_to_gen = max(test_sizes_mb) * 1024 * 1024
+                self.config_js = egenerator.get_config(function_name=function, rounds=cur_round, data=data_to_gen)
 
                 # Check if already generated results
                 skip_cur_config = True
@@ -188,7 +189,6 @@ class TestbedBenchmark(App):
                 os.makedirs(tmpdir)
                 shutil.copy(self.generator_path, new_gen_path)
 
-                self.config_js = egenerator.get_config(function_name=function, rounds=cur_round, data=data_to_gen)
                 config_str = json.dumps(self.config_js, indent=2)
                 with open(os.path.join(tmpdir, 'generator.json'), 'w') as fh:
                     fh.write(config_str)
@@ -224,7 +224,7 @@ class TestbedBenchmark(App):
                     res_file = '%s-r%02d-seed%s-%04dMB-%sbl-%sdeg-%sk.json' \
                                % (function, cur_round, self.config_js['seed'], data_size, block_size, degree, comb_deg)
                     res_file_path = os.path.join(self.results_dir, res_file)
-                    if not self.check_res_file(res_file_path):
+                    if self.check_res_file(res_file_path):
                         logger.info('Already computed test %s' % test_desc)
                         continue
 
