@@ -16,10 +16,6 @@ import random
 import json
 import types
 import collections
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-import scipy
 import scipy.misc
 import scipy.stats
 import subprocess
