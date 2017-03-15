@@ -228,8 +228,8 @@ class TestbedBenchmark(App):
                     data_size, block_size, degree, comb_deg = test_case
                     total_test_idx += 1
 
-                    test_desc = 'idx: %04d, data: %04d, block: %d, deg: %d, comb-deg: %d' \
-                                % (total_test_idx, data_size, block_size, degree, comb_deg)
+                    test_desc = 'idx: %04d, data: %04d, block: %d, deg: %d, comb-deg: %d, fun: %s, round: %s' \
+                                % (total_test_idx, data_size, block_size, degree, comb_deg, function, cur_round)
 
                     if self.test_manuals > 1 and (total_test_idx % self.test_manuals) != self.test_stride:
                         logger.info('Skipping test %s' % test_desc)
