@@ -93,7 +93,7 @@ SHA3 = {
     'SIMD': None,
     'Skein': None,
     'SpectralHash': None,
-    'StreamHash'
+    'StreamHash': None,
     'Tangle': None,
     'Twister': None,
     'WaMM': None,
