@@ -27,9 +27,10 @@ module add cmake-3.6.2
 module add gcc-4.8.2
 ```
 
-## Python 2.7 at least
+## Python 2.7.13
 
-It wont work with lower Python version
+It won't work with lower Python version. Use `pyenv` to install a new Python version.
+It internally downloads Python sources and installs it to `~/.pyenv`.
 
 ```
 git clone https://github.com/pyenv/pyenv.git ~/.pyenv
@@ -42,6 +43,9 @@ pyenv local 2.7.13
 ```
 
 ## GCC 5.2
+
+Installing a new GCC with C++ 11 support.
+http://bakeronit.com/2015/11/04/install_gcc/
 
 ```
 wget http://ftp.gnu.org/gnu/gcc/gcc-5.2.0/gcc-5.2.0.tar.bz2
