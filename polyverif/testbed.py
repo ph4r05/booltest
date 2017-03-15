@@ -148,10 +148,12 @@ class TestbedBenchmark(App):
 
         # Init logic, analysis.
         # Define test set.
-        test_sizes_mb = [1, 10, 100]
-        test_block_sizes = [128, 256, 384, 512]
-        test_degree = [1, 2]
-        test_comb_k = [1, 2, 3]
+        test_sizes_mb = self.args.matrix_size
+        test_block_sizes = self.args.matrix_block
+        test_degree = self.args.matrix_deg
+        test_comb_k = self.args.matrix_comb_deg
+        logger.info('Computing test matrix for sizes: %s, blocks: %s, degree: %s, comb degree: %s'
+                    % (test_sizes_mb, test_block_sizes, test_degree, test_comb_k))
 
         # Test all functions
         functions = sorted(list(egenerator.ROUNDS.keys()))
@@ -455,6 +457,26 @@ class TestbedBenchmark(App):
 
         parser.add_argument('--tests-stride', dest='tests_stride', default=1, type=int,
                             help='Tests stride, skipping tests')
+
+        #
+        # Testing matrix definition
+        #
+
+        parser.add_argument('--matrix-block', dest='matrix_block', nargs=argparse.ZERO_OR_MORE,
+                            default=[128, 256, 384, 512], type=int,
+                            help='List of block sizes to test')
+
+        parser.add_argument('--matrix-size', dest='matrix_size', nargs=argparse.ZERO_OR_MORE,
+                            default=[1, 10, 100], type=int,
+                            help='List of data sizes to test in MB')
+
+        parser.add_argument('--matrix-deg', dest='matrix_deg', nargs=argparse.ZERO_OR_MORE,
+                            default=[1, 2], type=int,
+                            help='List of degree to test')
+
+        parser.add_argument('--matrix-comb-deg', dest='matrix_comb_deg', nargs=argparse.ZERO_OR_MORE,
+                            default=[1, 2, 3], type=int,
+                            help='List of degree of combinations to test')
 
         self.args = parser.parse_args()
         self.work()
