@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from past.builtins import basestring
-from functools import reduce
 import argparse
 import logging
 import coloredlogs
@@ -17,12 +16,9 @@ import random
 import json
 import types
 import collections
-import scipy
 import scipy.misc
 import scipy.stats
 import subprocess
-import signal
-import psutil
 import shutil
 import itertools
 from main import *
