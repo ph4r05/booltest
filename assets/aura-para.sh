@@ -26,6 +26,7 @@ do
         --generator-path /home/xklinec/eacirc/build/generator/generator \
         --result-dir /home/xklinec/testbed-results \
         --tests-manuals ${NUMPROC} --tests-stride ${cur} \
+        --matrix-size 1000 --matrix-comb-deg 1 2 3 \
         --top 128 --no-comb-and --only-top-comb --only-top-deg \
         --no-term-map --topterm-heap --topterm-heap-k 256 \
         >  ${LOGDIR}/testbed_t${TIMESTART}_n${NUMPROC}_c${cur}.out \
