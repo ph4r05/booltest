@@ -12,11 +12,11 @@ NUMPROC=$1
 NUMPROC=${NUMPROC:-16}
 echo "Going to start computation with ${NUMPROC} processes. ID=${TIMESTART}"
 
-LOGDIR=~/testbed-proc/
-mkdir -p ${LOGDIR}
-
 # Clean previous tmp files
 /bin/rm -rf /tmp/testbed-*
+
+LOGDIR=/tmp/testbed-proc
+mkdir -p ${LOGDIR}
 
 # Start processes
 for cur in `seq 0 $((${NUMPROC} - 1))`;
@@ -25,6 +25,7 @@ do
     python ~/poly-verif/polyverif/testbed.py \
         --generator-path ~/eacirc/build/generator/generator \
         --result-dir ~/testbed-results \
+        --data-dir /tmp/testdata \
         --tests-manuals ${NUMPROC} --tests-stride ${cur} \
         --matrix-size 1000 --matrix-comb-deg 1 2 \
         --top 128 --no-comb-and --only-top-comb --only-top-deg \
@@ -33,6 +34,6 @@ do
         2> ${LOGDIR}/testbed_t${TIMESTART}_n${NUMPROC}_c${cur}.err \
         &
     echo "Process ${cur}/$((${NUMPROC} - 1)) started"
-    sleep 2
+    sleep 1
 done
 
