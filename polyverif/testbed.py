@@ -198,7 +198,10 @@ class TestbedBenchmark(App):
         logger.info('Generating data for %s, round %s to %s' % (function, cur_round, tmpdir))
         data_file = self.eacirc_generator(tmpdir=tmpdir, generator_path=self.generator_path, config_js=self.config_js)
 
-        logger.info('Data file generated to: %s' % data_file)
+        if data_file is not None:
+            logger.info('Data file generated to: %s' % data_file)
+            self.cur_data_file = tmpdir, self.config_js, data_file
+
         return data_file
 
     def eacirc_generator(self, tmpdir, generator_path, config_js):
