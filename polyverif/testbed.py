@@ -444,6 +444,7 @@ class TestbedBenchmark(App):
         hwanalysis.sort_best_zscores = max(self.args.topterm_heap_k, self.top_k, 100)
         hwanalysis.best_x_combinations = self.args.best_x_combinations
         logger.info('Initializing test')
+        time_test_start = time.time()
         hwanalysis.init()
 
         # Process input object
@@ -501,6 +502,7 @@ class TestbedBenchmark(App):
         jsres['comb_degree'] = comb_deg
         jsres['top_k'] = self.top_k
         jsres['all_deg'] = self.all_deg
+        jsres['time_elapsed'] = time.time() - time_test_start
 
         jsres['data_hash'] = data_hash
         jsres['data_read'] = iobj.data_read
