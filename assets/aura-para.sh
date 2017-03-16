@@ -22,11 +22,11 @@ mkdir -p ${LOGDIR}
 for cur in `seq 0 $((${NUMPROC} - 1))`;
 do
     nice -n 19 taskset -c 31-63 nohup \
-    python /home/xklinec/poly-verif/polyverif/testbed.py \
-        --generator-path /home/xklinec/eacirc/build/generator/generator \
-        --result-dir /home/xklinec/testbed-results \
+    python ~/poly-verif/polyverif/testbed.py \
+        --generator-path ~/eacirc/build/generator/generator \
+        --result-dir ~/testbed-results \
         --tests-manuals ${NUMPROC} --tests-stride ${cur} \
-        --matrix-size 1000 --matrix-comb-deg 1 2 3 \
+        --matrix-size 1000 --matrix-comb-deg 1 2 \
         --top 128 --no-comb-and --only-top-comb --only-top-deg \
         --no-term-map --topterm-heap --topterm-heap-k 256 \
         >  ${LOGDIR}/testbed_t${TIMESTART}_n${NUMPROC}_c${cur}.out \
