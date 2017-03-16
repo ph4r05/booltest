@@ -284,12 +284,12 @@ class TestbedBenchmark(App):
         results = {}
         for fnc in fnc_rounds:
             rounds = egenerator.ROUNDS[fnc]
-            round = max(rounds)
+            cur_round = max(rounds)
 
-            logger.info('Testing %s, round %s' % (fnc, round))
-            tmpdir = self.gen_randomdir(fnc, round)
+            logger.info('Testing %s, round %s' % (fnc, cur_round))
+            tmpdir = self.gen_randomdir(fnc, cur_round)
             try:
-                config_js = egenerator.get_config(function_name=fnc, rounds=round, data=data_to_gen)
+                config_js = egenerator.get_config(function_name=fnc, rounds=cur_round, data=data_to_gen)
 
                 time_start = time.time()
                 data_file = self.eacirc_generator(tmpdir=tmpdir, generator_path=self.generator_path,
@@ -375,8 +375,7 @@ class TestbedBenchmark(App):
                         logger.info('Already computed test %s' % test_desc)
                         continue
 
-                    data_file = self.data_generator(tmpdir=tmpdir, new_gen_path=new_gen_path,
-                                                    function=function, cur_round=cur_round)
+                    data_file = self.data_generator(tmpdir=tmpdir, function=function, cur_round=cur_round)
                     if data_file is None:
                         logger.error('Data file is invalid')
                         continue
