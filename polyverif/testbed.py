@@ -152,11 +152,15 @@ class TestbedBenchmark(App):
         data_dir = self.args.data_dir
 
         if data_dir is None or not os.path.exists(data_dir):
+            logger.info('Data dir empty %s' % data_dir)
             return None
 
         candidates = [
             '%s_r%s_seed%s_%sMB.bin' % (function, round, self.seed, self.data_to_gen//1024//1024),
             '%s_r%s_seed%s.bin' % (function, round, self.seed),
+            '%s_r%s_b8.bin' % (function, round),
+            '%s_r%s_b16.bin' % (function, round),
+            '%s_r%s_b32.bin' % (function, round),
             '%s_r%s.bin' % (function, round),
             '%s.bin' % function
         ]
