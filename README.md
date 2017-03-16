@@ -1,5 +1,14 @@
 # Polyverif
 
+## Local installation
+
+From the local dir:
+
+```
+pip install --upgrade --find-links=. .
+```
+
+
 ## Scipy installation with pip
 
 ```
@@ -171,4 +180,39 @@ OpenJDK 64-Bit Server VM (build 25.121-b13, mixed mode)
 Ubuntu 16.04.1 LTS (Xenial Xerus)
 ```
 
+
+## Egenerator speed benchmark
+
+Table summarizes function & time needed to generate 10 MB of data.
+
+| Function      | Round | Time (sec)
+| ------------- | ----- | --------------|
+| AES           |  4    | 2.12984800339 |
+| ARIRANG       |  4    | 9.43074584007 |
+| AURORA        |  5    | 0.810596942902 |
+| BLAKE         |  3    | 0.839290142059 |
+| Cheetah       |  7    | 0.924134969711 |
+| CubeHash      |  3    | 36.8423719406 |
+| DCH           |  3    | 3.34326887131 |
+| DECIM         |  7    | 51.946573019 |
+| DynamicSHA    |  9    | 1.33032679558 |
+| DynamicSHA2   |  14   | 1.14816212654 |
+| ECHO          |  4    | 2.15773296356 |
+| Fubuki        |  4    | 1.81450080872 |
+| Grain         |  4    | 67.9190270901 |
+| Grostl        |  5    | 2.10276603699 |
+| Hamsi         |  3    | 7.09616398811 |
+| Hermes        |  3    | 1.46782112122 |
+| JH            |  8    | 3.51690793037 |
+| Keccak        |  4    | 1.31340193748 |
+| Lesamnta      |  5    | 2.08995699883 |
+| LEX           |  5    | 0.789785861969 |
+| Luffa         |  8    | 2.70372700691 |
+| MD6           |  11   | 2.13406395912 |
+| Salsa20       |  4    | 0.845487833023 |
+| SIMD          |  3    | 7.54037189484 |
+| Tangle        |  25   | 1.43553209305 |
+| TEA           |  8    | 0.981395959854 |
+| TSC-4         |  14   | 8.33323192596 |
+| Twister       |  9    | 1.38356399536 |
 
