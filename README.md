@@ -8,91 +8,12 @@ From the local dir:
 pip install --upgrade --find-links=. .
 ```
 
+# Experiments
 
-## Scipy installation with pip
-
-```
-pip install pyopenssl
-pip install pycrypto
-pip install git+https://github.com/scipy/scipy.git
-pip install --upgrade --find-links=. .
-```
-
-# Virtual environment
-
-It is usually recommended to create a new python virtual environment for the project:
+## Java random
 
 ```
-virtualenv ~/pyenv
-source ~/pyenv/bin/activate
-pip install --upgrade pip
-pip install --upgrade --find-links=. .
-```
-
-## Aura / Aisa on FI MU
-
-```
-module add cmake-3.6.2
-module add gcc-4.8.2
-```
-
-## Python 2.7.13
-
-It won't work with lower Python version. Use `pyenv` to install a new Python version.
-It internally downloads Python sources and installs it to `~/.pyenv`.
-
-```
-git clone https://github.com/pyenv/pyenv.git ~/.pyenv
-echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
-echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
-echo 'eval "$(pyenv init -)"' >> ~/.bashrc
-exec $SHELL
-pyenv install 2.7.13
-pyenv local 2.7.13
-```
-
-## GCC 5.2
-
-Installing a new GCC with C++ 11 support.
-http://bakeronit.com/2015/11/04/install_gcc/
-
-```
-wget http://ftp.gnu.org/gnu/gcc/gcc-5.2.0/gcc-5.2.0.tar.bz2
-tar -xjvf gcc-5.2.0.tar.bz2
-
-module add mpc-0.8.2
-module add gmp-4.3.2
-module add mpfr-3.0.0
-
-mkdir -p ~/local/gcc-5.2.0
-cd local
-mkdir gcc-build  # objdir
-cd gcc-build
-../../gcc-5.2.0/configure --prefix=~/local/gcc-5.2.0/ --enable-languages=c,c++,fortran,go --disable-multilib
-make -j4 # spend a long time
-make install
-
-# Add either to ~/.bashrc or just invoke on shell
-export PATH=~/local/gcc-5.2.0/bin:$PATH
-export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib64:$LD_LIBRARY_PATH
-```
-
-## Compiling EACirc generator on Aura/Aisa
-
-```
-module add mpc-0.8.2
-module add gmp-4.3.2
-module add mpfr-3.0.0
-module add cmake-3.6.2
-export PATH=~/local/gcc-5.2.0/bin:$PATH
-export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib64:$LD_LIBRARY_PATH
-
-cd ~/eacirc
-mkdir -p build && cd build
-CC=gcc CXX=g++ cmake ..
-make
+python polyverif/main.py ~/Downloads/output.txt --degree 2 --block 512 --top 128 --tv $((107286400)) --rounds 0 --poly-file polynomials-randjava_seed0.txt
 ```
 
 # Graphs in R
@@ -216,3 +137,91 @@ Table summarizes function & time needed to generate 10 MB of data.
 | TSC-4         |  14   | 8.33323192596 |
 | Twister       |  9    | 1.38356399536 |
 
+
+# Installation
+
+## Scipy installation with pip
+
+```
+pip install pyopenssl
+pip install pycrypto
+pip install git+https://github.com/scipy/scipy.git
+pip install --upgrade --find-links=. .
+```
+
+## Virtual environment
+
+It is usually recommended to create a new python virtual environment for the project:
+
+```
+virtualenv ~/pyenv
+source ~/pyenv/bin/activate
+pip install --upgrade pip
+pip install --upgrade --find-links=. .
+```
+
+## Aura / Aisa on FI MU
+
+```
+module add cmake-3.6.2
+module add gcc-4.8.2
+```
+
+## Python 2.7.13
+
+It won't work with lower Python version. Use `pyenv` to install a new Python version.
+It internally downloads Python sources and installs it to `~/.pyenv`.
+
+```
+git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
+echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
+echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+exec $SHELL
+pyenv install 2.7.13
+pyenv local 2.7.13
+```
+
+## GCC 5.2
+
+Installing a new GCC with C++ 11 support.
+http://bakeronit.com/2015/11/04/install_gcc/
+
+```
+wget http://ftp.gnu.org/gnu/gcc/gcc-5.2.0/gcc-5.2.0.tar.bz2
+tar -xjvf gcc-5.2.0.tar.bz2
+
+module add mpc-0.8.2
+module add gmp-4.3.2
+module add mpfr-3.0.0
+
+mkdir -p ~/local/gcc-5.2.0
+cd local
+mkdir gcc-build  # objdir
+cd gcc-build
+../../gcc-5.2.0/configure --prefix=~/local/gcc-5.2.0/ --enable-languages=c,c++,fortran,go --disable-multilib
+make -j4 # spend a long time
+make install
+
+# Add either to ~/.bashrc or just invoke on shell
+export PATH=~/local/gcc-5.2.0/bin:$PATH
+export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib64:$LD_LIBRARY_PATH
+```
+
+## Compiling EACirc generator on Aura/Aisa
+
+```
+module add mpc-0.8.2
+module add gmp-4.3.2
+module add mpfr-3.0.0
+module add cmake-3.6.2
+export PATH=~/local/gcc-5.2.0/bin:$PATH
+export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib64:$LD_LIBRARY_PATH
+
+cd ~/eacirc
+mkdir -p build && cd build
+CC=gcc CXX=g++ cmake ..
+make
+```
