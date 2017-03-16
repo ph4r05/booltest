@@ -353,8 +353,10 @@ class TestbedBenchmark(App):
             # Generate random tmpdir, generate data, test it there...
             for cur_round in rounds:
                 tmpdir = self.gen_randomdir(function, cur_round)
-                new_gen_path = os.path.join(tmpdir, 'generator')
-                self.config_js = egenerator.get_config(function_name=function, rounds=cur_round, data=self.data_to_gen)
+                if self.is_function_egen(function):
+                    self.config_js = egenerator.get_config(function_name=function, rounds=cur_round, data=self.data_to_gen)
+                else:
+                    self.config_js = {'algorithm': function, 'round': cur_round, 'seed': self.seed}
 
                 # Reseed testcase scenario random generator
                 test_rand_seed = self.test_random.randint(0, 2**64-1)
