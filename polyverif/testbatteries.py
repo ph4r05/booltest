@@ -332,8 +332,8 @@ class TestBatteries(App):
             for cur_round in battery[function]:
                 for cur_size in self.args.matrix_size:
                     data_file, cfgname, config_js = self.res_map[(function, cur_round)]
-                    test_name = '%s_r%d_%sMB' % (function, cur_round, cur_size)
-                    test_file = os.path.join(self.args.script_data, os.path.join(data_file))
+                    test_name = '%s_r%d_%04dMB' % (function, cur_round, cur_size)
+                    test_file = os.path.join(self.args.script_data, os.path.basename(data_file))
                     line = 'submit_experiment -e %s -n "%s" -c "/home/sample-configs/%dMB.json" -f "%s" -a\n' \
                            % (self.args.email, test_name, cur_size, test_file)
                     bash += line
