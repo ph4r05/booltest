@@ -12,7 +12,7 @@ import six
 import sys
 import math
 import time
-from queue import Queue
+from queue import Queue, Empty as QEmpty
 import random
 import json
 import types
@@ -116,7 +116,7 @@ class TestBatteries(App):
                 continue
 
             if os.path.getsize(fpath) < self.data_to_gen:
-                logger.info('File %s exists but is to small' % fpath)
+                logger.info('File %s exists but is too small' % fpath)
                 continue
 
             return fpath
@@ -243,8 +243,9 @@ class TestBatteries(App):
         logger.info('Starting worker %d' % idx)
         while True:
             try:
-                job = self.joq_queue.get()
+                job = self.joq_queue.get_nowait()
                 function, cur_round = job
+
                 tmpdir = self.gen_randomdir(function, cur_round)
                 if self.is_function_egen(function):
                     config_js = egenerator.get_config(function_name=function, rounds=cur_round, data=self.data_to_gen)
@@ -260,7 +261,7 @@ class TestBatteries(App):
                     continue
 
                 new_data_file = os.path.join(self.args.results_dir, os.path.basename(data_file))
-                if not os.path.samefile(data_file, new_data_file):
+                if not os.path.exists(new_data_file) or not os.path.samefile(data_file, new_data_file):
                     logger.info("Copying to %s" % new_data_file)
                     shutil.copy(data_file, new_data_file)
 
@@ -279,8 +280,9 @@ class TestBatteries(App):
                 # Job finished
                 self.joq_queue.task_done()
 
-            except Queue.Empty:
+            except QEmpty:
                 break
+
             except Exception as e:
                 logger.error('Exception when computing %s:%s : %s' % (function, cur_round, e))
                 logger.debug(traceback.format_exc())
@@ -313,12 +315,14 @@ class TestBatteries(App):
 
         workers = []
         for wrk in range(self.args.threads):
-            logger.info('Starting worker %d' % wrk)
+            logger.info('manager: starting worker %d' % wrk)
             t = threading.Thread(target=self.worker_main, args=(wrk, ))
+            t.setDaemon(True)
             t.start()
             workers.append(t)
 
         # Wait until all datasets are generated
+        logger.info('The whole dataset generated')
         self.joq_queue.join()
 
         # Generate bash script to submit experiments
@@ -337,6 +341,7 @@ class TestBatteries(App):
         bash_path = os.path.join(self.args.results_dir, 'submit.sh')
         with open(bash_path, 'w') as fh:
             fh.write(bash)
+
         logger.info('Finished')
 
     def main(self):
