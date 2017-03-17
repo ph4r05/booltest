@@ -98,7 +98,7 @@ class TestbedBenchmark(App):
         top_k = int(self.args.topk) if self.args.topk is not None else None
         top_comb = int(self.defset(self.args.combdeg, 2))
         self.all_deg = self.args.alldeg
-        tvsize = tvsize_orig
+        self.test_random.seed(self.args.tests_random_select_eed)
 
     def gen_randomdir(self, function, round):
         """
@@ -443,6 +443,7 @@ class TestbedBenchmark(App):
         hwanalysis.use_zscore_heap = self.args.topterm_heap
         hwanalysis.sort_best_zscores = max(self.args.topterm_heap_k, self.top_k, 100)
         hwanalysis.best_x_combinations = self.args.best_x_combinations
+
         logger.info('Initializing test')
         time_test_start = time.time()
         hwanalysis.init()
@@ -619,6 +620,9 @@ class TestbedBenchmark(App):
 
         parser.add_argument('--tests-stride', dest='tests_stride', default=1, type=int,
                             help='Tests stride, skipping tests')
+
+        parser.add_argument('--tests-random-select-seed', dest='tests_random_select_eed', default=0, type=int,
+                            help='Seed for random selection, defined test ordering & allocation on workers')
 
         parser.add_argument('--egen-benchmark', dest='egen_benchmark', action='store_const', const=True, default=False,
                             help='Benchmarks speed of the egenerator')
