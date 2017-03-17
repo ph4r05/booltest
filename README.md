@@ -57,6 +57,15 @@ on the battery of round reduced functions (e.g., ESTREAM, SHA3 candidates, ...)
 For the testing we use Randomness Testing Toolkit (RTT) from the EACirc project. The `testbatteries.py` prepares data
 for functions to test and the main bash script that submits tests to RTT.
 
+```
+python polyverif/testbatteries.py --email ph4r05@gmail.com --threads 3 \
+    --generator-path ~/eacirc/generator/generator \
+    --result-dir ~/_nni/home/ph4r05/testdata/ \
+    --data-dir ~/_nni/home/ph4r05/testdata/ \
+    --script-data /home/ph4r05/testdata \
+    --matrix-size 1 10 100 1000
+```
+
 # Graphs in R
 
 Docs:
