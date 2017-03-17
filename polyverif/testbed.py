@@ -532,30 +532,11 @@ class TestbedBenchmark(App):
         parser.add_argument('--verbose', dest='verbose', action='store_const', const=True,
                             help='enables verbose mode')
 
-        parser.add_argument('--ref', dest='reffile',
-                            help='reference file with random data')
-
-        parser.add_argument('--block', dest='blocklen',
-                            help='block size in bits')
-
-        parser.add_argument('--degree', dest='degree',
-                            help='maximum degree of computation')
-
-        parser.add_argument('--tv', dest='tvsize',
-                            help='Size of one test vector, in this interpretation = number of bytes to read from file. '
-                                 'Has to be aligned on block size')
-
-        parser.add_argument('-r', '--rounds', dest='rounds',
-                            help='Maximal number of rounds')
-
         parser.add_argument('--top', dest='topk', default=30, type=int,
                             help='top K number of best distinguishers to combine together')
 
         parser.add_argument('--comb-rand', dest='comb_random', default=0, type=int,
                             help='number of terms to add randomly to the combination set')
-
-        parser.add_argument('--combine-deg', dest='combdeg', default=2, type=int,
-                            help='Degree of combination')
 
         parser.add_argument('--conf', dest='conf', type=float, default=1.96,
                             help='Zscore failing threshold')
@@ -603,30 +584,27 @@ class TestbedBenchmark(App):
         parser.add_argument('--best-x-combs', dest='best_x_combinations', default=None, type=int,
                             help='Number of best combinations to return. If defined, heap is used')
 
-        parser.add_argument('--csv-zscore', dest='csv_zscore', action='store_const', const=True, default=False,
-                            help='CSV output with zscores')
-
         #
         # Testbed related options
         #
 
         parser.add_argument('--generator-path', dest='generator_path', default=None,
-                            help='Path to the generator executable')
+                            help='Path to the EAcirc generator executable')
 
         parser.add_argument('--result-dir', dest='results_dir', default=None,
-                            help='Directory to put results to')
+                            help='Directory to put results files to')
 
         parser.add_argument('--data-dir', dest='data_dir', default=None,
                             help='Directory to load data from (precomputed samples to test)')
 
         parser.add_argument('--tests-manuals', dest='tests_manuals', default=1, type=int,
-                            help='Number of manually started workers for this computation')
+                            help='Total number of manually started workers for this computation')
 
         parser.add_argument('--tests-stride', dest='tests_stride', default=1, type=int,
-                            help='Tests stride, skipping tests')
+                            help='Tests stride, skipping tests. Index of this particular worker in the batch.')
 
         parser.add_argument('--tests-random-select-seed', dest='tests_random_select_eed', default=0, type=int,
-                            help='Seed for random selection, defined test ordering & allocation on workers')
+                            help='Seed for test ordering randomization, defined allocation on workers')
 
         parser.add_argument('--egen-benchmark', dest='egen_benchmark', action='store_const', const=True, default=False,
                             help='Benchmarks speed of the egenerator')
