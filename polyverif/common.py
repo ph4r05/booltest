@@ -803,7 +803,7 @@ class TermEval(object):
         if deg is None:
             deg = self.deg
 
-        hw = [[]] * (deg+1)
+        hw = [None] * (deg+1)
         for idx in range(1, deg+1):
             hw[idx] = [0] * self.num_terms(idx, False, exact=True)
 
