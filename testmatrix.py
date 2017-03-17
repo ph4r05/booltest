@@ -51,7 +51,7 @@ class TestRecord(object):
         return '%s-r%d-d%s_bl%d-deg%d-k%d' % (self.function, self.round, self.data, self.block, self.deg, self.comb_deg)
 
 
-def process_file(js):
+def process_file(js, args=None):
     """
     Process file json
     :param js:
@@ -59,6 +59,9 @@ def process_file(js):
     """
     tr = TestRecord()
     tr.zscore = round(js['best_zscore'], 6)
+    if args.zscore_shape:
+        tr.zscore = int(abs(round(tr.zscore)))
+
     tr.best_poly = js['best_poly']
 
     if 'stream' in js['generator']:
@@ -88,6 +91,9 @@ def main():
 
     parser.add_argument('--json', dest='json', default=False, action='store_const', const=True,
                         help='JSON output')
+
+    parser.add_argument('--zscore-shape', dest='zscore_shape', default=False, action='store_const', const=True,
+                        help='abs(round(zscore))')
 
     parser.add_argument('--delim', dest='delim', default=',',
                         help='CSV delimiter')
@@ -123,14 +129,12 @@ def main():
     for idx, tfile in enumerate(test_files):
         if idx % 1000 == 0:
             logger.debug('Progress: %d, cur: %s' % (idx, tfile))
-        # if idx > 2000:
-        #     break
 
         test_file = os.path.join(main_dir, tfile)
         try:
             with open(test_file, 'r') as fh:
                 js = json.load(fh)
-                tr = process_file(js)
+                tr = process_file(js, args)
                 test_records.append(tr)
                 total_functions.add(tr.function)
 
