@@ -12,9 +12,42 @@ pip install --upgrade --find-links=. .
 
 ## Java random
 
+Analyze output of the `java.util.Random`, use only polynomials in the specified file. Analyze 100 MB of data:
+
 ```
-python polyverif/main.py ~/Downloads/output.txt --degree 2 --block 512 --top 128 --tv $((107286400)) --rounds 0 --poly-file polynomials-randjava_seed0.txt
+python polyverif/main.py ~/Downloads/output.txt --degree 2 --block 512 --top 128 --tv $((1024*1024*100)) --rounds 0 --poly-file polynomials-randjava_seed0.txt
 ```
+
+## Aura testbed
+
+Testbed = battery of functions (e.g., ESTREAM, SHA3 candidates, ...) tested with various polynomial parameters
+(e.g., `block \in {128, 256, 384, 512} x deg \in {1, 2, 3} x comb_deg \in {1, 2, 3}`).
+
+EAcirc generator is invoked during the test to generate output from battery functions. If switch `--data-dir` is used
+`testbed.py` will try to look up output there first.
+
+In order to start EACirc generator you may need to compile it on the machine you want to test on. Instructions
+ for compilation are on the bottom of the page. In order to invoke the generator you need to setup env
+
+```
+module add mpc-0.8.2
+module add gmp-4.3.2
+module add mpfr-3.0.0
+module add cmake-3.6.2
+export PATH=~/local/gcc-5.2.0/bin:$PATH
+export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=~/local/gcc-5.2.0/lib64:$LD_LIBRARY_PATH
+```
+
+In order to start `testbed.py` there is a script `assets/aura-para.sh`. It performs the env setup, prepares directories,
+spawns multiple testing processes.
+
+Parallelization is done in a simple way. Each test has an index. This order is randomized and each process from the
+batch takes the job that belongs to him (e.g. 10 processes, process #5 takes each 5th job). If the ordering is not
+favorable for in some way (e.g., one process is getting too much heavy jobs - deg3, combdeg 3) just change the seed
+of the test randomizer.
+
+Result of each test is stored in a separate file.
 
 # Graphs in R
 
