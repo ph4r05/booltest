@@ -49,6 +49,14 @@ of the test randomizer.
 
 Result of each test is stored in a separate file.
 
+## Standard functions -> batteries
+
+The goal of this experiment is to assess standard test batteries (e.g., NIST, Dieharder, TestU01) how well they perform
+on the battery of round reduced functions (e.g., ESTREAM, SHA3 candidates, ...)
+
+For the testing we use Randomness Testing Toolkit (RTT) from the EACirc project. The `testbatteries.py` prepares data
+for functions to test and the main bash script that submits tests to RTT.
+
 # Graphs in R
 
 Docs:
