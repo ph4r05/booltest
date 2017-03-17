@@ -268,6 +268,10 @@ class TestbedBenchmark(App):
         battery['SHA256'] = [3, 4]
         battery['RC4'] = [1]
         battery['RC4_Col'] = [1]
+
+        battery['crand_aisa'] = [1]
+        battery['javarand'] = [1]
+
         return battery
 
     def egen_benchmark(self):
