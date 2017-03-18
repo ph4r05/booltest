@@ -9,9 +9,11 @@ import math
 
 
 class FunctionParams:
-    def __init__(self, block_size, key_size):
+    def __init__(self, block_size=None, key_size=None, rounds=None, min_rounds=None):
         self.block_size = block_size
         self.key_size = key_size
+        self.rounds = rounds
+        self.min_rounds = min_rounds
 
 
 FUNCTION_ESTREAM = 1
@@ -31,84 +33,84 @@ ESTREAM = {
     'ABC': None,
     'Achterbahn': None,
     'CryptMT': None,
-    'DECIM': None,
+    'DECIM': FunctionParams(rounds=8),
     'DICING': None,
     'Dragon': None,
     'Edon80': None,
     'F-FCSR': None,
-    'Fubuki': None,
-    'Grain': None,
+    'Fubuki': FunctionParams(rounds=4),
+    'Grain': FunctionParams(rounds=13),
     'HC-128': None,
-    'Hermes': None,
-    'LEX': None,
+    'Hermes': FunctionParams(rounds=10),
+    'LEX': FunctionParams(rounds=10),
     'MAG': None,
     'MICKEY': None,
     'Mir-1': None,
     'Pomaranch': None,
     'Py': None,
     'Rabbit': None,
-    'Salsa20': None,
+    'Salsa20': FunctionParams(rounds=12),
     'SFINKS': None,
     'SOSEMANUK': None,
-    'TSC-4': None,
+    'TSC-4': FunctionParams(rounds=32),
     'WG': None,
     'Zk-Crypt': None
 }
 
 # SHA3
 SHA3 = {
-    'Abacus': None,
-    'ARIRANG': None,
-    'AURORA': None,
-    'BLAKE': None,
-    'Blender': None,
-    'BMW': None,
-    'Boole': None,
-    'Cheetah': None,
-    'CHI': None,
+    'Abacus': FunctionParams(rounds=135),
+    'ARIRANG': FunctionParams(rounds=4),
+    'AURORA': FunctionParams(rounds=17),
+    'BLAKE': FunctionParams(rounds=16),
+    'Blender': FunctionParams(rounds=32),
+    'BMW': FunctionParams(rounds=16),
+    'Boole': FunctionParams(rounds=16),
+    'Cheetah': FunctionParams(rounds=16),
+    'CHI': FunctionParams(rounds=20),
     'CRUNCH': None,
-    'CubeHash': None,
-    'DCH': None,
-    'DynamicSHA': None,
-    'DynamicSHA2': None,
-    'ECHO': None,
+    'CubeHash': FunctionParams(rounds=8),
+    'DCH': FunctionParams(rounds=4),
+    'DynamicSHA': FunctionParams(rounds=16),
+    'DynamicSHA2': FunctionParams(rounds=17),
+    'ECHO': FunctionParams(rounds=18),
     'EDON': None,
-    'ESSENCE': None,
-    'Fugue': None,
-    'Grostl': None,
-    'Hamsi': None,
-    'JH': None,
-    'Keccak': None,
+    'ESSENCE': FunctionParams(rounds=32, min_rounds=8),
+    'Fugue': FunctionParams(rounds=8),
+    'Grostl': FunctionParams(rounds=10),
+    'Hamsi': FunctionParams(rounds=3),
+    'JH': FunctionParams(rounds=42),
+    'Keccak': FunctionParams(rounds=24),
     'Khichidi': None,
     'LANE': None,
-    'Lesamnta': None,
-    'Luffa': None,
+    'Lesamnta': FunctionParams(rounds=32),
+    'Luffa': FunctionParams(rounds=8),
     'MCSSHA3': None,
-    'MD6': None,
-    'MeshHash': None,
+    'MD6': FunctionParams(rounds=104),
+    'MeshHash': FunctionParams(rounds=256),
     'NaSHA': None,
-    'Sarmal': None,
+    'Sarmal': FunctionParams(rounds=16),
     'Shabal': None,
     'SHAMATA': None,
-    'SHAvite3': None,
-    'SIMD': None,
-    'Skein': None,
+    'SHAvite3': FunctionParams(rounds=12),
+    'SIMD': FunctionParams(rounds=4),
+    'Skein': FunctionParams(rounds=72),
     'SpectralHash': None,
     'StreamHash': None,
-    'Tangle': None,
-    'Twister': None,
-    'WaMM': None,
-    'Waterfall': None,
-    'Tangle2': None
+    'Tangle': FunctionParams(rounds=80),
+    'Twister': FunctionParams(rounds=9),
+    'WaMM': FunctionParams(rounds=2),
+    'Waterfall': FunctionParams(rounds=16),
+    'Tangle2': FunctionParams(rounds=80)
 }
 
 
 BLOCK = {
-    'TEA': FunctionParams(8, 16),
-    'AES': FunctionParams(16, 16),
+    'TEA': FunctionParams(8, 16, rounds=64),
+    'AES': FunctionParams(16, 16, rounds=10),
     'RC4': FunctionParams(16, 16),
-    'SINGLE-DES': FunctionParams(8, 8),
-    'TRIPLE-DES': FunctionParams(8, 24)
+    'SINGLE-DES': FunctionParams(8, 8, rounds=16),
+    'TRIPLE-DES': FunctionParams(8, 24, rounds=16)
 }
 
 # Interesting rounds to test
