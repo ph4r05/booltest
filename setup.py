@@ -22,7 +22,8 @@ install_requires = [
     'bitstring',
     'bitarray_ph4',
     'ufx',
-    'matplotlib',  # apt-get install python-tk
+    # 'matplotlib',  # apt-get install python-tk
+    'filelock',
     'repoze.lru'
 ]
 
