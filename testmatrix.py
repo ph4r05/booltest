@@ -84,10 +84,10 @@ def process_file(js, args=None):
 
 def main():
     """
-    AES process
+    testbed.py results processor
     :return:
     """
-    parser = argparse.ArgumentParser(description='Process battery of tests and producs CSV / JSON output')
+    parser = argparse.ArgumentParser(description='Process battery of tests and produces CSV / JSON output')
 
     parser.add_argument('--json', dest='json', default=False, action='store_const', const=True,
                         help='JSON output')
