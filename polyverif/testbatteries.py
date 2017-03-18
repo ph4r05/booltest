@@ -242,10 +242,15 @@ class TestBatteries(App):
         """
         logger.info('Starting worker %d' % idx)
         while True:
+            job = None
+            function, cur_round = None, None
             try:
                 job = self.joq_queue.get_nowait()
                 function, cur_round = job
+            except QEmpty:
+                break
 
+            try:
                 tmpdir = self.gen_randomdir(function, cur_round)
                 if self.is_function_egen(function):
                     config_js = egenerator.get_config(function_name=function, rounds=cur_round, data=self.data_to_gen)
@@ -277,16 +282,14 @@ class TestBatteries(App):
                 # Remove test dir
                 self.clean_temp_dir(tmpdir)
 
-                # Job finished
-                self.joq_queue.task_done()
-
-            except QEmpty:
-                break
-
             except Exception as e:
                 logger.error('Exception when computing %s:%s : %s' % (function, cur_round, e))
                 logger.debug(traceback.format_exc())
                 sys.exit(1)
+
+            finally:
+                # Job finished
+                self.joq_queue.task_done()
 
         logger.info('Terminating worker %d' % idx)
 
