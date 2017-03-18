@@ -150,10 +150,10 @@ class RttFetch(object):
                 hdr = ['name']
 
             u01_test_names = sorted(list(u01_tests))
-            hdr += ['NIST_pass', 'NIST_total', 'NIST_rate', 'Dieharder_pass', 'Dieharder_total', 'Dieharder_rate']
+            hdr += ['NIST_pass', 'NIST_total', 'NIST_succ', 'Dieharder_pass', 'Dieharder_total', 'Dieharder_succ']
             for u01 in u01_test_names:
                 u01 = u01.replace(' ', '_')
-                hdr += ['%s_pass' % u01, '%s_total' % u01, '%s_rate' % u01]
+                hdr += ['%s_pass' % u01, '%s_total' % u01, '%s_succ' % u01]
             print(delim.join(hdr))
 
             keys = sorted(record_map.keys())
@@ -171,7 +171,7 @@ class RttFetch(object):
 
                 tests_sorted = tests[0:2] + u01_tests
                 for cur_test in tests_sorted:
-                    out += [cur_test[1], cur_test[2], float(cur_test[1])/float(cur_test[2]) if cur_test[2] > 0 else '-']
+                    out += [cur_test[1], cur_test[2], 100.0*float(cur_test[1])/float(cur_test[2]) if cur_test[2] > 0 else '']
 
                 print(delim.join([str(x) for x in out]))
 
