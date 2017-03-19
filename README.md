@@ -81,6 +81,24 @@ python polyverif/testbatteries.py --email ph4r05@gmail.com --threads 3 \
     --matrix-size 1 10 100 1000
 ```
 
+## RandC
+
+Test found distinguishers on RandC for 1000 different random seeds:
+
+```
+python polyverif/randverif.py --test-randc \
+    --block 384 --deg 2 \
+    --tv $((1024*1024*10)) --rounds 0 --tests 1000 \
+    --poly-file polynomials-randc-linux.txt \
+    > ~/output.txt
+```
+
+In order to generate CSV from the output:
+
+```
+python csvgen.py output.txt > data.csv
+```
+
 # Graphs in R
 
 Docs:

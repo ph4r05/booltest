@@ -13,7 +13,7 @@ import collections
 
 def main():
     """
-    Reads stdin jboss output, writes json on output
+    Process output of the randverif.py and produces CSV for graphing in R
     :return:
     """
     parser = argparse.ArgumentParser(description='json2csv')
