@@ -18,8 +18,8 @@ def main():
     """
     parser = argparse.ArgumentParser(description='json2csv')
 
-    parser.add_argument('--start-char', dest='start_char', default='a',
-                        help='Default character to start with - numbering')
+    parser.add_argument('--start-idx', dest='start_idx', default=1, type=int,
+                        help='Default index to start with - numbering')
 
     parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                         help='files to process')
@@ -57,7 +57,7 @@ def main():
     mapping = {}
     for elem in cnt.most_common():
         d = elem[0]
-        mapping[d] = chr(ord(args.start_char) + ctr)
+        mapping[d] = str(args.start_idx + ctr)
         ctr += 1
 
     sys.stderr.write(json.dumps(mapping) + '\n')
@@ -67,7 +67,9 @@ def main():
         z = row['z']
         d = row['d']
         sig = '+' if z >= 0 else '-'
-        var = '%s%s' % (mapping[d], sig)
+        # var = '"f[%s]^%s"' % (mapping[d], sig)
+        # var = '"f[%s]"' % (mapping[d])  # , sig)
+        var = '"f[%s]^{{"%s{}"}}"' % (mapping[d], sig)
         print('%s,%s,%s' % (1, var, z))
 
 

@@ -111,7 +111,7 @@ Sources: http://www.cookbook-r.com/Graphs/Axes_(ggplot2)/#setting-and-hiding-tic
 
 ```
 python csvgen.py randctest_5MB.txt > /tmp/c5.csv
-python csvgen.py --start-char c testjava_1MB_7.txt > /tmp/j1.csv
+python csvgen.py --start-idx 3 testjava_1MB_7.txt > /tmp/j1.csv
 ```
 
 ## Boxplots:
@@ -130,6 +130,15 @@ barplot(height=table(df$variable))
 df <- read.csv("/tmp/j7.csv", header=T)
 ggplot(data = df, aes(x=variable, y=value)) + geom_boxplot(aes(variable)) + facet_wrap( ~ variable, scales="free", ncol=4, shrink=TRUE) + ylab("Z-score") + xlab("distinguisher")
 ggsave(file="/tmp/randjava_1mb.pdf", width=4, height=3)
+```
+
+## Boxplots - randc, java
+
+```
+labeller = label_parsed
+df <- read.csv("/tmp/test-randc-linux-1MB.csv", header=T)
+ggplot(data = df, aes(x=variable, y=value)) + geom_boxplot(aes(variable)) + facet_wrap( ~ variable, scales="free", ncol=4, shrink=TRUE, labeller = label_parsed) + ylab("Z-score") + xlab("distinguisher") + theme(axis.text.x=element_blank(), axis.ticks.x=element_blank())
+ggsave(file="/tmp/randc_1mb.pdf", width=4, height=3)
 ```
 
 ## Axis swap:
