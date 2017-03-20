@@ -168,6 +168,11 @@ library(scales)
 ggplot(data = df, aes(x=V1, y=V2)) + geom_boxplot(aes(V1))  + ylab("Z-score") + xlab("data size") + scale_y_continuous(trans=log2_trans())
 ```
 
+With a bit of tweaking of axis:
+```
+ggplot(data = df, aes(x=V1, y=V2)) + geom_boxplot(aes(V1))  + ylab("z-score") + xlab("data size") + scale_y_continuous(trans=log2_trans(),breaks=c(2,3,4,6,8,12,16,24,32,48,64)) + geom_hline(aes(yintercept=7.68), colour="#990000", linetype="dashed")
+```
+
 ## AES size
 
 ```
