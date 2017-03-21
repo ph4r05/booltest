@@ -90,8 +90,13 @@ class RttFetch(object):
                 # Desc
                 id = int(table_desc[0][1].text_content())
                 name = table_desc[1][1].text_content()
+                email = table_desc[2][1].text_content()
                 status = table_desc[4][1].text_content()
                 file_name = table_desc[6][1].text_content()
+
+                if self.args.email is not None and email != self.args.email:
+                    logger.info('Skipping experiment, different email: %s' % email)
+                    continue
 
                 exp_nist = None
                 exp_die = None
@@ -218,6 +223,9 @@ class RttFetch(object):
 
         parser.add_argument('--to', dest='to_idx', default=None, type=int,
                             help='Result ID to end with ')
+
+        parser.add_argument('--email', dest='email', default=None,
+                            help='Only results with given email')
 
         self.args = parser.parse_args()
         if self.args.debug:
