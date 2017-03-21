@@ -93,10 +93,6 @@ class TestbedBenchmark(App):
         # Other
         self.zscore_thresh = self.args.conf
 
-        deg = int(self.defset(self.args.degree, 3))
-        tvsize_orig = int(self.defset(self.process_size(self.args.tvsize), 1024 * 256))
-        top_k = int(self.args.topk) if self.args.topk is not None else None
-        top_comb = int(self.defset(self.args.combdeg, 2))
         self.all_deg = self.args.alldeg
         self.test_random.seed(self.args.tests_random_select_eed)
 
@@ -254,7 +250,7 @@ class TestbedBenchmark(App):
         :param function:
         :return:
         """
-        return function in egenerator.ROUNDS
+        return function in egenerator.ROUNDS or function in egenerator.SHA3 or function in egenerator.ESTREAM
 
     def get_test_battery(self):
         """
