@@ -83,6 +83,7 @@ class RttFetch(object):
                     raise ValueError('Invalid page')
                 elif len(tables) == 1:
                     table_desc = tables[0]
+                    table_res = []
                 else:
                     table_desc, table_res = tables
 
