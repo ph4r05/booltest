@@ -76,7 +76,15 @@ class RttFetch(object):
                     continue
 
                 tree = html.fromstring(data)
-                table_desc, table_res = tree.xpath('//table')
+                tables = tree.xpath('//table')
+
+                table_desc, table_res = None, None
+                if len(tables) == 0:
+                    raise ValueError('Invalid page')
+                elif len(tables) == 1:
+                    table_desc = tables[0]
+                else:
+                    table_desc, table_res = tables
 
                 # Desc
                 id = int(table_desc[0][1].text_content())
@@ -207,6 +215,9 @@ class RttFetch(object):
                             help='Result ID to end with ')
 
         self.args = parser.parse_args()
+        if self.args.debug:
+            coloredlogs.install(level=logging.DEBUG)
+
         self.work()
 
 
