@@ -183,6 +183,10 @@ class RttFetch(object):
 
                 tests_sorted = tests[0:2] + u01_tests
                 for cur_test in tests_sorted:
+                    if cur_test is None or cur_test[1] is None:
+                        out += ['', '', '']
+                        continue
+
                     out += [cur_test[1], cur_test[2], 100.0*float(cur_test[1])/float(cur_test[2]) if cur_test[2] > 0 else '']
 
                 print(delim.join([str(x) for x in out]))
