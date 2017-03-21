@@ -189,7 +189,7 @@ class TestBatteries(App):
         :param function:
         :return:
         """
-        return function in egenerator.ROUNDS
+        return function in egenerator.ROUNDS or function in egenerator.SHA3 or function in egenerator.ESTREAM
 
     def get_test_battery(self):
         """
