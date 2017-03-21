@@ -388,6 +388,8 @@ class TestBatteries(App):
                             help='List of data sizes to test in MB')
 
         self.args = parser.parse_args()
+        if self.args.debug:
+            coloredlogs.install(level=logging.DEBUG)
         self.work()
 
 
