@@ -804,6 +804,7 @@ class TermEval(object):
             deg = self.deg
 
         hw = [None] * (deg+1)
+        hw[0] = []
         for idx in range(1, deg+1):
             hw[idx] = [0] * self.num_terms(idx, False, exact=True)
 
