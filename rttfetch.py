@@ -40,11 +40,11 @@ class RttFetch(object):
                 res.raise_for_status()
                 data = res.content
                 if data is None:
-                    return
+                    return None
 
                 data = data.strip()
                 if len(data) == 0:
-                    return
+                    return None
 
                 return data
 
@@ -71,8 +71,11 @@ class RttFetch(object):
             try:
                 url = self.args.url + 'ViewResults/Experiment/%d/' % idx
                 data = self.load_page(url)
-                tree = html.fromstring(data)
+                if data is None:
+                    logger.error('Empty data for experiment %d' % idx)
+                    continue
 
+                tree = html.fromstring(data)
                 table_desc, table_res = tree.xpath('//table')
 
                 # Desc
