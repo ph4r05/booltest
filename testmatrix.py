@@ -82,6 +82,15 @@ def process_file(js, args=None):
     return tr
 
 
+def fls(x):
+    """
+    Converts float to string, replacing . with , - excel separator
+    :param x:
+    :return:
+    """
+    return str(x).replace('.', ',')
+
+
 def main():
     """
     testbed.py results processor
@@ -95,7 +104,7 @@ def main():
     parser.add_argument('--zscore-shape', dest='zscore_shape', default=False, action='store_const', const=True,
                         help='abs(round(zscore))')
 
-    parser.add_argument('--delim', dest='delim', default=',',
+    parser.add_argument('--delim', dest='delim', default=';',
                         help='CSV delimiter')
 
     parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
@@ -169,8 +178,8 @@ def main():
 
         if not args.json:
             print(args.delim.join([
-                function, str(round), str(data_mb)
-            ] + [(str(x.zscore) if x is not None else '-') for x in results_list]))
+                function, fls(round), fls(data_mb)
+            ] + [(fls(x.zscore) if x is not None else '-') for x in results_list]))
 
         else:
             cur_js = collections.OrderedDict()
