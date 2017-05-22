@@ -1,4 +1,11 @@
-# Polyverif
+# Booltest
+
+Boolean PRNG tester - analysing statistical properties of PRNGs.
+
+## How does it work?
+
+Booltest generates a set of boolean functions, computes the expected result distribution when evaluated on truly random
+data and compares this to the evaluation on the data being tested. 
 
 ## Local installation
 
