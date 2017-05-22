@@ -17,11 +17,11 @@ int main(int argc, char * argv[]){
     if (argc == 1){
 	    tinymt32_init(&state, 0);
     } else {
-        tinymt32_init(&state, atoi(argv[1]));
+        tinymt32_init(&state, (uint32_t)atoi(argv[1]));
     }
 
     // Generates random numbers ad infinitum.
-    char buff[BUFSIZE];
+    char buff[BUFSIZE+64];
     for(;;){
         for(int i = 0; i<BUFSIZE; i+=4){
             uint32_t cur = tinymt32_generate_uint32(&state);
