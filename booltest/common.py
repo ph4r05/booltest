@@ -4,26 +4,26 @@
 from __future__ import print_function
 from past.builtins import basestring
 from past.builtins import xrange
+
+import hashlib
+import logging
+import math
+import os
+import random
+import signal
+import subprocess
+import sys
+import types
 from functools import reduce
 
-import numpy as np
-from bitstring import Bits, BitArray, BitStream, ConstBitStream
-import bitarray
-import types
-import os
-import sys
-import math
-import random
-import logging
-import hashlib
-import crypto_util
 import scipy.misc
 import ufx.uf_hash as ufh
-import subprocess
-import signal
-from repoze.lru import lru_cache, LRUCache
-from crypto_util import aes_ctr, get_zero_vector
 
+import bitarray
+from bitstring import Bits, BitArray, BitStream, ConstBitStream
+from repoze.lru import lru_cache, LRUCache
+
+from .crypto_util import aes_ctr, get_zero_vector
 
 # Enables bitarray - with native C extension
 FAST_IMPL = True
