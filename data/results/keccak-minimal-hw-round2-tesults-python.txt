@@ -1,0 +1,85 @@
+deg1:
+2016-12-17 17:20:37 phx.local _main_[13666] INFO Evaluating all terms
+ - zscore: -147.37479, observed: 00026698, expected: 00050000 x idx:     56, term: [56]
+ - zscore: -133.78332, observed: 00028847, expected: 00050000 x idx:     39, term: [39]
+ - zscore: -133.41649, observed: 00028905, expected: 00050000 x idx:     32, term: [32]
+ - zscore: -128.91341, observed: 00029617, expected: 00050000 x idx:     33, term: [33]
+ - zscore: -126.27607, observed: 00030034, expected: 00050000 x idx:     24, term: [24]
+ - zscore: -125.96617, observed: 00030083, expected: 00050000 x idx:     38, term: [38]
+ - zscore: -123.72728, observed: 00030437, expected: 00050000 x idx:     74, term: [74]
+ - zscore: -123.26558, observed: 00030510, expected: 00050000 x idx:     25, term: [25]
+ - zscore: -120.38791, observed: 00030965, expected: 00050000 x idx:     87, term: [87]
+ - zscore: -119.98314, observed: 00031029, expected: 00050000 x idx:     52, term: [52]
+Mean value: 44638.96875
+Mean zscore: -33.9061387147
+Num of fails: 126 = 98.437500.5%
+2016-12-17 17:20:37 phx.local _main_[13666] INFO Combining...
+2016-12-17 17:20:38 phx.local _main_[13666] INFO Evaluating
+ - best poly zscore 109.31361, expp: 0.5000, exp: 50000, obs: 67284, diff: -34.568000 %, poly: [[36], [100]]
+ - best poly zscore 100.32642, expp: 0.5000, exp: 50000, obs: 65863, diff: -31.726000 %, poly: [[47], [111]]
+ - best poly zscore  94.53945, expp: 0.5000, exp: 50000, obs: 64948, diff: -29.896000 %, poly: [[9], [73]]
+ - best poly zscore -91.25068, expp: 0.5000, exp: 50000, obs: 35572, diff: 28.856000 %, poly: [[32], [33]]
+ - best poly zscore -90.44747, expp: 0.5000, exp: 50000, obs: 35699, diff: 28.602000 %, poly: [[24], [39]]
+ - best poly zscore -87.97456, expp: 0.5000, exp: 50000, obs: 36090, diff: 27.820000 %, poly: [[38], [39]]
+ - best poly zscore -80.00562, expp: 0.5000, exp: 50000, obs: 37350, diff: 25.300000 %, poly: [[24], [25]]
+ - best poly zscore -79.27830, expp: 0.5000, exp: 50000, obs: 37465, diff: 25.070000 %, poly: [[39], [76]]
+ - best poly zscore  77.20385, expp: 0.5000, exp: 50000, obs: 62207, diff: -24.414000 %, poly: [[37], [74]]
+ - best poly zscore -75.85672, expp: 0.5000, exp: 50000, obs: 38006, diff: 23.988000 %, poly: [[34], [35]]
+
+
+deg2:
+2016-12-17 17:21:39 phx.local _main_[13678] INFO Evaluating all terms
+ - zscore: -132.83367, observed: 00006811, expected: 00025000 x idx:   3685, term: [33, 56]
+ - zscore: -132.58537, observed: 00006845, expected: 00025000 x idx:   2803, term: [24, 56]
+ - zscore: -130.92030, observed: 00007073, expected: 00025000 x idx:   4228, term: [39, 56]
+ - zscore: -127.36375, observed: 00007560, expected: 00025000 x idx:   5589, term: [56, 74]
+ - zscore: -126.58964, observed: 00007666, expected: 00025000 x idx:   2596, term: [22, 56]
+ - zscore: -126.27561, observed: 00007709, expected: 00025000 x idx:   3591, term: [32, 56]
+ - zscore: -125.41386, observed: 00007827, expected: 00025000 x idx:   3609, term: [32, 74]
+ - zscore: -125.20207, observed: 00007856, expected: 00025000 x idx:   3667, term: [33, 38]
+ - zscore: +125.05601, observed: 00042124, expected: 00025000 x idx:   4041, term: [37, 46]
+ - zscore: +124.42796, observed: 00042038, expected: 00025000 x idx:   4833, term: [46, 73]
+Mean value: 19918.9485728
+Mean zscore: -37.1067531
+Num of fails: 7978 = 98.154528.5%
+2016-12-17 17:21:40 phx.local _main_[13678] INFO Combining...
+2016-12-17 17:21:41 phx.local _main_[13678] INFO Evaluating
+ - best poly zscore -160.96087, expp: 0.3750, exp: 37500, obs: 12858, diff: 65.712000 %, poly: [[32, 74], [33, 56]]
+ - best poly zscore -158.41993, expp: 0.3750, exp: 37500, obs: 13247, diff: 64.674667 %, poly: [[32, 39], [33, 56]]
+ - best poly zscore -158.40687, expp: 0.3750, exp: 37500, obs: 13249, diff: 64.669333 %, poly: [[32, 52], [33, 56]]
+ - best poly zscore -156.63670, expp: 0.3750, exp: 37500, obs: 13520, diff: 63.946667 %, poly: [[32, 74], [39, 56]]
+ - best poly zscore -156.53219, expp: 0.3750, exp: 37500, obs: 13536, diff: 63.904000 %, poly: [[24, 56], [32, 74]]
+ - best poly zscore -156.40155, expp: 0.3750, exp: 37500, obs: 13556, diff: 63.850667 %, poly: [[32, 38], [33, 56]]
+ - best poly zscore -156.22519, expp: 0.3750, exp: 37500, obs: 13583, diff: 63.778667 %, poly: [[24, 56], [32, 39]]
+ - best poly zscore -155.87900, expp: 0.3750, exp: 37500, obs: 13636, diff: 63.637333 %, poly: [[32, 101], [33, 56]]
+ - best poly zscore -155.74182, expp: 0.3750, exp: 37500, obs: 13657, diff: 63.581333 %, poly: [[32, 87], [33, 56]]
+ - best poly zscore -155.14741, expp: 0.3750, exp: 37500, obs: 13748, diff: 63.338667 %, poly: [[22, 39], [24, 56]]
+
+deg3:
+2016-12-17 17:22:17 phx.local _main_[13690] INFO Evaluating all terms
+ - zscore: +148.35177, observed: 00028015, expected: 00012500 x idx: 127355, term: [18, 37, 46]
+ - zscore: +148.17010, observed: 00027996, expected: 00012500 x idx: 128159, term: [18, 46, 85]
+ - zscore: +143.77166, observed: 00027536, expected: 00012500 x idx: 220601, term: [37, 46, 73]
+ - zscore: +140.95092, observed: 00027241, expected: 00012500 x idx: 220628, term: [37, 46, 100]
+ - zscore: +139.76525, observed: 00027117, expected: 00012500 x idx: 254582, term: [46, 73, 85]
+ - zscore: +139.62183, observed: 00027102, expected: 00012500 x idx: 220586, term: [37, 46, 58]
+ - zscore: +138.77082, observed: 00027013, expected: 00012500 x idx: 128147, term: [18, 46, 73]
+ - zscore: +138.62740, observed: 00026998, expected: 00012500 x idx: 220613, term: [37, 46, 85]
+ - zscore: +138.42660, observed: 00026977, expected: 00012500 x idx: 255153, term: [46, 85, 86]
+ - zscore: +137.92938, observed: 00026925, expected: 00012500 x idx: 128132, term: [18, 46, 58]
+Mean value: 8883.90653707
+Mean zscore: -34.5764668873
+Num of fails: 334747 = 98.058153.5%
+2016-12-17 17:22:37 phx.local _main_[13690] INFO Combining...
+2016-12-17 17:22:39 phx.local _main_[13690] INFO Evaluating
+ - best poly zscore 141.54567, expp: 0.2188, exp: 21875, obs: 40379, diff: -84.589714 %, poly: [[18, 37, 46], [59, 73, 86]]
+ - best poly zscore 137.78213, expp: 0.2188, exp: 21875, obs: 39887, diff: -82.340571 %, poly: [[18, 37, 125], [59, 73, 86]]
+ - best poly zscore 136.36698, expp: 0.2188, exp: 21875, obs: 39702, diff: -81.494857 %, poly: [[18, 37, 125], [59, 85, 86]]
+ - best poly zscore 136.25224, expp: 0.2188, exp: 21875, obs: 39687, diff: -81.426286 %, poly: [[18, 37, 73], [46, 59, 86]]
+ - best poly zscore 135.65558, expp: 0.2188, exp: 21875, obs: 39609, diff: -81.069714 %, poly: [[37, 73, 105], [46, 85, 86]]
+ - best poly zscore 135.57143, expp: 0.2188, exp: 21875, obs: 39598, diff: -81.019429 %, poly: [[18, 37, 125], [46, 59, 86]]
+ - best poly zscore 134.90593, expp: 0.2188, exp: 21875, obs: 39511, diff: -80.621714 %, poly: [[18, 37, 100], [46, 59, 86]]
+ - best poly zscore 134.89828, expp: 0.2188, exp: 21875, obs: 39510, diff: -80.617143 %, poly: [[37, 73, 100], [46, 59, 105]]
+ - best poly zscore 134.82179, expp: 0.2188, exp: 21875, obs: 39500, diff: -80.571429 %, poly: [[18, 37, 100], [46, 59, 105]]
+ - best poly zscore 134.53111, expp: 0.2188, exp: 21875, obs: 39462, diff: -80.397714 %, poly: [[3, 18, 37], [59, 73, 86]]
+
