@@ -566,7 +566,10 @@ class HWAnalysis(object):
 
 
 # Main - argument parsing + processing
-class App(object):
+class Booltest(object):
+    """
+    Main booltest object
+    """
     def __init__(self, *args, **kwargs):
         self.args = None
         self.tester = None
@@ -966,7 +969,16 @@ class App(object):
 
 # Launcher
 app = None
-if __name__ == "__main__":
-    app = App()
+
+def main():
+    """
+    Main booltest wrapper
+    :return:
+    """
+    app = Booltest()
     app.main()
+
+
+if __name__ == '__main__':
+    main()
 
