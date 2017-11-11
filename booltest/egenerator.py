@@ -147,7 +147,7 @@ ROUNDS = {
 
 
 # lower(function_name) -> function_name
-FUNCTION_CASEMAP = {x.lower(): x for x in list(ESTREAM.keys() + SHA3.keys() + BLOCK.keys())}
+FUNCTION_CASEMAP = {x.lower(): x for x in list(list(ESTREAM.keys()) + list(SHA3.keys()) + list(BLOCK.keys()))}
 
 
 def normalize_function_name(function_name):
