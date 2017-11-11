@@ -1,3 +1,6 @@
 .idea
 *.pyc
+dist
+bin
+booltest.egg-info
 Virtualenv
