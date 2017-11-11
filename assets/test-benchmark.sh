@@ -14,7 +14,7 @@ mkdir -p ${LOGDIR}
 for cur in `seq 0 $((${NUMPROC} - 1))`;
 do
     nice -n 2 nohup \
-    python ~/poly-verif/polyverif/testbed.py \
+    python ~/poly-verif/booltest/testbed.py \
         --generator-path ~/eacirc/generator/generator \
         --result-dir ~/testbed-results \
         --tests-manuals ${NUMPROC} --tests-stride ${cur} \

@@ -30,7 +30,7 @@ pip install --upgrade --find-links=. .
 Analyze output of the `java.util.Random`, use only polynomials in the specified file. Analyze 100 MB of data:
 
 ```
-python polyverif/main.py ~/Downloads/output.txt --degree 2 --block 512 --top 128 --tv $((1024*1024*100)) --rounds 0 --poly-file polynomials-randjava_seed0.txt
+python booltest/main.py ~/Downloads/output.txt --degree 2 --block 512 --top 128 --tv $((1024*1024*100)) --rounds 0 --poly-file polynomials-randjava_seed0.txt
 ```
 
 ## Reference statistics
@@ -88,7 +88,7 @@ For the testing we use Randomness Testing Toolkit (RTT) from the EACirc project.
 for functions to test and the main bash script that submits tests to RTT.
 
 ```
-python polyverif/testbatteries.py --email ph4r05@gmail.com --threads 3 \
+python booltest/testbatteries.py --email ph4r05@gmail.com --threads 3 \
     --generator-path ~/eacirc/generator/generator \
     --result-dir ~/_nni/home/ph4r05/testdata/ \
     --data-dir ~/_nni/home/ph4r05/testdata/ \
@@ -101,7 +101,7 @@ python polyverif/testbatteries.py --email ph4r05@gmail.com --threads 3 \
 Test found distinguishers on RandC for 1000 different random seeds:
 
 ```
-python polyverif/randverif.py --test-randc \
+python booltest/randverif.py --test-randc \
     --block 384 --deg 2 \
     --tv $((1024*1024*10)) --rounds 0 --tests 1000 \
     --poly-file polynomials-randc-linux.txt \

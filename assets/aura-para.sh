@@ -21,13 +21,13 @@ mkdir -p ${LOGDIR}
 # Start processes
 for cur in `seq 0 $((${NUMPROC} - 1))`;
 do
-    nice -n 19 taskset -c 31-63 nohup \
-    python ~/poly-verif/polyverif/testbed.py \
+    nice -n 15 taskset -c 30-63 nohup \
+    python ~/poly-verif/booltest/testbed.py \
         --generator-path ~/eacirc/build/generator/generator \
         --result-dir ~/testbed-results \
         --data-dir /tmp/testdata \
-        --tests-manuals ${NUMPROC} --tests-stride ${cur} \
-        --matrix-size 1000 --matrix-comb-deg 1 2 \
+        --tests-manuals ${NUMPROC} --tests-stride ${cur} --tests-random-select-seed 2 \
+        --matrix-size 1 10 100 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 \
         --top 128 --no-comb-and --only-top-comb --only-top-deg \
         --no-term-map --topterm-heap --topterm-heap-k 256 \
         >  ${LOGDIR}/testbed_t${TIMESTART}_n${NUMPROC}_c${cur}.out \
