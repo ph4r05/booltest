@@ -145,6 +145,8 @@ def zscore_den(observed, expected, N, denom):
     """
     Computes zscore with precomputed denominator.
     :param observed:
+    :param expected:
+    :param N:
     :param denom:
     :return:
     """
@@ -938,6 +940,8 @@ class TermEval(object):
         """
         Evaluates a polynomial on the input precomputed data
         :param poly: polynomial specified as [term, term, term], e.g. [[1,2], [3,4], [5,6]] == x1x2 + x3x4 + x5x6
+        :param res: buffer to use to store the result (optimization purposes)
+        :param subres: working buffer for temporary computations (optimization purposes)
         :return:
         """
         ln = len(poly)
@@ -1245,7 +1249,6 @@ class Tester(object):
         :return:
         """
         pass
-
 
     def work(self):
         pass
