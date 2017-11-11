@@ -25,6 +25,13 @@ From the local dir:
 pip install --upgrade --find-links=. .
 ```
 
+## The engine
+
+Booltest does the heavy lifting with the native python extension [bitarray_ph4](https://github.com/ph4r05/bitarray)
+
+Bitarray operations are performed effectively using fast operations implemented in C.
+
+
 # Experiments
 
 ## First launch
