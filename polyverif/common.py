@@ -808,6 +808,13 @@ class TermEval(object):
         for idx in range(1, deg+1):
             hw[idx] = [0] * self.num_terms(idx, False, exact=True)
 
+        # center_hw = len(self.base[0]) * 2 ** (-1 * deg)
+        # logger.info('Now the funny part! %s' % center_hw)
+        # arr = bitarray.eval_all_terms(self.base, deg=deg, topk=128, hw_center=center_hw)
+        # logger.info('Done')
+        #logger.info('heap:   %s' % arr)
+        #logger.info('sorted: %s' % sorted(arr, reverse=True))
+
         # deg1 is simple - just use HW on the basis
         hw[1] = [x.count() for x in self.base]
         if deg <= 1:

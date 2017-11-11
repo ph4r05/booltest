@@ -558,6 +558,12 @@ class HWAnalysis(object):
         poly_builder = lambda places, top_terms: [reduce(lambda x, y: x + y, [top_terms[x] for x in places])]
         return self.comb_base(top_comb_cur, top_terms, top_res, num_evals, poly_builder, ref_hws)
 
+    def comb_all(self):
+        """
+        TODO: implement
+        :return:
+        """
+
 
 # Main - argument parsing + processing
 class App(object):
