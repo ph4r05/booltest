@@ -1,5 +1,7 @@
 # Booltest
 
+[![Build Status](https://travis-ci.org/ph4r05/polynomial-distinguishers.svg?branch=master)](https://travis-ci.org/ph4r05/polynomial-distinguishers)
+
 Boolean PRNG tester - analysing statistical properties of PRNGs.
 
 Randomness tester based on our paper published at [Secrypt 2017](https://crocs.fi.muni.cz/public/papers/secrypt2017)
