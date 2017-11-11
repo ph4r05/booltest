@@ -81,7 +81,7 @@ class RandVerif(Booltest):
         hwanalysis.do_only_top_deg = self.args.only_top_deg
         hwanalysis.no_term_map = self.args.no_term_map
         hwanalysis.use_zscore_heap = self.args.topterm_heap
-        hwanalysis.sort_best_zscores = max(self.args.topterm_heap_k, top_k, 100)
+        hwanalysis.sort_best_zscores = max(common.replace_none([self.args.topterm_heap_k, top_k, 100]))
         hwanalysis.best_x_combinations = self.args.best_x_combinations
         logger.info('Initializing test')
         hwanalysis.init()

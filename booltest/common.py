@@ -312,6 +312,16 @@ def range2(*args):
         return xrange(idx_from, idx_to)
 
 
+def replace_none(iterable, replacement=0):
+    """
+    replaces None in the iterable with replacement 0
+    :param iterable:
+    :param replacement:
+    :return:
+    """
+    return [x if x is not None else replacement for x in iterable]
+
+
 class InputObject(object):
     """
     Input stream object.
