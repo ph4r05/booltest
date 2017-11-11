@@ -737,7 +737,7 @@ class Booltest(object):
         :return:
         """
         for file in self.args.files:
-            io = common.FileInputObject(fname=file)
+            io = common.FileInputObject(fname=file, fmode='rb')
             io.check()
             self.input_objects.append(io)
 
