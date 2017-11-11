@@ -11,6 +11,8 @@ data and compares this to the evaluation on the data being tested.
 
 ## Pip installation
 
+Booltest is available via `pip`:
+
 ```
 pip install booltest
 ```
@@ -26,6 +28,9 @@ pip install --upgrade --find-links=. .
 # Experiments
 
 ## First launch
+
+The following commands generate two different files, random and zero-filled.
+Both are tested, the difference between files should be evident.
 
 ```
 dd if=/dev/urandom of=random-file.bin bs=1024 count=$((1024*10))
