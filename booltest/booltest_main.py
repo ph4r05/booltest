@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 from past.builtins import basestring
+from past.builtins import long
 
 import collections
 import heapq
@@ -10,7 +11,6 @@ import json
 import logging
 import random
 import re
-import types
 from functools import reduce
 
 import argparse
@@ -676,21 +676,21 @@ class Booltest(object):
         :param poly:
         :return:
         """
-        if not isinstance(poly, types.ListType):
+        if not isinstance(poly, list):
             raise ValueError('Polynomial is not valid (list expected) %s' % poly)
 
         if len(poly) == 0:
             raise ValueError('Empty polynomial not allowed')
 
         first_elem = poly[0]
-        if not isinstance(first_elem, types.ListType):
+        if not isinstance(first_elem, list):
             poly = [poly]
 
         for idxt, term in enumerate(poly):
-            if not isinstance(term, types.ListType):
+            if not isinstance(term, list):
                 raise ValueError('Term %s in the polynomial %s is not valid (list expected)' % (term, poly))
             for idxv, var in enumerate(term):
-                if not isinstance(var, (types.IntType, types.LongType)):
+                if not isinstance(var, (int, long)):
                     raise ValueError('Variable %s not valid in the polynomial %s (number expected)' % (var, poly))
                 if var >= self.blocklen:
                     if self.args.poly_ignore:

@@ -13,7 +13,6 @@ import random
 import signal
 import subprocess
 import sys
-import types
 from functools import reduce
 
 import scipy.misc
@@ -191,7 +190,7 @@ def to_bitarray(inp=None, const=True):
     :return:
     """
     if FAST_IMPL:
-        if isinstance(inp, types.StringTypes):
+        if isinstance(inp, basestring):
             a = bitarray.bitarray()
             a.frombytes(inp)
             return a
@@ -202,7 +201,7 @@ def to_bitarray(inp=None, const=True):
             raise ValueError('Unknown input')
     else:
         constructor = Bits if const else BitArray
-        if isinstance(inp, types.StringTypes):
+        if isinstance(inp, basestring):
             return constructor(bytes=inp)
         elif isinstance(inp, (Bits, BitStream, BitArray, ConstBitStream)):
             return constructor(inp)

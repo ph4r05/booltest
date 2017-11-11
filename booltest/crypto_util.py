@@ -8,10 +8,12 @@ generating random numbers, encryption, decryption, padding, etc...
 For now we use PyCrypto, later we may use pure python implementations to minimize dependency count.
 """
 
+from past.builtins import basestring
+from past.builtins import long
+
 import logging
 import os
 import base64
-import types
 import struct
 
 from Crypto import Random
@@ -46,7 +48,7 @@ def to_bytes(x, blocksize=0):
         return left_zero_pad(x, blocksize)
     elif isinstance(x, (list, tuple)):
         return left_zero_pad(''.join([bchr(y) for y in bytearray(x)]), blocksize)
-    elif isinstance(x, (types.LongType, types.IntType)):
+    elif isinstance(x, (int, long)):
         return long_to_bytes(x, blocksize)
     else:
         raise ValueError('Unknown input argument type')
@@ -58,9 +60,9 @@ def to_long(x):
     :param x:
     :return:
     """
-    if isinstance(x, types.LongType):
+    if isinstance(x, long):
         return x
-    elif isinstance(x, types.IntType):
+    elif isinstance(x, int):
         return long(x)
     else:
         return bytes_to_long(to_bytes(x))
