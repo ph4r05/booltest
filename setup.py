@@ -81,7 +81,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'booltest = booltest.booltest:main',
+            'booltest = booltest.booltest_main:main',
         ],
     }
 )

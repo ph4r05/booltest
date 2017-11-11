@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from booltest.booltest import Booltest
+from booltest.booltest_main import Booltest
 import random
 import base64
 import unittest

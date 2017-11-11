@@ -19,7 +19,7 @@ import scipy.misc
 import scipy.stats
 import signal
 import psutil
-from booltest import *
+from booltest_main import *
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)

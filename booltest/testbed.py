@@ -22,7 +22,7 @@ import subprocess
 import shutil
 import itertools
 import traceback
-from booltest import *
+from booltest_main import *
 import egenerator
 
 

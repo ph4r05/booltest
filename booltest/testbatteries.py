@@ -24,7 +24,7 @@ import shutil
 import itertools
 import traceback
 import threading
-from booltest import *
+from booltest_main import *
 import egenerator
 
 
