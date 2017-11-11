@@ -1,29 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from past.builtins import basestring
-import argparse
-import logging
-import coloredlogs
-import common
+import itertools
 import os
-import re
-import six
-import sys
-import math
+import shutil
+import subprocess
 import time
-import random
-import json
-import types
-import collections
+import traceback
+
 import scipy.misc
 import scipy.stats
-import subprocess
-import shutil
-import itertools
-import traceback
-from booltest_main import *
+
 import egenerator
+from booltest import common
+from booltest_main import *
 
 
 logger = logging.getLogger(__name__)

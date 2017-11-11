@@ -1,24 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from past.builtins import basestring
-import argparse
-import logging
-import coloredlogs
-import common
 import os
-import re
-import six
-import sys
-import math
-import random
-import json
-import types
-import collections
+
 import scipy.misc
 import scipy.stats
-import signal
-import psutil
+
+from booltest import common
 from booltest_main import *
 
 logger = logging.getLogger(__name__)

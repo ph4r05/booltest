@@ -1,32 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from past.builtins import basestring
-import argparse
-import logging
-import coloredlogs
-import common
 import os
-import re
-import six
-import sys
-import math
-import time
-from queue import Queue, Empty as QEmpty
-import random
-import json
-import types
-import collections
-import scipy.misc
-import scipy.stats
-import subprocess
 import shutil
-import itertools
-import traceback
+import subprocess
+import sys
 import threading
-from booltest_main import *
-import egenerator
+import time
+import traceback
 
+from queue import Queue, Empty as QEmpty
+
+import egenerator
+from booltest import common
+from booltest_main import *
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
