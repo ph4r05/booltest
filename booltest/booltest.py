@@ -970,6 +970,7 @@ class Booltest(object):
 # Launcher
 app = None
 
+
 def main():
     """
     Main booltest wrapper
