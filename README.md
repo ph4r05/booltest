@@ -25,12 +25,23 @@ pip install --upgrade --find-links=. .
 
 # Experiments
 
+## First launch
+
+```
+dd if=/dev/urandom of=random-file.bin bs=1024 count=$((1024*10))
+dd if=/dev/zero of=zero-file.bin bs=1024 count=$((1024*10))
+
+booltest --degree 2 --block 256 --top 128 --tv $((1024*1024*10)) --rounds 0 random-file.bin
+booltest --degree 2 --block 256 --top 128 --tv $((1024*1024*10)) --rounds 0 zero-file.bin
+```
+
+
 ## Java random
 
 Analyze output of the `java.util.Random`, use only polynomials in the specified file. Analyze 100 MB of data:
 
 ```
-python booltest/main.py ~/Downloads/output.txt --degree 2 --block 512 --top 128 --tv $((1024*1024*100)) --rounds 0 --poly-file polynomials-randjava_seed0.txt
+booltest ~/Downloads/output.txt --degree 2 --block 512 --top 128 --tv $((1024*1024*100)) --rounds 0 --poly-file polynomials-randjava_seed0.txt
 ```
 
 ## Reference statistics
