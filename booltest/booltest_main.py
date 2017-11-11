@@ -111,7 +111,7 @@ class HWAnalysis(object):
         self.input_poly_hws = [0] * len(self.input_poly)
         self.input_poly_ref_hws = [0] * len(self.input_poly)
         self.precompute_input_poly()
-        if self.best_x_combinations <= 0:
+        if self.best_x_combinations is not None and self.best_x_combinations <= 0:
             self.best_x_combinations = None
 
     def reset(self):
