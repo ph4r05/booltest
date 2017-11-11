@@ -55,7 +55,9 @@ booltest --degree 2 --block 256 --top 128 --tv $((1024*1024*10)) --rounds 0 zero
 Analyze output of the `java.util.Random`, use only polynomials in the specified file. Analyze 100 MB of data:
 
 ```
-booltest ~/Downloads/output.txt --degree 2 --block 512 --top 128 --tv $((1024*1024*100)) --rounds 0 --poly-file polynomials-randjava_seed0.txt
+booltest --degree 2 --block 512 --top 128 --tv $((1024*1024*100)) --rounds 0 \
+  --poly-file data/polynomials/polynomials-randjava_seed0.txt \
+  randjava_seed0.bin
 ```
 
 ## Reference statistics
