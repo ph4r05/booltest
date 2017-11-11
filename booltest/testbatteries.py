@@ -24,7 +24,7 @@ import shutil
 import itertools
 import traceback
 import threading
-from main import *
+from booltest import *
 import egenerator
 
 
@@ -33,7 +33,7 @@ coloredlogs.install(level=logging.DEBUG)
 
 
 # Main - argument parsing + processing
-class TestBatteries(App):
+class TestBatteries(Booltest):
     """
     TestBatteries submits standard crypto functions to standard testing batteries for analysis.
     """

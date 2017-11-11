@@ -22,7 +22,7 @@ import subprocess
 import shutil
 import itertools
 import traceback
-from main import *
+from booltest import *
 import egenerator
 
 
@@ -31,7 +31,7 @@ coloredlogs.install(level=logging.DEBUG)
 
 
 # Main - argument parsing + processing
-class TestbedBenchmark(App):
+class TestbedBenchmark(Booltest):
     """
     Testbed run matrix of tests on multiple possible functions.
 
@@ -518,7 +518,7 @@ class TestbedBenchmark(App):
     def main(self):
         logger.debug('App started')
 
-        parser = argparse.ArgumentParser(description='PolyDist - Testbed testing')
+        parser = argparse.ArgumentParser(description='Testbed run matrix of tests on multiple possible functions.')
         parser.add_argument('-t', '--threads', dest='threads', type=int, default=None,
                             help='Number of threads to use')
 

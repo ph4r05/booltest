@@ -19,14 +19,14 @@ import scipy.misc
 import scipy.stats
 import signal
 import psutil
-from main import *
+from booltest import *
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
 
 
 # Main - argument parsing + processing
-class RandVerif(App):
+class RandVerif(Booltest):
     def __init__(self, *args, **kwargs):
         super(RandVerif, self).__init__(*args, **kwargs)
         self.args = None
@@ -40,7 +40,7 @@ class RandVerif(App):
         Main entry point - data processing.
 
         RandVerif is used to benchmark particular data sources, with different seeds.
-        It takes e.g., AES-CTR(SHA256(random)), runs it 1000 times and stores the resutls. This particular
+        It takes e.g., AES-CTR(SHA256(random)), runs it 1000 times and stores the results. This particular
         computation was used to determine reference z-scores of the test.
 
         Another usual scenario is to take Java util.Random, seed it 1000 times with a different random seed
@@ -245,7 +245,7 @@ class RandVerif(App):
     def main(self):
         logger.debug('App started')
 
-        parser = argparse.ArgumentParser(description='PolyDist')
+        parser = argparse.ArgumentParser(description='RandVerif benchmarks particular data sources, with different seeds.')
         parser.add_argument('-t', '--threads', dest='threads', type=int, default=None,
                             help='Number of threads to use')
 
