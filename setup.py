@@ -3,7 +3,7 @@ import sys
 from setuptools import setup
 from setuptools import find_packages
 
-version = '0.0.0'
+version = '0.1.0'
 
 # Please update tox.ini when modifying dependency version requirements
 install_requires = [
@@ -22,7 +22,7 @@ install_requires = [
     'bitstring',
     'bitarray_ph4',
     'ufx',
-    # 'matplotlib',  # apt-get install python-tk
+     # 'matplotlib',  # apt-get install python-tk
     'filelock',
     'repoze.lru'
 ]
@@ -39,10 +39,21 @@ docs_extras = [
     'sphinxcontrib-programoutput',
 ]
 
+try:
+    import pypandoc
+    long_description = pypandoc.convert('README.md', 'rst')
+    long_description = long_description.replace("\r", '')
+
+except(IOError, ImportError):
+    import io
+    with io.open('README.md', encoding="utf-8") as f:
+        long_description = f.read()
+
 setup(
-    name='polyverif',
+    name='booltest',
     version=version,
-    description='Polynomial randomness tester',
+    description='Booltest: Polynomial randomness tester',
+    long_description=long_description,
     url='https://github.com/ph4r05/polynomial-distinguishers',
     author='Dusan Klinec',
     author_email='dusan.klinec@gmail.com',
@@ -67,5 +78,10 @@ setup(
     extras_require={
         'dev': dev_extras,
         'docs': docs_extras,
+    },
+    entry_points={
+        'console_scripts': [
+            'booltest = booltest.main:main',
+        ],
     }
 )
