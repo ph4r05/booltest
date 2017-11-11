@@ -6,8 +6,8 @@ import os
 import scipy.misc
 import scipy.stats
 
-from . import common
-from .booltest_main import *
+from booltest import common
+from booltest.booltest_main import *
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)

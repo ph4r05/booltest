@@ -11,9 +11,9 @@ import traceback
 import scipy.misc
 import scipy.stats
 
-from . import egenerator
-from . import common
-from .booltest_main import *
+from booltest import egenerator
+from booltest import common
+from booltest.booltest_main import *
 
 
 logger = logging.getLogger(__name__)

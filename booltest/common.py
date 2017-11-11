@@ -22,7 +22,7 @@ import bitarray
 from bitstring import Bits, BitArray, BitStream, ConstBitStream
 from repoze.lru import lru_cache, LRUCache
 
-from .crypto_util import aes_ctr, get_zero_vector
+from booltest.crypto_util import aes_ctr, get_zero_vector
 
 # Enables bitarray - with native C extension
 FAST_IMPL = True

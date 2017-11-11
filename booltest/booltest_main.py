@@ -19,7 +19,7 @@ import scipy
 import scipy.misc
 import scipy.stats
 
-from . import common
+from booltest import common
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
