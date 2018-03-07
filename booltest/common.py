@@ -437,7 +437,7 @@ class StdinInputObject(InputObject):
         return -1
 
     def read(self, size):
-        data = sys.stdin.read(size)
+        data = sys.stdin.read(size) if sys.version_info < (3,) else sys.stdin.buffer.read(size)
         self.sha1.update(data)
         self.data_read += len(data)
         return data
