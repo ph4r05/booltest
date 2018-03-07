@@ -35,9 +35,9 @@ ESTREAM = {
     'CryptMT': None,
     'DECIM': FunctionParams(rounds=8),
     'DICING': None,
-    'Dragon': None,
+    'Dragon': FunctionParams(rounds=16),
     'Edon80': None,
-    'F-FCSR': None,
+    'F-FCSR': FunctionParams(rounds=5),
     'Fubuki': FunctionParams(rounds=4),
     'Grain': FunctionParams(rounds=13),
     'HC-128': None,
@@ -48,11 +48,13 @@ ESTREAM = {
     'Mir-1': None,
     'Pomaranch': None,
     'Py': None,
-    'Rabbit': None,
-    'Salsa20': FunctionParams(rounds=12),
+    'Rabbit': FunctionParams(rounds=4),
+    'Salsa20': FunctionParams(rounds=20),
     'SFINKS': None,
-    'SOSEMANUK': None,
+    'SOSEMANUK': FunctionParams(rounds=25),
+    'Trivium': FunctionParams(rounds=9),
     'TSC-4': FunctionParams(rounds=32),
+    'Yamb': None,
     'WG': None,
     'Zk-Crypt': None
 }
@@ -68,7 +70,7 @@ SHA3 = {
     'Boole': FunctionParams(rounds=16),
     'Cheetah': FunctionParams(rounds=16),
     'CHI': FunctionParams(rounds=20),
-    'CRUNCH': None,
+    'CRUNCH': FunctionParams(rounds=224),
     'CubeHash': FunctionParams(rounds=8),
     'DCH': FunctionParams(rounds=4),
     'DynamicSHA': FunctionParams(rounds=16),
@@ -82,7 +84,7 @@ SHA3 = {
     'JH': FunctionParams(rounds=42),
     'Keccak': FunctionParams(rounds=24),
     'Khichidi': None,
-    'LANE': None,
+    'LANE': FunctionParams(rounds=12),
     'Lesamnta': FunctionParams(rounds=32),
     'Luffa': FunctionParams(rounds=8),
     'MCSSHA3': None,
@@ -106,9 +108,12 @@ SHA3 = {
 
 
 BLOCK = {
+    'BLOWFISH': FunctionParams(8, 56, rounds=16),
     'TEA': FunctionParams(8, 16, rounds=64),
     'AES': FunctionParams(16, 16, rounds=10),
     'RC4': FunctionParams(16, 16),
+    'SIMON': FunctionParams(16, 16, rounds=32),
+    'SPECK': FunctionParams(16, 16, rounds=22),
     'SINGLE-DES': FunctionParams(8, 8, rounds=16),
     'TRIPLE-DES': FunctionParams(8, 24, rounds=16)
 }
