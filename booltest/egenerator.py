@@ -15,6 +15,9 @@ class FunctionParams:
         self.rounds = rounds
         self.min_rounds = min_rounds
 
+    def to_json(self):
+        return dict(self.__dict__)
+
 
 FUNCTION_ESTREAM = 1
 FUNCTION_SHA3 = 2
