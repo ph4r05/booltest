@@ -8,6 +8,7 @@ from past.builtins import long
 import collections
 import heapq
 import json
+import time
 import logging
 import random
 import re
@@ -721,16 +722,18 @@ class Booltest(object):
 
         return poly
 
-    def load_input_poly(self):
+    def load_input_poly(self, poly=None, poly_files=None):
         """
         Loads input polynomials.
+        :param poly:
+        :param poly_files:
         :return:
         """
-        for poly in self.args.polynomials:
+        for poly in (self.args.polynomials if not poly else poly):
             poly_js = self._fix_poly(json.loads(poly))
             self.input_poly.append(poly_js)
 
-        for poly_file in self.args.poly_file:
+        for poly_file in (self.args.poly_file if not poly_files else poly_files):
             with open(poly_file, 'r') as fh:
                 for line in fh:
                     line = line.strip()
@@ -801,6 +804,7 @@ class Booltest(object):
 
         # specific polynomial testing
         logger.info('Initialising')
+        time_test_start = time.time()
 
         # read file by file
         for iobj in self.input_objects:
