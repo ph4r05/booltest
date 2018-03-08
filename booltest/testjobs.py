@@ -495,8 +495,8 @@ class Testjobs(Booltest):
                     job_time = '1:00:00'
                 job_files.append((job_file_path, ram, job_time))
 
-                if fidx % 1000 == 0:
-                    logger.debug('Generated %s files, jobs: %s' % (fidx, len(job_files)))
+            if fidx % 1000 == 0:
+                logger.debug('Generated %s files, jobs: %s' % (fidx, len(job_files)))
 
         logger.info('Generated job files: %s' % len(job_files))
 
