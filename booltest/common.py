@@ -322,6 +322,18 @@ def replace_none(iterable, replacement=0):
     return [x if x is not None else replacement for x in iterable]
 
 
+def merge_dicts(dicts):
+    """
+    Merges dictionaries
+    :param dicts:
+    :return:
+    """
+    dres = {}
+    for dc in dicts:
+        dres.update(dc)
+    return dres
+
+
 class InputObject(object):
     """
     Input stream object.
