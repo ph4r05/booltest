@@ -492,7 +492,7 @@ class Testjobs(Booltest):
                 if size_mb < 11:
                     job_time = '4:00:00'
                 if size_mb < 2:
-                    job_time = '1:00:00'
+                    job_time = '2:00:00'
                 job_files.append((job_file_path, ram, job_time))
 
             if fidx % 1000 == 0:
@@ -501,10 +501,10 @@ class Testjobs(Booltest):
         logger.info('Generated job files: %s' % len(job_files))
 
         # Enqueue
-        with open('enqueue-meta.sh', 'w') as fh:
+        with open(os.path.join(self.job_dir, 'enqueue-meta.sh'), 'w') as fh:
             fh.write('#!/bin/bash\n\n')
             for fn in job_files:
-                fh.write('qsub -l select=1:ncpus=1:mem=%s -l walltime=%s ./%s \n' % (fn[1], fn[2], fn[0]))
+                fh.write('qsub -l select=1:ncpus=1:mem=%s -l walltime=%s %s \n' % (fn[1], fn[2], fn[0]))
 
     def testcase(self, blocklen, degree, comb_deg):
         """
