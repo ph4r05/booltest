@@ -9,6 +9,7 @@ import hashlib
 import logging
 import math
 import os
+import json
 import random
 import signal
 import subprocess
@@ -332,6 +333,36 @@ def merge_dicts(dicts):
     for dc in dicts:
         dres.update(dc)
     return dres
+
+
+class AutoJSONEncoder(json.JSONEncoder):
+    """
+    JSON encoder trying to_json() first
+    """
+    def default(self, obj):
+        try:
+            return obj.to_json()
+        except AttributeError:
+            return self.default_classic(obj)
+
+    def default_classic(self, o):
+        if isinstance(o, set):
+            return list(o)
+        else:
+            try:
+                return super(AutoJSONEncoder, self).default(o)
+            except:
+                return str(o)
+
+
+def json_dumps(obj, **kwargs):
+    """
+    Json dump with the encoder
+    :param obj:
+    :param kwargs:
+    :return:
+    """
+    return json.dumps(obj, cls=AutoJSONEncoder, **kwargs)
 
 
 class InputObject(object):
