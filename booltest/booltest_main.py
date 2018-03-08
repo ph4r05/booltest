@@ -562,6 +562,24 @@ class HWAnalysis(object):
         :return:
         """
 
+    def to_json(self):
+        """
+        Serializes state to the json
+        :return:
+        """
+        return dict(self.__dict__)
+
+    def from_json(self, js):
+        """
+        Loads object config to the object
+        :param js:
+        :type js: dict
+        :return:
+        """
+        for ckey in js.keys():
+            if hasattr(self, ckey):
+                setattr(self, ckey, js[ckey])
+
 
 # Main - argument parsing + processing
 class Booltest(object):
