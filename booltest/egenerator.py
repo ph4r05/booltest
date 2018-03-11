@@ -137,7 +137,7 @@ BLOCK = {
 
 # Interesting rounds to test
 ROUNDS = {
-    'AES': [3, 4],
+    'AES': [1, 3, 4, 10],
     'ARIRANG': [3, 4],
     'AURORA': [2, 3],
     'BLAKE': [1, 2],
