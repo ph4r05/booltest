@@ -209,11 +209,25 @@ def function_to_stream_type(function_name):
 
 def get_tv_size(stream_type, function_name=None):
     if stream_type == FUNCTION_ESTREAM:
+        if function_name:
+            fcfg = ESTREAM[normalize_function_name(function_name)]
+            if fcfg and fcfg.block_size:
+                return fcfg.block_size
         return 16
+
     if stream_type == FUNCTION_SHA3:
+        if function_name:
+            fcfg = SHA3[normalize_function_name(function_name)]
+            if fcfg and fcfg.block_size:
+                return fcfg.block_size
         return 32
+
     if stream_type == FUNCTION_BLOCK:
-        return BLOCK[normalize_function_name(function_name)].block_size
+        if function_name:
+            fcfg = BLOCK[normalize_function_name(function_name)]
+            if fcfg and fcfg.block_size:
+                return fcfg.block_size
+        return 16
     return 16
 
 
