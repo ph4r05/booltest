@@ -1,7 +1,8 @@
 #!/bin/bash
 
-export CENTRES=(brno1 brno2 brno3-cerit brno5-archive brno6 brno7-cerit brno8 brno9-ceitec budejovice1 \
-#jihlava1-cerit jihlava2-archive liberec1-tul ostrava1 plzen1 plzen2-archive plzen3-kky praha1 praha4-fzu praha5-elixir)
+# brno3-cerit brno5-archive plzen2-archive plzen3-kky jihlava2-archive
+export CENTRES=(brno1 brno2 brno6 brno7-cerit brno8 brno9-ceitec budejovice1 \
+jihlava1-cerit liberec1-tul ostrava1 plzen1 praha1 praha4-fzu praha5-elixir)
 
 
 for CCENTRE in ${CENTRES[@]}; do
@@ -11,6 +12,9 @@ for CCENTRE in ${CENTRES[@]}; do
     if [ ! -d "${CFHOME}" ]; then
         continue
     fi
+
+    echo "===================================="
+    echo "Centre: $CCENTRE"
 
     echo "Installing to ${CFHOME}..."
     export PYENV_ROOT="${CFHOME}/.pyenv"
