@@ -366,6 +366,9 @@ def get_function_config(func_cfg,
     stream_obj['scode_inp'] = get_scode(src_input)
     stream_obj['scode_key'] = get_scode(src_key)
 
+    if func_cfg.stream_type == FUNCTION_BLOCK and init_frequency == 'every-vector':
+        init_frequency = 1
+
     if init_frequency == 'only-once':
         stream_obj['scode_init'] = '0'
     elif init_frequency == 'every-vector':
