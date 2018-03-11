@@ -60,7 +60,7 @@ class TestCaseEntry(object):
 
 class TestRun(object):
     def __init__(self, spec, block_size=None, degree=None, comb_deg=None, total_test_idx=None, test_desc=None,
-                 res_file=None):
+                 res_file=None, gen_file=None):
         self.spec = spec  # type: TestCaseEntry
         self.block_size = block_size
         self.degree = degree
@@ -68,6 +68,7 @@ class TestRun(object):
         self.total_test_idx = total_test_idx
         self.test_desc = test_desc
         self.res_file = res_file
+        self.gen_file = gen_file
 
     def to_json(self):
         """
@@ -423,7 +424,10 @@ class Testjobs(Booltest):
                            % (test_spec.strategy, data_size, block_size, degree, comb_deg)
                 res_file = res_file.replace(' ', '')
 
-                trun = TestRun(test_spec, block_size, degree, comb_deg, total_test_idx, test_desc, res_file)
+                gen_file = 'gen-%s.json' % test_spec.strategy
+                gen_file = gen_file.replace(' ', '')
+
+                trun = TestRun(test_spec, block_size, degree, comb_deg, total_test_idx, test_desc, res_file, gen_file)
                 test_runs.append(trun)
 
         # Sort by estimated complexity
@@ -449,7 +453,7 @@ class Testjobs(Booltest):
             json_config['fidx'] = fidx
 
             res_file_path = os.path.join(self.results_dir, trun.res_file)
-            gen_file_path = os.path.join(self.job_dir, 'gen-' + trun.res_file)
+            gen_file_path = os.path.join(self.job_dir, trun.gen_file)
             job_file_path = os.path.join(self.job_dir, 'job-' + trun.res_file + '.sh')
             cfg_file_path = os.path.join(self.job_dir, 'cfg-' + trun.res_file)
             if os.path.exists(cfg_file_path):
@@ -459,8 +463,10 @@ class Testjobs(Booltest):
             json_config['res_file'] = res_file_path
             json_config['gen_file'] = gen_file_path
 
-            with open(gen_file_path, 'w+') as fh:
-                json.dump(trun.spec.gen_cfg, fh, indent=2)
+            if not os.path.exists(gen_file_path):
+                with open(gen_file_path, 'w+') as fh:
+                    json.dump(trun.spec.gen_cfg, fh, indent=2)
+
             with open(cfg_file_path, 'w+') as fh:
                 fh.write(common.json_dumps(json_config, indent=2))
 
