@@ -446,13 +446,15 @@ class Testjobs(Booltest):
             size_mb = trun.spec.data_size / 1024 / 1024
             json_config['config'] = trun
             json_config['hwanalysis'] = hwanalysis
+            json_config['fidx'] = fidx
 
             res_file_path = os.path.join(self.results_dir, trun.res_file)
             gen_file_path = os.path.join(self.job_dir, 'gen-' + trun.res_file)
             job_file_path = os.path.join(self.job_dir, 'job-' + trun.res_file + '.sh')
             cfg_file_path = os.path.join(self.job_dir, 'cfg-' + trun.res_file)
             if os.path.exists(cfg_file_path):
-                raise ValueError('File name conflict: %s' % cfg_file_path)
+                logger.warning('Conflicting config: %s' % common.json_dumps(json_config, indent=2))
+                raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
 
             json_config['res_file'] = res_file_path
             json_config['gen_file'] = gen_file_path
