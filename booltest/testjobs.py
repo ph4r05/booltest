@@ -145,14 +145,6 @@ class Testjobs(Booltest):
         self.all_deg = self.args.alldeg
         self.test_random.seed(self.args.tests_random_select_eed)
 
-    def gen_randomdir(self, function, round):
-        """
-        Generates random directory name
-        :return:
-        """
-        dirname = 'testbed-%s-r%s-%d-%d' % (function, round, int(time.time()), random.randint(0, 2**32-1))
-        return os.path.join('/tmp', dirname)
-
     def check_res_file(self, path):
         """
         Returns True if the given result path seems valid
@@ -166,7 +158,7 @@ class Testjobs(Booltest):
         try:
             with open(path, 'r') as fh:
                 js = json.load(fh)
-                return 'best_zscore' in js and 'best_dists' in js
+                return 'best_dists' in js and 'data_read' in js and js['data_read'] > 0
         except:
             return False
 
@@ -206,76 +198,6 @@ class Testjobs(Booltest):
 
             return fpath
         return None
-
-    def data_generator(self, tmpdir, function, cur_round):
-        """
-        Used to call generator to generate data to test. Prepares data to test.
-        If the file has already been generated, just returns the generated file.
-        :return:
-        """
-        if self.cur_data_file is not None \
-                and self.cur_data_file[0] == tmpdir \
-                and self.cur_data_file[1] == self.config_js:
-            logger.info('Using already generated data file: %s' % self.cur_data_file[2])
-            return self.cur_data_file[2]
-
-        data_file = self.find_data_file(function=function, round=cur_round)
-        if data_file is not None:
-            return data_file
-
-        # Egenerator procedure: new temp folder, generate config, generate data.
-        logger.info('Generating data for %s, round %s to %s' % (function, cur_round, tmpdir))
-        data_file = self.eacirc_generator(tmpdir=tmpdir, generator_path=self.generator_path, config_js=self.config_js)
-
-        if data_file is not None:
-            logger.info('Data file generated to: %s' % data_file)
-            self.cur_data_file = tmpdir, self.config_js, data_file
-
-        return data_file
-
-    def eacirc_generator(self, tmpdir, generator_path, config_js):
-        """
-        Uses Egenerator to produce the file
-        :param tmpdir:
-        :param generator_path:
-        :param config_js:
-        :return:
-        """
-        os.makedirs(tmpdir)
-
-        new_generator_path = os.path.join(tmpdir, 'generator')
-        shutil.copy(generator_path, new_generator_path)
-
-        config_str = json.dumps(config_js, indent=2)
-        with open(os.path.join(tmpdir, 'generator.json'), 'w') as fh:
-            fh.write(config_str)
-
-        # Generate some data here
-
-        p = subprocess.Popen(new_generator_path, shell=True, cwd=tmpdir)
-        p.communicate()
-        if p.returncode != 0:
-            logger.error('Could not generate data, code: %s' % p.returncode)
-            return None
-
-        # Generated file:
-        data_files = [f for f in os.listdir(tmpdir) if os.path.isfile(os.path.join(tmpdir, f))
-                      and f.endswith('bin')]
-        if len(data_files) != 1:
-            logger.error('Error in generating data to process. Files found: %s' % data_files)
-            return None
-
-        data_file = os.path.join(tmpdir, data_files[0])
-        return data_file
-
-    def clean_temp_dir(self, tmpdir):
-        """
-        Cleans artifacts
-        :param tmpdir:
-        :return:
-        """
-        if os.path.exists(tmpdir):
-            shutil.rmtree(tmpdir, ignore_errors=True)
 
     def get_test_battery(self, include_all=False):
         """
@@ -444,6 +366,7 @@ class Testjobs(Booltest):
         cur_batch_def = None  # type: TestRun
 
         memory_threshold = 50
+        num_skipped = 0
         for fidx, trun in enumerate(test_runs):  # type: TestRun
             hwanalysis = self.testcase(trun.block_size, trun.degree, trun.comb_deg)
             json_config = collections.OrderedDict()
@@ -456,12 +379,17 @@ class Testjobs(Booltest):
             gen_file_path = os.path.join(self.job_dir, trun.gen_file)
             job_file_path = os.path.join(self.job_dir, 'job-' + trun.res_file + '.sh')
             cfg_file_path = os.path.join(self.job_dir, 'cfg-' + trun.res_file)
-            if os.path.exists(cfg_file_path):
-                logger.warning('Conflicting config: %s' % common.json_dumps(json_config, indent=2))
-                raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
 
             json_config['res_file'] = res_file_path
             json_config['gen_file'] = gen_file_path
+
+            if self.args.skip_finished and self.check_res_file(res_file_path):
+                num_skipped += 1
+                continue
+
+            if os.path.exists(cfg_file_path):
+                logger.warning('Conflicting config: %s' % common.json_dumps(json_config, indent=2))
+                raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
 
             if not os.path.exists(gen_file_path):
                 with open(gen_file_path, 'w+') as fh:
@@ -495,7 +423,7 @@ class Testjobs(Booltest):
                 with open(job_file_path, 'w+') as fh:
                     fh.write(job_data)
 
-                ram = '6gb' if size_mb > memory_threshold else '2gb'
+                ram = '12gb' if size_mb > memory_threshold else '6gb'
                 job_time = '24:00:00'
                 if size_mb < 11:
                     job_time = '4:00:00'
@@ -506,7 +434,7 @@ class Testjobs(Booltest):
             if fidx % 1000 == 0:
                 logger.debug('Generated %s files, jobs: %s' % (fidx, len(job_files)))
 
-        logger.info('Generated job files: %s' % len(job_files))
+        logger.info('Generated job files: %s, skipped: %s' % (len(job_files), num_skipped))
 
         # Enqueue
         with open(os.path.join(self.job_dir, 'enqueue-meta-%s.sh' % int(time.time())), 'w') as fh:
@@ -634,6 +562,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--egen-benchmark', dest='egen_benchmark', action='store_const', const=True, default=False,
                             help='Benchmarks speed of the egenerator')
+
+        parser.add_argument('--skip-finished', dest='skip_finished', action='store_const', const=True, default=False,
+                            help='Skip tests with generated valid results')
 
         #
         # Testing matrix definition
