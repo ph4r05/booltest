@@ -415,7 +415,7 @@ def rpcs_inp(func_cfg, key=None, **kwargs):
 
 
 def rpcs_inp_xor(func_cfg, key=None, **kwargs):
-    ob2 = rpcs_inp(func_cfg)
+    ob2 = rpcs_inp(func_cfg, key=key)
 
     ob = collections.OrderedDict()
     ob['type'] = StreamCodes.XOR
