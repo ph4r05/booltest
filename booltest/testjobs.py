@@ -501,7 +501,7 @@ class Testjobs(Booltest):
         logger.info('Generated job files: %s' % len(job_files))
 
         # Enqueue
-        with open(os.path.join(self.job_dir, 'enqueue-meta-%s.sh' % time.time()), 'w') as fh:
+        with open(os.path.join(self.job_dir, 'enqueue-meta-%s.sh' % int(time.time())), 'w') as fh:
             fh.write('#!/bin/bash\n\n')
             for fn in job_files:
                 fh.write('qsub -l select=1:ncpus=1:mem=%s -l walltime=%s %s \n' % (fn[1], fn[2], fn[0]))
