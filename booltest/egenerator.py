@@ -27,8 +27,18 @@ FUNCTION_BLOCK = 3
 STREAM_TYPES = {
     FUNCTION_ESTREAM: 'estream',
     FUNCTION_SHA3: 'sha3',
-    FUNCTION_BLOCK: 'block'
+    FUNCTION_BLOCK: 'block',
 }
+
+
+class StreamCodes:
+    ZERO = 'false-stream'
+    RANDOM = 'pcg32-stream'
+    SAC = 'sac'
+    SAC_STEP = 'sac-step'
+    COUNTER = 'counter'
+    XOR = 'xor-stream'
+    RPCS = 'rnd-plt-ctx-stream'
 
 
 # eStream
@@ -384,21 +394,17 @@ def zero_inp_reinit_key(func_cfg, key=None, **kwargs):
 def rpcs_inp(func_cfg, key=None, **kwargs):
     ob = collections.OrderedDict()
     fcfg = get_function_config(func_cfg, src_input=get_zero_stream(), src_key=key)
-    ob['type'] = 'rnd-plt-ctx-stream'
+    ob['type'] = StreamCodes.RPCS
     ob['scode'] = 'rpcs-' + get_scode(fcfg)
     ob['source'] = fcfg
     return ob
 
 
 def rpcs_inp_xor(func_cfg, key=None, **kwargs):
-    ob2 = collections.OrderedDict()
-    fcfg = get_function_config(func_cfg, src_input=get_zero_stream(), src_key=key)
-    ob2['type'] = 'rnd-plt-ctx-stream'
-    ob2['scode'] = 'rpcs-' + get_scode(fcfg)
-    ob2['source'] = fcfg
+    ob2 = rpcs_inp(func_cfg)
 
     ob = collections.OrderedDict()
-    ob['type'] = 'xor-stream'
+    ob['type'] = StreamCodes.XOR
     ob['scode'] = 'xor-' + ob2['scode']
     ob['source'] = ob2
     return ob
@@ -411,7 +417,7 @@ def sac_inp(func_cfg, key=None, **kwargs):
 def sac_xor_inp(func_cfg, key=None, **kwargs):
     ob = collections.OrderedDict()
     fcfg = sac_inp(func_cfg, key=key, **kwargs)
-    ob['type'] = 'xor-stream'
+    ob['type'] = StreamCodes.XOR
     ob['scode'] = 'xor-' + get_scode(fcfg)
     ob['source'] = fcfg
     return ob
