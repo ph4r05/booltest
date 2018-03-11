@@ -424,7 +424,7 @@ class Testjobs(Booltest):
                            % (test_spec.strategy, data_size, block_size, degree, comb_deg)
                 res_file = res_file.replace(' ', '')
 
-                gen_file = 'gen-%s.json' % test_spec.strategy
+                gen_file = 'gen-%s-%04dMB.json' % (test_spec.strategy, data_size)
                 gen_file = gen_file.replace(' ', '')
 
                 trun = TestRun(test_spec, block_size, degree, comb_deg, total_test_idx, test_desc, res_file, gen_file)
