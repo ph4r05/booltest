@@ -743,7 +743,7 @@ class TermEval(object):
         :return:
         """
         if (len(block) % self.blocklen) != 0:
-            raise ValueError('Input data not multiple of block length')
+            raise ValueError('Input data not multiple of block length, %s vs. %s' % (len(block), self.blocklen))
 
         self.cur_tv_size = len(block)/8
         self.cur_evals = len(block) / self.blocklen
