@@ -298,13 +298,13 @@ class Testjobs(Booltest):
                     ]
 
                 # zero input, reinit keys, different types (col style)
-                # if is_stream or is_block:
-                #     fun_configs += [
-                #          egenerator.zero_inp_reinit_key(fgc, egenerator.get_hw_stream(4)),
-                #          egenerator.zero_inp_reinit_key(fgc, egenerator.get_counter_stream()),
-                #          egenerator.zero_inp_reinit_key(fgc, egenerator.get_sac_step_stream()),
-                #          egenerator.zero_inp_reinit_key(fgc, egenerator.get_random_stream()),
-                #     ]
+                if is_stream or is_block:
+                    fun_configs += [
+                         egenerator.zero_inp_reinit_key(fgc, egenerator.get_hw_stream(4)),
+                         egenerator.zero_inp_reinit_key(fgc, egenerator.get_counter_stream()),
+                         egenerator.zero_inp_reinit_key(fgc, egenerator.get_sac_step_stream()),
+                         egenerator.zero_inp_reinit_key(fgc, egenerator.get_random_stream()),
+                    ]
 
                 # 1. (rpsc, rpsc-xor, sac, sac-xor, hw, counter) input, random key. 2 different random keys
                 for i in range(1 if is_sha3 else 2):
