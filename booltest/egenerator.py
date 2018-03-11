@@ -18,6 +18,10 @@ class FunctionParams:
     def to_json(self):
         return dict(self.__dict__)
 
+    def __repr__(self):
+        return 'FunctionParams(block_size=%r, key_size=%r, rounds=%r, min_rounds=%r)' \
+               % (self.block_size, self.key_size, self.rounds, self.min_rounds)
+
 
 FUNCTION_ESTREAM = 1
 FUNCTION_SHA3 = 2
@@ -263,6 +267,10 @@ class FunctionGenConfig(object):
 
         if self.num is None:
             raise ValueError('Length of data not specified')
+
+    def __repr__(self):
+        return 'FunctionGenConfig(fnc=%r, ftype=%r, tvsize=%r, rounds=%r, num=%r)' \
+               % (self.function_name, self.stream_type, self.tvsize, self.rounds, self.num)
 
 
 def get_scode(stream):
