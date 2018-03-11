@@ -471,11 +471,11 @@ class Testjobs(Booltest):
             flush_batch = False
             if cur_batch_def is None:
                 cur_batch_def = trun
-                job_batch_max_size = 10
+                job_batch_max_size = 15
                 if size_mb < 11:
                     job_batch_max_size = 25
                 if size_mb < 2:
-                    job_batch_max_size = 50
+                    job_batch_max_size = 100
 
             elif cur_batch_def.spec.data_size != trun.spec.data_size \
                     or len(job_batch) >= job_batch_max_size:
