@@ -257,7 +257,7 @@ class FunctionGenConfig(object):
         if function_name is not None:
             self.function_name = normalize_function_name(function_name)
             self.stream_type = function_to_stream_type(function_name=function_name) if stream_type is None else stream_type
-            self.tvsize = get_tv_size(stream_type=stream_type, function_name=function_name) if tvsize is None else tvsize
+            self.tvsize = get_tv_size(stream_type=self.stream_type, function_name=function_name) if tvsize is None else tvsize
             if self.rounds is None:
                 raise ValueError('Rounds is not defined')
 
