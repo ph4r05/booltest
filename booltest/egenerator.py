@@ -545,7 +545,7 @@ def get_config(function_name, rounds=None, seed='1fe40505e131963c', stream_type=
     stream_obj['block-size'] = tvsize
 
     if stream_type == FUNCTION_BLOCK:
-        stream_obj['init-frequency'] = init_frequency
+        stream_obj['init-frequency'] = str(init_frequency)
         stream_obj['key-size'] = BLOCK[function_name].key_size
         stream_obj['plaintext'] = {'type': plaintext_type}
         stream_obj['key'] = {'type': 'pcg32-stream'}
@@ -553,7 +553,7 @@ def get_config(function_name, rounds=None, seed='1fe40505e131963c', stream_type=
         stream_obj['mode'] = mode
 
     elif stream_type == FUNCTION_ESTREAM:
-        stream_obj['init-frequency'] = init_frequency
+        stream_obj['init-frequency'] = str(init_frequency)
         stream_obj['key-size'] = 16
         stream_obj['plaintext'] = {'type': plaintext_type}
         stream_obj['plaintext-type'] = {'type': plaintext_type}
