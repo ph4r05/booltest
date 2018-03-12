@@ -239,6 +239,11 @@ class BooltestJson(Booltest):
                     break
 
                 data = iobj.read(tvsize)
+                if (len(data)*8 % hwanalysis.blocklen) != 0:
+                    logger.warning('Not aligned block read, terminating. Data: %s bits remainder: %s'
+                                   % (len(data)*8, hwanalysis.blocklen))
+                    break
+
                 bits = common.to_bitarray(data)
                 if len(bits) == 0:
                     logger.info('File read completely')
