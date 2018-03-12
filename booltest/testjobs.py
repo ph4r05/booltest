@@ -261,6 +261,11 @@ class Testjobs(Booltest):
         total_test_idx = 0
         for fnc in functions:
             rounds = battery[fnc]
+
+            # Validation round 1
+            if self.args.add_round1 and 1 not in rounds:
+                rounds.insert(0, 1)
+
             params = all_functions[fnc] if fnc in all_functions else None  # type: egenerator.FunctionParams
             tce = TestCaseEntry(fnc, params)
             tce.rounds = rounds
@@ -564,6 +569,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--skip-finished', dest='skip_finished', action='store_const', const=True, default=False,
                             help='Skip tests with generated valid results')
+
+        parser.add_argument('--add-round1', dest='add_round1', action='store_const', const=True, default=False,
+                            help='Adds first round to the testing - validation round')
 
         #
         # Testing matrix definition
