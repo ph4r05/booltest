@@ -427,8 +427,6 @@ class Testjobs(Booltest):
                 job_time = '24:00:00'
                 if size_mb < 11:
                     job_time = '4:00:00'
-                if size_mb < 2:
-                    job_time = '2:00:00'
                 job_files.append((job_file_path, ram, job_time))
 
             if fidx % 1000 == 0:
