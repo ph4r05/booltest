@@ -382,6 +382,7 @@ class Testjobs(Booltest):
 
             json_config['res_file'] = res_file_path
             json_config['gen_file'] = gen_file_path
+            json_config['skip_finished'] = self.args.skip_finished
 
             if self.args.skip_finished and self.check_res_file(res_file_path):
                 num_skipped += 1
