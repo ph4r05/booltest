@@ -64,7 +64,7 @@ class BooltestJson(Booltest):
         try:
             with open(path, 'r') as fh:
                 js = json.load(fh)
-                return 'best_zscore' in js and 'best_dists' in js
+                return 'best_dists' in js and 'data_read' in js and js['data_read'] > 0
         except:
             return False
 
@@ -187,6 +187,13 @@ class BooltestJson(Booltest):
         hw_cfg = config['hwanalysis']
         test_run = config['config']
         data_file = test_run['spec']['data_file']
+        skip_finished = common.defvalkey(config, 'skip_finished', False)
+        res_file = common.defvalkey(config, 'res_file')
+
+        if skip_finished and res_file and self.check_res_file(res_file):
+            logger.info('Already computed in %s' % res_file)
+            return
+
         hwanalysis = HWAnalysis()
         hwanalysis.from_json(hw_cfg)
 
