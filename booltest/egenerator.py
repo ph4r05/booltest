@@ -381,7 +381,7 @@ def get_function_config(func_cfg,
                              stream_obj['scode_inp'], stream_obj['scode_key'], stream_obj['scode_init'])
 
     if func_cfg.stream_type == FUNCTION_BLOCK:
-        stream_obj['init-frequency'] = init_frequency
+        stream_obj['init-frequency'] = str(init_frequency)
         stream_obj['key-size'] = BLOCK[func_cfg.function_name].key_size
         stream_obj['plaintext'] = src_input
         stream_obj['key'] = src_key
@@ -389,7 +389,7 @@ def get_function_config(func_cfg,
         stream_obj['mode'] = mode
 
     elif func_cfg.stream_type == FUNCTION_ESTREAM:
-        stream_obj['init-frequency'] = init_frequency
+        stream_obj['init-frequency'] = str(init_frequency)
         stream_obj['key-size'] = 16
         stream_obj['plaintext-type'] = src_input
         stream_obj['key-type'] = src_key
