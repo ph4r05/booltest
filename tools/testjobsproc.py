@@ -73,7 +73,7 @@ def get_method(strategy):
     # strip booltest params
     method = re.sub(r'[\d]{1,4}MB-[\d]{3}bl-[\d]deg-[\d]k(-\d+)?', '', strategy)
     # strip function dependent info
-    method = re.sub(r'tp[\w]+-[\w]+-r\d+-tv\d+', '', method)
+    method = re.sub(r'tp[\w]+-[\w-]+?-r\d+-tv\d+', '', method)
     method = re.sub(r'^[-]+', '', method)
     method = re.sub(r'[-]+$', '', method)
     method = method.replace('--', '-')
@@ -84,6 +84,8 @@ def process_file(js, fname, args=None):
     """
     Process file json
     :param js:
+    :param fname:
+    :param args:
     :return:
     """
     tr = TestRecord()
@@ -103,7 +105,7 @@ def process_file(js, fname, args=None):
     if tr.data:
         tr.data = int(math.ceil(math.ceil(tr.data/1024.0)/1024.0))
 
-    mtch = re.search(r'-(\d+)^', fname)
+    mtch = re.search(r'-(\d+)\.json^', fname)
     if mtch:
         tr.iteration = int(mtch.group(1))
 
@@ -132,6 +134,20 @@ def fls(x):
     :return:
     """
     return str(x).replace('.', ',')
+
+
+def is_over_threshold(ref_avg, tr):
+    """
+    Returns true of tr is over the reference threshold
+    :param ref_bins:
+    :param tr:
+    :type tr: TestRecord
+    :return:
+    """
+    ctg = tr.ref_category()
+    if ctg in ref_avg:
+        return abs(tr.zscore) >= ref_avg[ctg] + 1.0
+    return False
 
 
 def main():
@@ -218,6 +234,9 @@ def main():
 
             if ref_name in tfile:
                 tr.ref = True
+                if tr.iteration >= 1:
+                    os.remove(test_file)
+                    continue
                 ref_bins[tr.ref_category()].append(tr)
 
             test_records.append(tr)
@@ -238,7 +257,7 @@ def main():
 
     # Reference statistics.
     ref_avg = {}
-    for mthd in ref_bins:
+    for mthd in list(ref_bins.keys()):
         samples = ref_bins[mthd]
         ref_avg[mthd] = sum([abs(x.zscore) for x in samples]) / float(len(samples))
 
@@ -246,8 +265,9 @@ def main():
     fname_time = int(time.time())
     fname_ref_json = os.path.join(args.out_dir, 'ref_%s.json' % fname_time)
     fname_ref_csv = os.path.join(args.out_dir, 'ref_%s.csv' % fname_time)
-    fname_results_json = os.path.join(args.out_dir, 'results_%s.csv' % fname_time)
+    fname_results_json = os.path.join(args.out_dir, 'results_%s.json' % fname_time)
     fname_results_csv = os.path.join(args.out_dir, 'results_%s.csv' % fname_time)
+    fname_results_rf_csv = os.path.join(args.out_dir, 'results_rf_%s.csv' % fname_time)
 
     ref_keys = sorted(list(ref_bins.keys()))
     with open(fname_ref_csv, 'w+') as fh_csv, open(fname_ref_json, 'w+') as fh_json:
@@ -276,8 +296,19 @@ def main():
     # Result processing
     fh_json = open(fname_results_json, 'w+')
     fh_csv = open(fname_results_csv, 'w+')
+    fh_rf_csv = open(fname_results_rf_csv, 'w+')
     fh_json.write('[\n')
 
+    # Headers
+    fh_csv.write('function' + args.delim)
+    fh_rf_csv.write('function' + args.delim)
+    hdr = []
+    for cur_key in itertools.product(*total_cases):
+        hdr.append('%s-%s-%s' % (cur_key[0], cur_key[1], cur_key[2]))
+    fh_csv.write(args.delim.join(hdr) + '\n')
+    fh_rf_csv.write(args.delim.join(hdr) + '\n')
+
+    # Processing
     js_out = []
     for k, g in itertools.groupby(test_records, key=lambda x: (x.function, x.round, x.method, x.data)):
         logger.info('Key: %s' % list(k))
@@ -305,6 +336,13 @@ def main():
             ] + [(fls(x.zscore) if x is not None else '-') for x in results_list])
         fh_csv.write(csv_line+'\n')
 
+        # CSV only if above threshold
+        csv_line_rf = args.delim.join(
+            [
+                 fnc_name, fls(fnc_round), method, fls(data_mb)
+            ] + [(fls(x.zscore) if x is not None and is_over_threshold(ref_avg, x) else '-') for x in results_list])
+        fh_rf_csv.write(csv_line_rf + '\n')
+
         # JSON result
         cur_js = collections.OrderedDict()
         cur_js['function'] = fnc_name
@@ -327,6 +365,7 @@ def main():
 
     fh_json.close()
     fh_csv.close()
+    fh_rf_csv.close()
 
 
 if __name__ == '__main__':
