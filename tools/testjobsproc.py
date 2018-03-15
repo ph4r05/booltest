@@ -337,10 +337,17 @@ def main():
         fh_csv.write(csv_line+'\n')
 
         # CSV only if above threshold
+        def zscoreref(x):
+            if x is None:
+                return '-'
+            if is_over_threshold(ref_avg, x):
+                return fls(x.zscore)
+            return '.'
+
         csv_line_rf = args.delim.join(
             [
                  fnc_name, fls(fnc_round), method, fls(data_mb)
-            ] + [(fls(x.zscore) if x is not None and is_over_threshold(ref_avg, x) else '-') for x in results_list])
+            ] + [zscoreref(x) for x in results_list])
         fh_rf_csv.write(csv_line_rf + '\n')
 
         # JSON result
