@@ -393,6 +393,31 @@ def defvalkey(js, key, default=None, take_none=True):
     return js[key]
 
 
+def defvalkeys(js, key, default=None):
+    """
+    Returns js[key] if set, otherwise default. Note js[key] can be None.
+    Key is array of keys. js[k1][k2][k3]...
+
+    :param js:
+    :param key:
+    :param default:
+    :param take_none:
+    :return:
+    """
+    if js is None:
+        return default
+    if not isinstance(key, (tuple, list)):
+        key = key.split('.')
+    try:
+        cur = js
+        for ckey in key:
+            cur = cur[ckey]
+        return cur
+    except:
+        pass
+    return default
+
+
 class InputObject(object):
     """
     Input stream object.
