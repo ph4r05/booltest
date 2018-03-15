@@ -69,6 +69,7 @@ class TestRun(object):
         self.test_desc = test_desc
         self.res_file = res_file
         self.gen_file = gen_file
+        self.iteration = 0
 
     def to_json(self):
         """
@@ -369,6 +370,7 @@ class Testjobs(Booltest):
                 gen_file = gen_file.replace(' ', '')
 
                 trun = TestRun(test_spec, block_size, degree, comb_deg, total_test_idx, test_desc, res_file, gen_file)
+                trun.iteration = trt
                 test_runs.append(trun)
 
         # Sort by estimated complexity
