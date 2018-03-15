@@ -200,6 +200,14 @@ class Testjobs(Booltest):
             return fpath
         return None
 
+    def random_seed(self):
+        """
+        Generates random seed
+        :return:
+        """
+        r = self.test_random.getrandbits(8*8)
+        return '%016x' % r
+
     def get_test_battery(self):
         """
         Returns function -> [r1, r2, r3, ...] to test on given number of rounds.
@@ -337,7 +345,8 @@ class Testjobs(Booltest):
                     ]
 
                 for fun_cfg in fun_configs:
-                    tce_c.gen_cfg = egenerator.get_config_header(fgc, stdout=True, stream=fun_cfg)
+                    seed = self.random_seed()
+                    tce_c.gen_cfg = egenerator.get_config_header(fgc, stdout=True, stream=fun_cfg, seed=seed)
                     tce_c.strategy = egenerator.get_scode(fun_cfg)
                     test_array.append(copy.deepcopy(tce_c))
 
