@@ -199,12 +199,16 @@ class Testjobs(Booltest):
             return fpath
         return None
 
-    def get_test_battery(self, include_all=False):
+    def get_test_battery(self):
         """
         Returns function -> [r1, r2, r3, ...] to test on given number of rounds.
         :return:
         """
+        if self.args.ref_only:
+            return {'AES': [10]}
+
         battery = dict(egenerator.ROUNDS)
+        skip = {}
 
         # Another tested functions, not (yet) included in egen.
         # battery['MD5'] = [15, 16, 17]
@@ -216,18 +220,17 @@ class Testjobs(Booltest):
         # battery['javarand'] = [1]
 
         # for non-stated try all
-        if not include_all:
+        if not self.args.include_all:
             return battery
 
         all_fnc = common.merge_dicts([egenerator.SHA3, egenerator.ESTREAM, egenerator.BLOCK])
         for ckey in all_fnc.keys():
             fnc = all_fnc[ckey]  # type: egenerator.FunctionParams
             max_rounds = fnc.rounds if fnc else None
-            if max_rounds is None:
-                battery['ckey'] = [1]
+            if max_rounds is None or ckey in battery or ckey in egenerator.ROUNDS or ckey in skip:
                 continue
 
-            try_rounds = max_rounds if max_rounds < 10 else min(int(math.ceil(max_rounds * 0.4)), 15)
+            try_rounds = min(5, max_rounds)
             battery[ckey] = list(range(1, try_rounds))
 
         return battery
@@ -312,10 +315,17 @@ class Testjobs(Booltest):
                     ]
 
                 # 1. (rpsc, rpsc-xor, sac, sac-xor, hw, counter) input, random key. 2 different random keys
-                for i in range(1 if is_sha3 else 2):
+                target_iterations = 1 if is_sha3 else 2
+                if self.args.ref_only:
+                    target_iterations = 1
+
+                for i in range(target_iterations):
                     if is_stream:
                         continue
-                    fun_key = egenerator.get_zero_stream() if i == 0 else egenerator.get_random_stream(i-1)
+
+                    fun_key = egenerator.get_zero_stream() if i == 0 and not self.args.ref_only else\
+                        egenerator.get_random_stream(i-1)
+
                     fun_configs += [
                         egenerator.rpcs_inp(fgc, fun_key),
                         egenerator.rpcs_inp_xor(fgc, fun_key),
@@ -338,17 +348,21 @@ class Testjobs(Booltest):
         for test_spec in test_array:  # type: TestCaseEntry
 
             # Generate test cases, run the analysis.
-            for test_case in itertools.product(test_block_sizes, test_degree, test_comb_k):
-                block_size, degree, comb_deg = test_case
+            test_runs_times = [0]
+            if self.args.ref_only:
+                test_runs_times = range(100)
+
+            for test_case in itertools.product(test_block_sizes, test_degree, test_comb_k, test_runs_times):
+                block_size, degree, comb_deg, trt = test_case
                 data_size = int(test_spec.data_size / 1024 / 1024)
                 total_test_idx += 1
 
-                test_desc = 'idx: %04d, data: %04d, block: %s, deg: %s, comb-deg: %s, fun: %s, round: %s scode: %s' \
+                test_desc = 'idx: %04d, data: %04d, block: %s, deg: %s, comb-deg: %s, fun: %s, round: %s scode: %s, %s' \
                             % (total_test_idx, data_size, block_size, degree, comb_deg, test_spec.fnc,
-                               test_spec.c_round, test_spec.strategy)
+                               test_spec.c_round, test_spec.strategy, trt)
 
-                res_file = '%s-%04dMB-%sbl-%sdeg-%sk.json' \
-                           % (test_spec.strategy, data_size, block_size, degree, comb_deg)
+                res_file = '%s-%04dMB-%sbl-%sdeg-%sk%s.json' \
+                           % (test_spec.strategy, data_size, block_size, degree, comb_deg, ('-%s' % trt) if trt > 0 else '')
                 res_file = res_file.replace(' ', '')
 
                 gen_file = 'gen-%s-%04dMB.json' % (test_spec.strategy, data_size)
@@ -572,6 +586,12 @@ class Testjobs(Booltest):
 
         parser.add_argument('--add-round1', dest='add_round1', action='store_const', const=True, default=False,
                             help='Adds first round to the testing - validation round')
+
+        parser.add_argument('--include-all', dest='include_all', action='store_const', const=True, default=False,
+                            help='Include all known')
+
+        parser.add_argument('--ref-only', dest='ref_only', action='store_const', const=True, default=False,
+                            help='Computes reference statistics')
 
         #
         # Testing matrix definition
