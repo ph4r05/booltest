@@ -105,7 +105,7 @@ def process_file(js, fname, args=None):
     if tr.data:
         tr.data = int(math.ceil(math.ceil(tr.data/1024.0)/1024.0))
 
-    mtch = re.search(r'-(\d+)\.json^', fname)
+    mtch = re.search(r'-(\d+)\.json$', fname)
     if mtch:
         tr.iteration = int(mtch.group(1))
 
