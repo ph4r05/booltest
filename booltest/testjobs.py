@@ -367,6 +367,11 @@ class Testjobs(Booltest):
                 data_size = int(test_spec.data_size / 1024 / 1024)
                 total_test_idx += 1
 
+                if trt > 0:
+                    test_spec = copy.deepcopy(test_spec)
+                    seed = self.random_seed()
+                    test_spec.gen_cfg['seed'] = seed
+
                 test_desc = 'idx: %04d, data: %04d, block: %s, deg: %s, comb-deg: %s, fun: %s, round: %s scode: %s, %s' \
                             % (total_test_idx, data_size, block_size, degree, comb_deg, test_spec.fnc,
                                test_spec.c_round, test_spec.strategy, trt)
@@ -375,7 +380,7 @@ class Testjobs(Booltest):
                            % (test_spec.strategy, data_size, block_size, degree, comb_deg, ('-%s' % trt) if trt > 0 else '')
                 res_file = res_file.replace(' ', '')
 
-                gen_file = 'gen-%s-%04dMB.json' % (test_spec.strategy, data_size)
+                gen_file = 'gen-%s-%04dMB-%s.json' % (test_spec.strategy, data_size, trt)
                 gen_file = gen_file.replace(' ', '')
 
                 trun = TestRun(test_spec, block_size, degree, comb_deg, total_test_idx, test_desc, res_file, gen_file)
