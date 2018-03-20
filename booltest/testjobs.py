@@ -267,6 +267,14 @@ class Testjobs(Booltest):
         functions = sorted(list(battery.keys()))
         logger.info('Battery of functions to test: %s' % battery)
 
+        # Combinations
+        combinations = {}
+        for bl in list(set(test_block_sizes + [self.args.topk])):
+            combinations[bl] = {}
+            for ii in list(set(test_degree + test_comb_k)):
+                combinations[bl][ii] = int(scipy.misc.comb(bl, ii, True))
+        full_combination = combinations[max(test_block_sizes)][max(max(test_degree), max(test_comb_k))]
+
         # (function, round, processing_type)
         test_array = []
 
@@ -397,6 +405,9 @@ class Testjobs(Booltest):
         # Generate job files
         job_files = []
         job_batch = []
+        batch_max_bl = 0
+        batch_max_deg = 0
+        batch_max_comb_deg = 0
         job_batch_max_size = 50
         cur_batch_def = None  # type: TestRun
 
@@ -419,6 +430,9 @@ class Testjobs(Booltest):
             json_config['gen_file'] = gen_file_path
             json_config['skip_finished'] = self.args.skip_finished
 
+            if fidx % 1000 == 0:
+                logger.debug('Processing file %s, jobs: %s' % (fidx, len(job_files)))
+
             if self.args.skip_finished and self.check_res_file(res_file_path):
                 num_skipped += 1
                 continue
@@ -438,14 +452,28 @@ class Testjobs(Booltest):
             job_data = job_tpl % (gen_file_path, args, trun.res_file, trun.res_file)
             job_batch.append(job_data)
 
+            batch_max_bl = max(batch_max_bl, trun.block_size)
+            batch_max_deg = max(batch_max_deg, trun.degree)
+            batch_max_comb_deg = max(batch_max_comb_deg, trun.comb_deg)
+
             flush_batch = False
             if cur_batch_def is None:
                 cur_batch_def = trun
                 job_batch_max_size = 15
+
                 if size_mb < 11:
                     job_batch_max_size = 25
+                    if batch_max_deg <= 2 and batch_max_comb_deg <= 2:
+                        job_batch_max_size = 50
+                    if batch_max_deg <= 1 and batch_max_comb_deg <= 2:
+                        job_batch_max_size = 100
+
                 if size_mb < 2:
                     job_batch_max_size = 100
+                    if batch_max_deg <= 2 and batch_max_comb_deg <= 2:
+                        job_batch_max_size = 200
+                    if batch_max_deg <= 1 and batch_max_comb_deg <= 2:
+                        job_batch_max_size = 300
 
             elif cur_batch_def.spec.data_size != trun.spec.data_size \
                     or len(job_batch) >= job_batch_max_size:
@@ -454,6 +482,9 @@ class Testjobs(Booltest):
             if flush_batch:
                 job_data = job_tpl_hdr + '\n'.join(job_batch)
                 job_batch = []
+                batch_max_bl = 0
+                batch_max_deg = 0
+                batch_max_comb_deg = 0
                 cur_batch_def = None
 
                 with open(job_file_path, 'w+') as fh:
@@ -464,9 +495,6 @@ class Testjobs(Booltest):
                 if size_mb < 11:
                     job_time = '4:00:00'
                 job_files.append((job_file_path, ram, job_time))
-
-            if fidx % 1000 == 0:
-                logger.debug('Generated %s files, jobs: %s' % (fidx, len(job_files)))
 
         logger.info('Generated job files: %s, skipped: %s' % (len(job_files), num_skipped))
 
