@@ -234,9 +234,6 @@ def main():
 
             if ref_name in tfile:
                 tr.ref = True
-                if tr.iteration >= 1:
-                    os.remove(test_file)
-                    continue
                 ref_bins[tr.ref_category()].append(tr)
 
             test_records.append(tr)
