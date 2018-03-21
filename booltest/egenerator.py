@@ -312,7 +312,7 @@ def get_rpcs_stream(**kwargs):
 
 def get_hw_stream(hw=3, increase_hw=False, randomize_start=False, **kwargs):
     ob = collections.OrderedDict()
-    ob['type'] = 'hw_counter'
+    ob['type'] = 'hw-counter'
     ob['hw'] = hw
     ob['scode'] = 'hw%d' % hw
     ob['increase_hw'] = increase_hw
@@ -400,7 +400,7 @@ def get_function_config(func_cfg,
 
     elif func_cfg.stream_type == FUNCTION_SHA3:
         stream_obj['source'] = src_input
-        stream_obj['hash-bitsize'] = 8 * func_cfg.tvsize
+        stream_obj['hash-size'] = func_cfg.tvsize
 
     else:
         raise ValueError('Unknown stream type')
