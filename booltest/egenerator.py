@@ -8,10 +8,13 @@ import math
 # if \(name == "(.+?)".+
 
 
-class FunctionParams:
-    def __init__(self, block_size=None, key_size=None, rounds=None, min_rounds=None):
+class FunctionParams(object):
+    __slots__ = ['block_size', 'key_size', 'iv_size', 'rounds', 'min_rounds']
+
+    def __init__(self, block_size=None, key_size=None, rounds=None, min_rounds=None, iv_size=None):
         self.block_size = block_size
         self.key_size = key_size
+        self.iv_size = iv_size
         self.rounds = rounds
         self.min_rounds = min_rounds
 
@@ -19,8 +22,8 @@ class FunctionParams:
         return dict(self.__dict__)
 
     def __repr__(self):
-        return 'FunctionParams(block_size=%r, key_size=%r, rounds=%r, min_rounds=%r)' \
-               % (self.block_size, self.key_size, self.rounds, self.min_rounds)
+        return 'FunctionParams(block_size=%r, key_size=%r, iv_size=%r, rounds=%r, min_rounds=%r)' \
+               % (self.block_size, self.key_size, self.iv_size, self.rounds, self.min_rounds)
 
 
 FUNCTION_ESTREAM = 1
@@ -50,7 +53,7 @@ ESTREAM = {
     'ABC': None,
     'Achterbahn': None,
     'CryptMT': None,
-    'DECIM': FunctionParams(rounds=8),
+    'DECIM': FunctionParams(rounds=8, iv_size=32),
     'DICING': None,
     'Dragon': FunctionParams(rounds=16),
     'Edon80': None,
@@ -251,11 +254,12 @@ def is_function_egen(fnc):
 
 
 class FunctionGenConfig(object):
-    def __init__(self, function_name, stream_type=None, tvsize=None, rounds=None, tvcount=None, data=None, **kwargs):
+    def __init__(self, function_name, stream_type=None, tvsize=None, rounds=None, tvcount=None, data=None, params=None, **kwargs):
         self.function_name = None
         self.stream_type = None
         self.tvsize = tvsize
         self.rounds = rounds
+        self.params = params  # type: FunctionParams
 
         if function_name is not None:
             self.function_name = normalize_function_name(function_name)
@@ -397,6 +401,8 @@ def get_function_config(func_cfg,
         stream_obj['plaintext-type'] = src_input
         stream_obj['key-type'] = src_key
         stream_obj['iv-type'] = src_iv
+        if func_cfg.params and func_cfg.params.iv_size:
+            stream_obj['iv-size'] = func_cfg.params.iv_size
 
     elif func_cfg.stream_type == FUNCTION_SHA3:
         stream_obj['source'] = src_input
