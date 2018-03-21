@@ -311,7 +311,7 @@ class Testjobs(Booltest):
                 is_stream = tce.stream_type == egenerator.FUNCTION_ESTREAM
                 is_block = tce.stream_type == egenerator.FUNCTION_BLOCK
 
-                fgc = egenerator.FunctionGenConfig(fnc, rounds=cur_round, data=tce_c.data_size)
+                fgc = egenerator.FunctionGenConfig(fnc, rounds=cur_round, data=tce_c.data_size, params=tce_c.params)
                 fun_configs = []
 
                 # Random key, enc zeros
