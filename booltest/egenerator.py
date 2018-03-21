@@ -53,7 +53,7 @@ ESTREAM = {
     'ABC': None,
     'Achterbahn': None,
     'CryptMT': None,
-    'DECIM': FunctionParams(rounds=8, iv_size=32),
+    'DECIM': FunctionParams(rounds=8, iv_size=4),
     'DICING': None,
     'Dragon': FunctionParams(rounds=16),
     'Edon80': None,
