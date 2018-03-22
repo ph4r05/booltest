@@ -313,6 +313,8 @@ class Testjobs(Booltest):
                 is_sha3 = tce.stream_type in [egenerator.FUNCTION_SHA3, egenerator.FUNCTION_HASH]
                 is_stream = tce.stream_type == egenerator.FUNCTION_ESTREAM
                 is_block = tce.stream_type == egenerator.FUNCTION_BLOCK
+                lower_than_16b = params and params.block_size and params.block_size < 16
+                hw_val = 4 if not lower_than_16b else 6
 
                 fgc = egenerator.FunctionGenConfig(fnc, rounds=cur_round, data=tce_c.data_size, params=tce_c.params)
                 fun_configs = []
@@ -328,7 +330,7 @@ class Testjobs(Booltest):
                 # zero input, reinit keys, different types (col style)
                 if not self.args.no_reinit and (is_stream or is_block):
                     fun_configs += [
-                         egenerator.zero_inp_reinit_key(fgc, egenerator.get_hw_stream(4)),
+                         egenerator.zero_inp_reinit_key(fgc, egenerator.get_hw_stream(hw_val)),
                          egenerator.zero_inp_reinit_key(fgc, egenerator.get_counter_stream()),
                          egenerator.zero_inp_reinit_key(fgc, egenerator.get_random_stream()),
                     ]
@@ -351,7 +353,7 @@ class Testjobs(Booltest):
                         egenerator.get_random_stream(i-1)
 
                     fun_configs += [
-                        egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(4), src_key=fun_key),
+                        egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(hw_val), src_key=fun_key),
                         egenerator.get_function_config(fgc, src_input=egenerator.get_counter_stream(), src_key=fun_key),
                     ]
 
