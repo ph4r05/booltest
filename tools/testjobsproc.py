@@ -239,11 +239,14 @@ def main():
         if idx % 1000 == 0:
             logger.debug('Progress: %d, cur: %s skipped: %s' % (idx, tfile, skipped))
 
-        test_file = os.path.join(main_dir, tfile)
+        if tfile.endswith('csv'):
+            continue
+
         if args.narrow and not is_narrow(tfile):
             skipped += 1
             continue
 
+        test_file = os.path.join(main_dir, tfile)
         try:
             with open(test_file, 'r') as fh:
                 js = json.load(fh)
