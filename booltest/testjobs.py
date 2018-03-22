@@ -213,7 +213,7 @@ class Testjobs(Booltest):
         Returns function -> [r1, r2, r3, ...] to test on given number of rounds.
         :return:
         """
-        if self.args.ref_only:
+        if self.args.ref_only or self.args.all_zscores:
             return {'AES': [10]}
 
         battery = dict(egenerator.ROUNDS)
@@ -336,7 +336,7 @@ class Testjobs(Booltest):
 
                 # 1. (rpsc, rpsc-xor, sac, sac-xor, hw, counter) input, random key. 2 different random keys
                 target_iterations = 1 if is_sha3 else 2
-                if self.args.ref_only:
+                if self.args.ref_only or self.args.all_zscores:
                     target_iterations = 1
 
                 for i in range(target_iterations):
@@ -387,8 +387,11 @@ class Testjobs(Booltest):
                             % (total_test_idx, data_size, block_size, degree, comb_deg, test_spec.fnc,
                                test_spec.c_round, test_spec.strategy, trt)
 
-                res_file = '%s-%04dMB-%sbl-%sdeg-%sk%s.json' \
-                           % (test_spec.strategy, data_size, block_size, degree, comb_deg, ('-%s' % trt) if trt > 0 else '')
+                suffix = 'json' if not self.args.all_zscores else 'csv'
+                test_type = '' if not self.args.all_zscores else '-zscores'
+                res_file = '%s-%04dMB-%sbl-%sdeg-%sk%s%s.%s' \
+                           % (test_spec.strategy, data_size, block_size, degree, comb_deg,
+                              ('-%s' % trt) if trt > 0 else '', test_type, suffix)
                 res_file = res_file.replace(' ', '')
 
                 gen_file = 'gen-%s-%04dMB-%s.json' % (test_spec.strategy, data_size, trt)
@@ -432,6 +435,7 @@ class Testjobs(Booltest):
             json_config['res_file'] = res_file_path
             json_config['gen_file'] = gen_file_path
             json_config['skip_finished'] = self.args.skip_finished
+            json_config['all_zscores'] = self.args.all_zscores
 
             if fidx % 1000 == 0:
                 logger.debug('Processing file %s, jobs: %s' % (fidx, len(job_files)))
@@ -642,6 +646,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--narrow', dest='narrow', action='store_const', const=True, default=False,
                             help='Computes only narrow set of functions')
+
+        parser.add_argument('--all-zscores', dest='all_zscores', action='store_const', const=True, default=False,
+                            help='All zscore list')
 
         #
         # Testing matrix definition
