@@ -196,7 +196,7 @@ def main():
     parser.add_argument('--delim', dest='delim', default=';',
                         help='CSV delimiter')
 
-    parser.add_argument('--narrow', dest='narrow', default=False, action='store_const',
+    parser.add_argument('--narrow', dest='narrow', default=False, action='store_const', const=True,
                         help='Process only smaller set of functions')
 
     parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
