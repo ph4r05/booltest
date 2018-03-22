@@ -198,8 +198,9 @@ ALL_FUNCTIONS = common.merge_dicts([SHA3, ESTREAM, HASH, BLOCK])
 
 
 NARROW_SELECTION = {
-    'SINGLE-DES', 'TRIPLE-DES', 'AES', 'SHA256', 'MD5', 'BLOWFISH', 'Grostl', 'Grain',
-    'Keccak', 'MD6', 'Skein', 'SIMON', 'SPECK', 'TEA'
+    'BLOWFISH',
+    'SINGLE-DES', 'TRIPLE-DES', 'AES', 'SHA256', 'Grostl', 'Grain',
+    'Keccak', 'MD5', 'MD6', 'Skein', 'SIMON', 'SPECK', 'TEA'
 }
 
 
