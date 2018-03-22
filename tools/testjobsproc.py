@@ -281,7 +281,7 @@ def main():
         ref_avg[mthd] = sum([abs(x.zscore) for x in samples]) / float(len(samples))
 
     # Stats files.
-    fname_narrow = '_nw' if args.narrow else ''
+    fname_narrow = 'nw_' if args.narrow else ''
     fname_time = int(time.time())
     fname_ref_json = os.path.join(args.out_dir, 'ref_%s%s.json' % (fname_narrow, fname_time))
     fname_ref_csv = os.path.join(args.out_dir, 'ref_%s%s.csv' % (fname_narrow, fname_time))
