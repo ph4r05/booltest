@@ -230,16 +230,18 @@ def main():
     ref_bins = collections.defaultdict(lambda: [])
 
     test_records = []
+    skipped = 0
 
     logger.info('Totally %d tests were performed, parsing...' % total_files)
     invalid_results = []
     invalid_results_num = 0
     for idx, tfile in enumerate(test_files):
         if idx % 1000 == 0:
-            logger.debug('Progress: %d, cur: %s' % (idx, tfile))
+            logger.debug('Progress: %d, cur: %s skipped: %s' % (idx, tfile, skipped))
 
         test_file = os.path.join(main_dir, tfile)
         if args.narrow and not is_narrow(tfile):
+            skipped += 1
             continue
 
         try:
