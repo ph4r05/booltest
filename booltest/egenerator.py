@@ -230,7 +230,7 @@ def filter_functions(input_set, filter_set):
     for x in input_set:
         xl = x.lower()
         if xl in filter_low:
-            ns[xl] = input_set[x]
+            ns[x] = input_set[x]
     return ns
 
 
