@@ -285,7 +285,8 @@ def is_function_egen(fnc):
     return fnc in ROUNDS\
            or fnc in SHA3 \
            or fnc in ESTREAM\
-           or fnc in BLOCK
+           or fnc in BLOCK\
+           or fnc in HASH
 
 
 class FunctionGenConfig(object):
