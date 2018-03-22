@@ -154,7 +154,7 @@ ROUNDS = {
     'ARIRANG': [3, 4],
     'AURORA': [2, 3],
     'BLAKE': [1, 2],
-    'BLOWFISH': [3, 4, 5, 6],
+    'BLOWFISH': [3, 4, 5, 6, 7],
     'Cheetah': [4, 5],
     'CRUNCH': [7, 8],
     'CubeHash': [0, 1],
