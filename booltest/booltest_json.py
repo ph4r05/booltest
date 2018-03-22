@@ -175,6 +175,27 @@ class BooltestJson(Booltest):
         if os.path.exists(tmpdir):
             shutil.rmtree(tmpdir, ignore_errors=True)
 
+    def all_zscore_process(self, res_file, hwanalysis):
+        """
+        All-zscore processing, dump to csv
+        :param res_file:
+        :param hwanalysis:
+        :return:
+        """
+        with open(res_file, 'w+') as fh:
+            mean_zscores = [str(x) for x in hwanalysis.all_zscore_means]
+            fh.write('means;%s\n' % (';'.join(mean_zscores)))
+
+            for deg in range(1, len(hwanalysis.all_zscore_list)):
+                fh.write('zscores-%s;' % deg)
+                for idx2 in range(len(hwanalysis.all_zscore_list[deg])):
+                    zscore = hwanalysis.all_zscore_list[deg][idx2]
+                    if zscore == 0:
+                        continue
+                    fh.write('%s;' % str(zscore[0]))
+                fh.write('\n')
+        logger.info('All zscore computed')
+
     def work(self):
         """
         Main entry point - data processing
@@ -189,6 +210,7 @@ class BooltestJson(Booltest):
         data_file = test_run['spec']['data_file']
         skip_finished = common.defvalkey(config, 'skip_finished', False)
         res_file = common.defvalkey(config, 'res_file')
+        all_zscores = common.defvalkey(config, 'all_zscores')
 
         if skip_finished and res_file and self.check_res_file(res_file):
             logger.info('Already computed in %s' % res_file)
@@ -196,6 +218,8 @@ class BooltestJson(Booltest):
 
         hwanalysis = HWAnalysis()
         hwanalysis.from_json(hw_cfg)
+        if all_zscores:
+            hwanalysis.all_zscore_comp = True
 
         rounds = None
         size_mb = test_run['spec']['data_size'] / 1024 / 1024
@@ -261,6 +285,11 @@ class BooltestJson(Booltest):
         logger.info('Finished processing %s ' % iobj)
         logger.info('Data read %s ' % iobj.data_read)
         logger.info('Read data hash %s ' % data_hash)
+
+        # All zscore list for statistical processing / theory check
+        if all_zscores:
+            self.all_zscore_process(res_file, hwanalysis)
+            return
 
         # RESULT process...
         total_results = len(hwanalysis.last_res) if hwanalysis.last_res else 0
