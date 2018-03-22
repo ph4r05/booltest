@@ -217,6 +217,9 @@ class Testjobs(Booltest):
             return {'AES': [10]}
 
         battery = dict(egenerator.ROUNDS)
+        if self.args.narrow:
+            battery = egenerator.filter_functions(battery, egenerator.NARROW_SELECTION)
+
         skip = {}
 
         # Another tested functions, not (yet) included in egen.
@@ -636,6 +639,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--ref-only', dest='ref_only', action='store_const', const=True, default=False,
                             help='Computes reference statistics')
+
+        parser.add_argument('--narrow', dest='narrow', action='store_const', const=True, default=False,
+                            help='Computes only narrow set of functions')
 
         #
         # Testing matrix definition
