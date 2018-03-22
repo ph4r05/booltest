@@ -256,12 +256,15 @@ class BooltestJson(Booltest):
 
                 hwanalysis.proces_chunk(bits, None)
                 cur_round += 1
-            pass
+
+        data_hash = iobj.sha1.hexdigest()
+        logger.info('Finished processing %s ' % iobj)
+        logger.info('Data read %s ' % iobj.data_read)
+        logger.info('Read data hash %s ' % data_hash)
 
         # RESULT process...
         total_results = len(hwanalysis.last_res) if hwanalysis.last_res else 0
         best_dists = hwanalysis.last_res[0:min(128, total_results)] if hwanalysis.last_res else None
-        data_hash = iobj.sha1.hexdigest()
 
         jsres = collections.OrderedDict()
         if best_dists:
@@ -281,13 +284,9 @@ class BooltestJson(Booltest):
         jsres['best_dists'] = best_dists
         jsres['config'] = config
 
-        res_file_path = config['res_file']
-        with open(res_file_path, 'w+') as fh:
+        with open(res_file, 'w+') as fh:
             fh.write(common.json_dumps(jsres, indent=2))
 
-        logger.info('Finished processing %s ' % iobj)
-        logger.info('Data read %s ' % iobj.data_read)
-        logger.info('Read data hash %s ' % data_hash)
         return jsres
 
     def main(self):
