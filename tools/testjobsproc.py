@@ -158,7 +158,7 @@ def is_narrow(fname):
     """
     lw = fname.lower()
     for fnc in egenerator.NARROW_SELECTION_LOW:
-        flk = '-a%s' % fnc
+        flk = '-a%s-' % fnc
         if flk in lw:
             return True
     return False
