@@ -232,7 +232,7 @@ class Testjobs(Booltest):
         if not self.args.include_all:
             return battery
 
-        all_fnc = common.merge_dicts([egenerator.SHA3, egenerator.ESTREAM, egenerator.BLOCK])
+        all_fnc = egenerator.all_functions()
         for ckey in all_fnc.keys():
             fnc = all_fnc[ckey]  # type: egenerator.FunctionParams
             max_rounds = fnc.rounds if fnc else None
@@ -262,7 +262,7 @@ class Testjobs(Booltest):
                     % (test_sizes_mb, test_block_sizes, test_degree, test_comb_k))
 
         # Test all functions
-        all_functions = common.merge_dicts([egenerator.SHA3, egenerator.ESTREAM, egenerator.BLOCK])
+        all_functions = egenerator.all_functions()
         battery = self.get_test_battery()
         functions = sorted(list(battery.keys()))
         logger.info('Battery of functions to test: %s' % battery)
@@ -307,7 +307,7 @@ class Testjobs(Booltest):
                     test_array.append(tce_c)
                     continue
 
-                is_sha3 = tce.stream_type == egenerator.FUNCTION_SHA3
+                is_sha3 = tce.stream_type in [egenerator.FUNCTION_SHA3, egenerator.FUNCTION_HASH]
                 is_stream = tce.stream_type == egenerator.FUNCTION_ESTREAM
                 is_block = tce.stream_type == egenerator.FUNCTION_BLOCK
 
