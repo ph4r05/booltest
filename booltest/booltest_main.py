@@ -383,7 +383,7 @@ class HWAnalysis(object):
         :param zscores:
         :return: (zscore mean, number of zscores above threshold)
         """
-        logger.info('Find best with allsort start deg: %d' % deg)
+        logger.info('All zscores: %d ref: %s' % (deg, ref_hws is not None))
         zscore_denom = common.zscore_denominator(exp_count[deg], num_evals)
         if ref_hws is not None:
             zscores_ref[deg] = [common.zscore_den(x, exp_count[deg], num_evals, zscore_denom)
