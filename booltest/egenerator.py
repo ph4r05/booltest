@@ -193,7 +193,8 @@ ROUNDS = {
 
 
 # lower(function_name) -> function_name
-FUNCTION_CASEMAP = {x.lower(): x for x in list(list(ESTREAM.keys()) + list(SHA3.keys()) + list(BLOCK.keys()))}
+FUNCTION_CASEMAP = {x.lower(): x for x in
+                    list(list(ESTREAM.keys()) + list(SHA3.keys()) + list(BLOCK.keys()) + list(HASH.keys()))}
 
 
 def all_functions():
