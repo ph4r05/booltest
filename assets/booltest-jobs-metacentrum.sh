@@ -26,7 +26,7 @@ sleep 3
 
 export HDIR=/storage/brno3-cerit/home/ph4r05/
 export RESDIR=$HDIR/bool-res
-export JOBDIR=$HDIR/bool-jobRef0
+export JOBDIR=$HDIR/bool-jobL
 mkdir -p $JOBDIR
 
 cd booltest
@@ -34,4 +34,4 @@ exec stdbuf -eL python booltest/testjobs.py --generator-path $HDIR/eacirc-stream
  --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
  --top 128 --matrix-size 1 10  --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 \
  --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
- --topterm-heap-k 256 --ref-only --skip-finished
+ --topterm-heap-k 256 --skip-finished
