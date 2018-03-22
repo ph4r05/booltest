@@ -18,7 +18,7 @@ import logging
 import math
 import coloredlogs
 
-from booltest import common
+from booltest import common, egenerator
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
@@ -150,6 +150,20 @@ def is_over_threshold(ref_avg, tr):
     return False
 
 
+def is_narrow(fname):
+    """
+    Returns true if function is in the narrow set
+    :param fname:
+    :return:
+    """
+    lw = fname.lower()
+    for fnc in egenerator.NARROW_SELECTION_LOW:
+        flk = '-a%s' % fnc
+        if flk in lw:
+            return True
+    return False
+
+
 def main():
     """
     testbed.py results processor
@@ -181,6 +195,9 @@ def main():
 
     parser.add_argument('--delim', dest='delim', default=';',
                         help='CSV delimiter')
+
+    parser.add_argument('--narrow', dest='narrow', default=';',
+                        help='Process only smaller set of functions')
 
     parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
                         help='folder with test matrix resutls - result dir of testbed.py')
@@ -222,6 +239,9 @@ def main():
             logger.debug('Progress: %d, cur: %s' % (idx, tfile))
 
         test_file = os.path.join(main_dir, tfile)
+        if args.narrow and not is_narrow(tfile):
+            continue
+
         try:
             with open(test_file, 'r') as fh:
                 js = json.load(fh)
@@ -259,12 +279,13 @@ def main():
         ref_avg[mthd] = sum([abs(x.zscore) for x in samples]) / float(len(samples))
 
     # Stats files.
+    fname_narrow = '_nw' if args.narrow else ''
     fname_time = int(time.time())
-    fname_ref_json = os.path.join(args.out_dir, 'ref_%s.json' % fname_time)
-    fname_ref_csv = os.path.join(args.out_dir, 'ref_%s.csv' % fname_time)
-    fname_results_json = os.path.join(args.out_dir, 'results_%s.json' % fname_time)
-    fname_results_csv = os.path.join(args.out_dir, 'results_%s.csv' % fname_time)
-    fname_results_rf_csv = os.path.join(args.out_dir, 'results_rf_%s.csv' % fname_time)
+    fname_ref_json = os.path.join(args.out_dir, 'ref_%s%s.json' % (fname_narrow, fname_time))
+    fname_ref_csv = os.path.join(args.out_dir, 'ref_%s%s.csv' % (fname_narrow, fname_time))
+    fname_results_json = os.path.join(args.out_dir, 'results_%s%s.json' % (fname_narrow, fname_time))
+    fname_results_csv = os.path.join(args.out_dir, 'results_%s%s.csv' % (fname_narrow, fname_time))
+    fname_results_rf_csv = os.path.join(args.out_dir, 'results_rf_%s%s.csv' % (fname_narrow, fname_time))
 
     ref_keys = sorted(list(ref_bins.keys()))
     with open(fname_ref_csv, 'w+') as fh_csv, open(fname_ref_json, 'w+') as fh_json:
