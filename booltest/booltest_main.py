@@ -89,6 +89,10 @@ class HWAnalysis(object):
         self.input_poly_vars = set()
         self.input_poly_last_res = None
 
+        self.all_zscore_comp = False  # all z-scores for degs, reference test
+        self.all_zscore_list = None
+        self.all_zscore_means = None
+
         # Buffers - allocated during computation for fast copy evaluation
         self.comb_res = None
         self.comb_subres = None
@@ -372,6 +376,33 @@ class HWAnalysis(object):
         logger.info('Stats computed [%d], mean zscore: %s' % (deg, mean_zscore))
         return mean_zscore, fails
 
+    def all_zscore_base_poly(self, deg, zscores, zscores_ref, num_evals, hws=None, ref_hws=None, exp_count=None):
+        """
+        Computes all zscores for all base polynomials
+        :param deg:
+        :param zscores:
+        :return: (zscore mean, number of zscores above threshold)
+        """
+        logger.info('Find best with allsort start deg: %d' % deg)
+        zscore_denom = common.zscore_denominator(exp_count[deg], num_evals)
+        if ref_hws is not None:
+            zscores_ref[deg] = [common.zscore_den(x, exp_count[deg], num_evals, zscore_denom)
+                                for x in ref_hws[deg]]
+
+            zscores[deg] = [((common.zscore_den(x, exp_count[deg], num_evals, zscore_denom)), idx, x)
+                            for idx, x in enumerate(hws[deg])]  # - zscores_ref[deg][idx]
+
+            zscores_ref[deg].sort(key=lambda x: abs(x), reverse=True)
+
+        else:
+            zscores[deg] = [(common.zscore_den(x, exp_count[deg], num_evals, zscore_denom), idx, x)
+                            for idx, x in enumerate(hws[deg])]
+
+        mean_zscore = sum([abs(x[0]) for x in zscores[deg]]) / float(len(zscores[deg]))
+        fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
+        logger.info('Stats computed [%d], mean zscore: %s' % (deg, mean_zscore))
+        return mean_zscore, fails
+
     def analyse(self, num_evals, hws=None, hws_input=None, ref_hws=None):
         """
         Analyse hamming weights
@@ -394,10 +425,19 @@ class HWAnalysis(object):
         logger.info('Probabilities: %s, expected count: %s' % (probab, exp_count))
 
         top_terms = []
+        mean_zscores = []
         zscores = [[0] * len(x) for x in hws]
         zscores_ref = [[0] * len(x) for x in hws]
         start_deg = self.deg if self.do_only_top_deg else 1
         for deg in range(start_deg, self.deg+1):
+            # Reference computation - all zscore list
+            # Used only for special theory check, not during normal computation
+            if self.all_zscore_comp:
+                mean_zscore, fails = self.all_zscore_base_poly(deg, zscores, zscores_ref, num_evals,
+                                                               hws, ref_hws, exp_count)
+                mean_zscores.append(mean_zscore)
+                continue
+
             # Compute (zscore, idx)
             # Memory optimizations:
             #  1. for ranking avoid z-score computation - too expensive.
@@ -429,6 +469,11 @@ class HWAnalysis(object):
 
             self.tprint('Mean zscore[deg=%d]: %s' % (deg, mean_zscore))
             self.tprint('Num of fails[deg=%d]: %s = %02f.5%%' % (deg, fails, 100.0*fails_fraction))
+
+        if self.all_zscore_comp:
+            self.all_zscore_list = zscores
+            self.all_zscore_means = mean_zscores
+            return
 
         if self.top_k is None:
             return
