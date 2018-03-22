@@ -347,13 +347,21 @@ class Testjobs(Booltest):
                         egenerator.get_random_stream(i-1)
 
                     fun_configs += [
-                        egenerator.rpcs_inp(fgc, fun_key),
-                        egenerator.rpcs_inp_xor(fgc, fun_key),
-                        egenerator.sac_inp(fgc, fun_key),
-                        egenerator.sac_xor_inp(fgc, fun_key),
                         egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(4), src_key=fun_key),
                         egenerator.get_function_config(fgc, src_input=egenerator.get_counter_stream(), src_key=fun_key),
                     ]
+
+                    if not self.args.counters_only:
+                        fun_configs += [
+                            egenerator.rpcs_inp(fgc, fun_key),
+                            egenerator.sac_inp(fgc, fun_key),
+                        ]
+
+                    if not self.args.no_xor_strategy and not self.args.counters_only:
+                        fun_configs += [
+                            egenerator.rpcs_inp_xor(fgc, fun_key),
+                            egenerator.sac_xor_inp(fgc, fun_key),
+                        ]
 
                 for fun_cfg in fun_configs:
                     seed = self.random_seed()
@@ -649,6 +657,12 @@ class Testjobs(Booltest):
 
         parser.add_argument('--all-zscores', dest='all_zscores', action='store_const', const=True, default=False,
                             help='All zscore list')
+
+        parser.add_argument('--counters-only', dest='counters_only', action='store_const', const=True, default=False,
+                            help='Counter only jobs')
+
+        parser.add_argument('--no-xor-strategy', dest='no_xor_strategy', action='store_const', const=True, default=False,
+                            help='Disable XOR strategy')
 
         #
         # Testing matrix definition
