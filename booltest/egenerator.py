@@ -4,6 +4,8 @@
 import collections
 import math
 
+from . import common
+
 # Regex for parsing arg names from source codes
 # if \(name == "(.+?)".+
 
@@ -29,12 +31,14 @@ class FunctionParams(object):
 FUNCTION_ESTREAM = 1
 FUNCTION_SHA3 = 2
 FUNCTION_BLOCK = 3
+FUNCTION_HASH = 4
 
 
 STREAM_TYPES = {
     FUNCTION_ESTREAM: 'estream',
     FUNCTION_SHA3: 'sha3',
     FUNCTION_BLOCK: 'block',
+    FUNCTION_HASH: 'hash',
 }
 
 
@@ -123,7 +127,13 @@ SHA3 = {
     'Twister': FunctionParams(rounds=9),
     'WaMM': FunctionParams(rounds=2),
     'Waterfall': FunctionParams(rounds=16),
-    'Tangle2': FunctionParams(rounds=80)
+    'Tangle2': FunctionParams(rounds=80),
+}
+
+
+HASH = {
+    'MD5': FunctionParams(rounds=64, block_size=16),
+    'SHA256': FunctionParams(rounds=64, block_size=32),
 }
 
 
@@ -186,6 +196,14 @@ ROUNDS = {
 FUNCTION_CASEMAP = {x.lower(): x for x in list(list(ESTREAM.keys()) + list(SHA3.keys()) + list(BLOCK.keys()))}
 
 
+def all_functions():
+    """
+    Merges all functions together
+    :return:
+    """
+    return common.merge_dicts([SHA3, ESTREAM, HASH, BLOCK])
+
+
 def normalize_function_name(function_name):
     """
     Fixes case of the function name
@@ -221,6 +239,8 @@ def function_to_stream_type(function_name):
         return FUNCTION_SHA3
     elif function_name in BLOCK:
         return FUNCTION_BLOCK
+    elif function_name in HASH:
+        return FUNCTION_HASH
     else:
         raise ValueError('Function family could not be determined for %s' % function_name)
 
@@ -236,6 +256,13 @@ def get_tv_size(stream_type, function_name=None):
     if stream_type == FUNCTION_SHA3:
         if function_name:
             fcfg = SHA3[normalize_function_name(function_name)]
+            if fcfg and fcfg.block_size:
+                return fcfg.block_size
+        return 32
+
+    if stream_type == FUNCTION_HASH:
+        if function_name:
+            fcfg = HASH[normalize_function_name(function_name)]
             if fcfg and fcfg.block_size:
                 return fcfg.block_size
         return 32
@@ -370,7 +397,7 @@ def get_function_config(func_cfg,
     stream_obj['round'] = func_cfg.rounds
     stream_obj['block-size'] = func_cfg.tvsize
 
-    def_input = get_random_stream() if func_cfg.stream_type == FUNCTION_SHA3 else get_zero_stream()
+    def_input = get_random_stream() if func_cfg.stream_type in [FUNCTION_SHA3, FUNCTION_HASH] else get_zero_stream()
 
     src_iv = src_iv if src_iv else get_zero_stream()
     src_input = src_input if src_input else def_input
@@ -412,7 +439,7 @@ def get_function_config(func_cfg,
         if func_cfg.params and func_cfg.params.iv_size:
             stream_obj['iv-size'] = func_cfg.params.iv_size
 
-    elif func_cfg.stream_type == FUNCTION_SHA3:
+    elif func_cfg.stream_type in [FUNCTION_SHA3, FUNCTION_HASH]:
         stream_obj['source'] = src_input
         stream_obj['hash-size'] = func_cfg.tvsize
 
@@ -579,7 +606,7 @@ def get_config(function_name, rounds=None, seed='1fe40505e131963c', stream_type=
         stream_obj['iv'] = {'type': 'zeros'}
         stream_obj['iv-type'] = 'zeros'
 
-    elif stream_type == FUNCTION_SHA3:
+    elif stream_type == FUNCTION_SHA3 or stream_type == FUNCTION_HASH:
         stream_obj['source'] = {'type': plaintext_type}
         stream_obj['hash-bitsize'] = 8 * tvsize
 
