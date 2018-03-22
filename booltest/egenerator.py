@@ -194,9 +194,20 @@ ROUNDS = {
 }
 
 
+ALL_FUNCTIONS = common.merge_dicts([SHA3, ESTREAM, HASH, BLOCK])
+
+
+NARROW_SELECTION = {
+    'SINGLE-DES', 'TRIPLE-DES', 'AES', 'SHA256', 'MD5', 'BLOWFISH', 'Grostl', 'Grain',
+    'Keccak', 'MD6', 'Skein', 'SIMON', 'SPECK', 'TEA'
+}
+
+
+NARROW_SELECTION_LOW = {x.lower() for x in NARROW_SELECTION}
+
+
 # lower(function_name) -> function_name
-FUNCTION_CASEMAP = {x.lower(): x for x in
-                    list(list(ESTREAM.keys()) + list(SHA3.keys()) + list(BLOCK.keys()) + list(HASH.keys()))}
+FUNCTION_CASEMAP = {x.lower(): x for x in list(ALL_FUNCTIONS.keys())}
 
 
 def all_functions():
@@ -204,7 +215,23 @@ def all_functions():
     Merges all functions together
     :return:
     """
-    return common.merge_dicts([SHA3, ESTREAM, HASH, BLOCK])
+    return ALL_FUNCTIONS
+
+
+def filter_functions(input_set, filter_set):
+    """
+    Keeps only elements in the filter set
+    :param input_set:
+    :param filter_set:
+    :return:
+    """
+    ns = {}
+    filter_low = {x.lower() for x in filter_set}
+    for x in input_set:
+        xl = x.lower()
+        if xl in filter_low:
+            ns[xl] = input_set[x]
+    return ns
 
 
 def normalize_function_name(function_name):
