@@ -438,7 +438,7 @@ def get_function_config(func_cfg,
     elif init_frequency == 'e':
         init_frequency = 'every-vector'
 
-    fname = func_cfg if func_cfg and func_cfg.params and func_cfg.params.fname else func_cfg.function_name
+    fname = func_cfg.params.fname if func_cfg and func_cfg.params and func_cfg.params.fname else func_cfg.function_name
     stream_obj = collections.OrderedDict()
     stream_obj['type'] = STREAM_TYPES[func_cfg.stream_type]
     stream_obj['type_code'] = func_cfg.stream_type
