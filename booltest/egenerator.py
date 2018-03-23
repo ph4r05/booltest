@@ -11,22 +11,23 @@ from . import common
 
 
 class FunctionParams(object):
-    __slots__ = ['block_size', 'key_size', 'iv_size', 'rounds', 'min_rounds', 'out_size']
+    __slots__ = ['block_size', 'key_size', 'iv_size', 'rounds', 'min_rounds', 'out_size', 'fname']
 
-    def __init__(self, block_size=None, key_size=None, rounds=None, min_rounds=None, iv_size=None, out_size=None):
+    def __init__(self, block_size=None, key_size=None, rounds=None, min_rounds=None, iv_size=None, out_size=None, fname=None):
         self.block_size = block_size
         self.key_size = key_size
         self.iv_size = iv_size
         self.rounds = rounds
         self.min_rounds = min_rounds
         self.out_size = out_size
+        self.fname = fname
 
     def to_json(self):
         return dict(self.__dict__)
 
     def __repr__(self):
-        return 'FunctionParams(block_size=%r, key_size=%r, iv_size=%r, rounds=%r, min_rounds=%r)' \
-               % (self.block_size, self.key_size, self.iv_size, self.rounds, self.min_rounds)
+        return 'FunctionParams(%r, block_size=%r, key_size=%r, iv_size=%r, rounds=%r, min_rounds=%r, out_size=%r)' \
+               % (self.fname, self.block_size, self.key_size, self.iv_size, self.rounds, self.min_rounds, self.out_size)
 
 
 FUNCTION_ESTREAM = 1
@@ -133,7 +134,7 @@ SHA3 = {
 
 
 HASH = {
-    'Gost': FunctionParams(rounds=16, block_size=32, out_size=32),
+    'Gost': FunctionParams(rounds=32, block_size=32, out_size=32),
     'MD5': FunctionParams(rounds=64, block_size=16, out_size=16),
     'SHA1': FunctionParams(rounds=80, block_size=64, out_size=20),
     'SHA256': FunctionParams(rounds=64, block_size=64, out_size=32),
@@ -151,7 +152,8 @@ BLOCK = {
     'SIMON': FunctionParams(16, 16, rounds=32),
     'SPECK': FunctionParams(16, 16, rounds=22),
     'SINGLE-DES': FunctionParams(8, 8, rounds=16),
-    'TRIPLE-DES': FunctionParams(8, 24, rounds=16)
+    'TRIPLE-DES': FunctionParams(8, 24, rounds=16),
+    'GOST_BLOCK': FunctionParams(rounds=32, block_size=8, key_size=32, fname='GOST'),
 }
 
 # Interesting rounds to test
@@ -205,7 +207,7 @@ ALL_FUNCTIONS = common.merge_dicts([SHA3, ESTREAM, HASH, BLOCK])
 
 NARROW_SELECTION = {
     'AES', 'BLOWFISH', 'SINGLE-DES', 'TRIPLE-DES', 'Grostl', 'Grain',
-    'Keccak',  'MD6', 'Skein', 'SIMON', 'SPECK', 'TEA',
+    'Keccak',  'MD6', 'Skein', 'SIMON', 'SPECK', 'TEA', 'GOST_BLOCK',
     'Gost', 'MD5', 'SHA1', 'SHA256', 'RIPEMD160', 'Tiger', 'Whirlpool',
 }
 
@@ -427,11 +429,12 @@ def get_function_config(func_cfg,
     elif init_frequency == 'e':
         init_frequency = 'every-vector'
 
+    fname = func_cfg if func_cfg and func_cfg.params and func_cfg.params.fname else func_cfg.function_name
     stream_obj = collections.OrderedDict()
     stream_obj['type'] = STREAM_TYPES[func_cfg.stream_type]
     stream_obj['type_code'] = func_cfg.stream_type
     stream_obj['generator'] = generator
-    stream_obj['algorithm'] = func_cfg.function_name
+    stream_obj['algorithm'] = fname
     stream_obj['round'] = func_cfg.rounds
     stream_obj['block-size'] = func_cfg.tvsize
 
@@ -457,7 +460,7 @@ def get_function_config(func_cfg,
         stream_obj['scode_init'] = init_frequency
 
     stream_obj['scode'] = 'tp%s-a%s-r%s-tv%s-in%s-k%s-ri%s' \
-                          % (stream_obj['type'], func_cfg.function_name, func_cfg.rounds, func_cfg.tvsize,
+                          % (stream_obj['type'], fname, func_cfg.rounds, func_cfg.tvsize,
                              stream_obj['scode_inp'], stream_obj['scode_key'], stream_obj['scode_init'])
 
     if func_cfg.stream_type == FUNCTION_BLOCK:
