@@ -468,7 +468,7 @@ class Testjobs(Booltest):
 
             if not os.path.exists(gen_file_path):
                 with open(gen_file_path, 'w+') as fh:
-                    json.dump(trun.spec.gen_cfg, fh, indent=2)
+                    fh.write(common.json_dumps(trun.spec.gen_cfg, indent=2))
 
             with open(cfg_file_path, 'w+') as fh:
                 fh.write(common.json_dumps(json_config, indent=2))
