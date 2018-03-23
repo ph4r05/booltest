@@ -11,14 +11,15 @@ from . import common
 
 
 class FunctionParams(object):
-    __slots__ = ['block_size', 'key_size', 'iv_size', 'rounds', 'min_rounds']
+    __slots__ = ['block_size', 'key_size', 'iv_size', 'rounds', 'min_rounds', 'out_size']
 
-    def __init__(self, block_size=None, key_size=None, rounds=None, min_rounds=None, iv_size=None):
+    def __init__(self, block_size=None, key_size=None, rounds=None, min_rounds=None, iv_size=None, out_size=None):
         self.block_size = block_size
         self.key_size = key_size
         self.iv_size = iv_size
         self.rounds = rounds
         self.min_rounds = min_rounds
+        self.out_size = out_size
 
     def to_json(self):
         return dict(self.__dict__)
@@ -132,8 +133,13 @@ SHA3 = {
 
 
 HASH = {
-    'MD5': FunctionParams(rounds=64, block_size=16),
-    'SHA256': FunctionParams(rounds=64, block_size=32),
+    'Gost': FunctionParams(rounds=16, block_size=32, out_size=32),
+    'MD5': FunctionParams(rounds=64, block_size=16, out_size=16),
+    'SHA1': FunctionParams(rounds=80, block_size=64, out_size=20),
+    'SHA256': FunctionParams(rounds=64, block_size=64, out_size=32),
+    'RIPEMD160': FunctionParams(rounds=80, block_size=64, out_size=20),
+    'Tiger': FunctionParams(rounds=64, block_size=24, out_size=24),
+    'Whirlpool': FunctionParams(rounds=10, block_size=64, out_size=64),
 }
 
 
@@ -198,9 +204,9 @@ ALL_FUNCTIONS = common.merge_dicts([SHA3, ESTREAM, HASH, BLOCK])
 
 
 NARROW_SELECTION = {
-    'BLOWFISH',
-    'SINGLE-DES', 'TRIPLE-DES', 'AES', 'SHA256', 'Grostl', 'Grain',
-    'Keccak', 'MD5', 'MD6', 'Skein', 'SIMON', 'SPECK', 'TEA'
+    'AES', 'BLOWFISH', 'SINGLE-DES', 'TRIPLE-DES', 'Grostl', 'Grain',
+    'Keccak',  'MD6', 'Skein', 'SIMON', 'SPECK', 'TEA',
+    'Gost', 'MD5', 'SHA1', 'SHA256', 'RIPEMD160', 'Tiger', 'Whirlpool',
 }
 
 
