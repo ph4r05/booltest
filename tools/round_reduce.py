@@ -89,6 +89,7 @@ spc = 0
 for idx, x in enumerate(inp.split('\n')):
     if x.strip() == '':
         spc += 1
+        print(x)
         continue
 
     print('%s if (nr == %2d) goto finish_r;' % (x, idx + 1 - spc))
