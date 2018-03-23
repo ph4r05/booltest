@@ -58,6 +58,8 @@ class StreamCodes:
 ESTREAM = {
     'ABC': None,
     'Achterbahn': None,
+    'Chacha': FunctionParams(rounds=20, block_size=64, iv_size=8, key_size=16),
+    'Chacha_k32': FunctionParams(rounds=20, block_size=64, iv_size=8, key_size=32, fname='Chacha'),
     'CryptMT': None,
     'DECIM': FunctionParams(rounds=8, iv_size=4),
     'DICING': None,
@@ -163,6 +165,7 @@ ROUNDS = {
     'AURORA': [2, 3],
     'BLAKE': [1, 2],
     'BLOWFISH': [3, 4, 5, 6, 7],
+    'Chacha': [3, 4, 5],
     'Cheetah': [4, 5],
     'CRUNCH': [7, 8],
     'CubeHash': [0, 1],
@@ -174,6 +177,8 @@ ROUNDS = {
     'ECHO': [1, 2],
     'Fubuki': [2, 3],
     'Grain': [2, 3],
+    'Gost': [3, 4, 5],
+    'GOST_BLOCK': [3, 4, 5],
     'Grostl': [2, 3],
     'Hamsi': [0, 1],
     'Hermes': [1, 2],
@@ -182,11 +187,13 @@ ROUNDS = {
     'LEX': [3, 4],
     'Lesamnta': [3, 4],
     'Luffa': [7, 8],
-    'MD5': [15, 16, 17, 32, 46],
+    'MD5': [10, 15, 16, 17],
     'MD6': [8, 9, 10],
     'Rabbit': [1, 2, 3],
+    'RIPEMD160': [4, 5, 6],
     'SIMD': [0, 1],
     'Salsa20': [3, 4, 5, 6],
+    'SHA1': [4, 5, 6, 7],
     'SHA256': [4, 5, 6, 7],
     'SIMON': [16, 17, 18, 19, 20],
     'SINGLE-DES': [4, 5, 6, 7, 8],
@@ -197,8 +204,10 @@ ROUNDS = {
     'TSC-4': [12, 13, 14],
     'Tangle': [22, 23, 24],
     'Tangle2': [22, 23, 24],
+    'Tiger': [1, 2, 3],
     'Twister': [6, 7],
     'Trivium': [3, 4],
+    'Whirlpool': [1, 2, 3],
 }
 
 
@@ -207,7 +216,7 @@ ALL_FUNCTIONS = common.merge_dicts([SHA3, ESTREAM, HASH, BLOCK])
 
 NARROW_SELECTION = {
     'AES', 'BLOWFISH', 'BLAKE', 'SINGLE-DES', 'TRIPLE-DES', 'Grostl', 'Grain', 'JH',
-    'Keccak',  'MD6', 'Skein', 'SIMON', 'SPECK', 'TEA', 'GOST_BLOCK',
+    'Keccak',  'MD6', 'Skein', 'SIMON', 'SPECK', 'TEA', 'GOST_BLOCK', 'Salsa20', 'Chacha',
     'Gost', 'MD5', 'SHA1', 'SHA256', 'RIPEMD160', 'Tiger', 'Whirlpool',
 }
 
