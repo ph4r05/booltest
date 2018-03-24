@@ -154,11 +154,15 @@ BLOCK = {
     'BLOWFISH': FunctionParams(8, 56, rounds=16),
     'TEA': FunctionParams(8, 16, rounds=64),
     'AES': FunctionParams(16, 16, rounds=10),
+    'MARS': FunctionParams(16, 16, rounds=16),
     'RC4': FunctionParams(16, 16),
+    'RC6': FunctionParams(16, 16, rounds=20),
+    'SERPENT': FunctionParams(16, 16, rounds=32),
     'SIMON': FunctionParams(16, 16, rounds=32),
     'SPECK': FunctionParams(16, 16, rounds=22),
     'SINGLE-DES': FunctionParams(8, 8, rounds=16),
     'TRIPLE-DES': FunctionParams(8, 24, rounds=16),
+    'TWOFISH': FunctionParams(16, 16, rounds=16),
     'GOST_BLOCK': FunctionParams(rounds=32, block_size=8, key_size=32, fname='GOST'),
 }
 
@@ -191,14 +195,17 @@ ROUNDS = {
     'LEX': [3, 4],
     'Lesamnta': [3, 4],
     'Luffa': [7, 8],
+    'MARS': [1, 2, 3, 4],
     'MD5': [5, 10, 15, 16, 17],
     'MD6': [8, 9, 10],
     'Rabbit': [1, 2, 3],
     'RIPEMD160': [4, 5, 6],
+    'RC6': [1, 2, 3, 4],
     'SIMD': [0, 1],
     'Salsa20': [3, 4, 5, 6],
     'SHA1': [4, 5, 6, 7],
     'SHA256': [4, 5, 6, 7],
+    'SERPENT': [1, 2, 3, 4, 8],
     'SIMON': [16, 17, 18, 19, 20],
     'SINGLE-DES': [3, 4, 5, 6, 7, 8],
     'Skein': [4, 5, 6],
@@ -211,6 +218,7 @@ ROUNDS = {
     'Tiger': [1, 2, 3],
     'Twister': [6, 7],
     'Trivium': [3, 4],
+    'TWOFISH': [1, 2, 3, 4],
     'Whirlpool': [1, 2, 3],
 }
 
@@ -219,8 +227,9 @@ ALL_FUNCTIONS = common.merge_dicts([SHA3, ESTREAM, HASH, BLOCK])
 
 
 NARROW_SELECTION = {
-    'AES', 'BLOWFISH', 'BLAKE', 'SINGLE-DES', 'TRIPLE-DES', 'Grostl', 'Grain', 'JH',
-    'Keccak',  'MD6', 'Skein', 'SIMON', 'SPECK', 'TEA', 'GOST_BLOCK', 'Salsa20', 'Chacha',
+    'AES', 'BLOWFISH', 'SINGLE-DES', 'TRIPLE-DES', 'SIMON', 'SPECK', 'TEA',
+    'BLAKE', 'Grostl', 'Grain', 'JH', 'Keccak', 'MD6', 'Skein',
+    'GOST_BLOCK', 'Salsa20', 'Chacha', 'MARS', 'RC6', 'SERPENT', 'TWOFISH',
     'Gost', 'MD5', 'SHA1', 'SHA256', 'RIPEMD160', 'Tiger', 'Whirlpool', 'Trivium',
 }
 
