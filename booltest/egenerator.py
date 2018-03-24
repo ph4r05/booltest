@@ -62,8 +62,8 @@ class StreamCodes:
 ESTREAM = {
     'ABC': None,
     'Achterbahn': None,
-    'Chacha': FunctionParams(rounds=20, block_size=64, iv_size=8, key_size=16),
-    'Chacha_k32': FunctionParams(rounds=20, block_size=64, iv_size=8, key_size=32, fname='Chacha'),
+    'Chacha': FunctionParams(rounds=20, block_size=32, iv_size=8, key_size=16, in_size=64),
+    'Chacha_k32': FunctionParams(rounds=20, block_size=32, iv_size=8, key_size=32, in_size=64, fname='Chacha'),
     'CryptMT': None,
     'DECIM': FunctionParams(rounds=8, iv_size=4),
     'DICING': None,
@@ -142,11 +142,11 @@ SHA3 = {
 HASH = {
     'Gost': FunctionParams(rounds=32, block_size=32, out_size=32),
     'MD5': FunctionParams(rounds=64, block_size=16, out_size=16),
-    'SHA1': FunctionParams(rounds=80, block_size=64, out_size=20),
-    'SHA256': FunctionParams(rounds=64, block_size=64, out_size=32),
-    'RIPEMD160': FunctionParams(rounds=80, block_size=64, out_size=20),
+    'SHA1': FunctionParams(rounds=80, block_size=32, in_size=64, out_size=20),
+    'SHA256': FunctionParams(rounds=64, block_size=32, in_size=64, out_size=32),
+    'RIPEMD160': FunctionParams(rounds=80, block_size=32, in_size=64, out_size=20),
     'Tiger': FunctionParams(rounds=64, block_size=24, out_size=24),
-    'Whirlpool': FunctionParams(rounds=10, block_size=64, out_size=64),
+    'Whirlpool': FunctionParams(rounds=10, block_size=32, in_size=64, out_size=64),
 }
 
 
