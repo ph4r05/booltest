@@ -431,6 +431,7 @@ class Testjobs(Booltest):
         # Generate job files
         job_files = []
         job_batch = []
+        generator_files = set()
         batch_max_bl = 0
         batch_max_deg = 0
         batch_max_comb_deg = 0
@@ -479,6 +480,7 @@ class Testjobs(Booltest):
             args = ' --config-file %s' % cfg_file_path
             job_data = job_tpl % (gen_file_path, args, trun.res_file, trun.res_file)
             job_batch.append(job_data)
+            generator_files.add(gen_file_path)
 
             batch_max_bl = max(batch_max_bl, trun.block_size)
             batch_max_deg = max(batch_max_deg, trun.degree)
@@ -531,6 +533,14 @@ class Testjobs(Booltest):
             fh.write('#!/bin/bash\n\n')
             for fn in job_files:
                 fh.write('qsub -l select=1:ncpus=1:mem=%s -l walltime=%s %s \n' % (fn[1], fn[2], fn[0]))
+
+        # Generator tester file
+        with open(os.path.join(self.job_dir, 'test-generators-%s.sh' % int(time.time())), 'w') as fh:
+            fh.write(job_tpl_hdr)
+            for fn in sorted(list(generator_files)):
+                fh.write('./generator-metacentrum.sh -c=%s 2>/dev/null >/dev/null\n' % fn)
+                fh.write('if [ $? -ne 0 ]; then echo "Generator failed: %s"; fi\n' % fn)
+            fh.write('\n')
 
     def testcase(self, blocklen, degree, comb_deg):
         """
