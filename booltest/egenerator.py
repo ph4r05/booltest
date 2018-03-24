@@ -11,14 +11,16 @@ from . import common
 
 
 class FunctionParams(object):
-    __slots__ = ['block_size', 'key_size', 'iv_size', 'rounds', 'min_rounds', 'out_size', 'fname']
+    __slots__ = ['block_size', 'key_size', 'iv_size', 'rounds', 'min_rounds', 'in_size', 'out_size', 'fname']
 
-    def __init__(self, block_size=None, key_size=None, rounds=None, min_rounds=None, iv_size=None, out_size=None, fname=None):
+    def __init__(self, block_size=None, key_size=None, rounds=None, min_rounds=None, iv_size=None, in_size=None,
+                 out_size=None, fname=None):
         self.block_size = block_size
         self.key_size = key_size
         self.iv_size = iv_size
         self.rounds = rounds
         self.min_rounds = min_rounds
+        self.in_size = in_size
         self.out_size = out_size
         self.fname = fname
 
@@ -26,8 +28,10 @@ class FunctionParams(object):
         return dict(self.__dict__)
 
     def __repr__(self):
-        return 'FunctionParams(%r, block_size=%r, key_size=%r, iv_size=%r, rounds=%r, min_rounds=%r, out_size=%r)' \
-               % (self.fname, self.block_size, self.key_size, self.iv_size, self.rounds, self.min_rounds, self.out_size)
+        return 'FunctionParams(%r, block_size=%r, key_size=%r, iv_size=%r, rounds=%r, ' \
+               'min_rounds=%r, in_size=%r, out_size=%r)' \
+               % (self.fname, self.block_size, self.key_size, self.iv_size, self.rounds, self.min_rounds, self.in_size,
+                  self.out_size)
 
 
 FUNCTION_ESTREAM = 1
