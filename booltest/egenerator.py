@@ -142,10 +142,10 @@ SHA3 = {
 HASH = {
     'Gost': FunctionParams(rounds=32, block_size=32, out_size=32),
     'MD5': FunctionParams(rounds=64, block_size=16, out_size=16),
-    'SHA1': FunctionParams(rounds=80, block_size=32, in_size=64, out_size=20),
+    'SHA1': FunctionParams(rounds=80, block_size=20, in_size=64, out_size=20),
     'SHA256': FunctionParams(rounds=64, block_size=32, in_size=64, out_size=32),
-    'RIPEMD160': FunctionParams(rounds=80, block_size=32, in_size=64, out_size=20),
-    'Tiger': FunctionParams(rounds=64, block_size=24, out_size=24),
+    'RIPEMD160': FunctionParams(rounds=80, block_size=20, in_size=64, out_size=20),
+    'Tiger': FunctionParams(rounds=24, block_size=24, in_size=64, out_size=24),
     'Whirlpool': FunctionParams(rounds=10, block_size=32, in_size=64, out_size=64),
 }
 
@@ -190,7 +190,7 @@ ROUNDS = {
     'Grostl': [2, 3],
     'Hamsi': [0, 1],
     'Hermes': [1, 2],
-    'JH': [6, 7, 8],
+    'JH': [5, 6, 7, 8],
     'Keccak': [3, 4],
     'LEX': [3, 4],
     'Lesamnta': [3, 4],
