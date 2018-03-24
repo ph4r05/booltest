@@ -105,6 +105,7 @@ class Testjobs(Booltest):
         self.all_deg = None
 
         self.randomize_tests = True
+        self.time_experiment = int(time.time())
         self.test_random = random.Random()
         self.test_random.seed(0)
 
@@ -376,6 +377,7 @@ class Testjobs(Booltest):
                 for fun_cfg in fun_configs:
                     seed = self.random_seed()
                     tce_c.gen_cfg = egenerator.get_config_header(fgc, stdout=True, stream=fun_cfg, seed=seed)
+                    tce_c.gen_cfg['exp_time'] = self.time_experiment
                     tce_c.strategy = egenerator.get_scode(fun_cfg)
                     test_array.append(copy.deepcopy(tce_c))
 
@@ -441,6 +443,7 @@ class Testjobs(Booltest):
             hwanalysis = self.testcase(trun.block_size, trun.degree, trun.comb_deg)
             json_config = collections.OrderedDict()
             size_mb = trun.spec.data_size / 1024 / 1024
+            json_config['exp_time'] = self.time_experiment
             json_config['config'] = trun
             json_config['hwanalysis'] = hwanalysis
             json_config['fidx'] = fidx
