@@ -411,13 +411,14 @@ def get_rpcs_stream(**kwargs):
     return {'type': 'rnd-plt-ctx-stream', 'scode': 'rpcs'}
 
 
-def get_hw_stream(hw=3, increase_hw=False, randomize_start=False, **kwargs):
+def get_hw_stream(hw=3, increase_hw=False, randomize_start=False, randomize_overflow=False, **kwargs):
     ob = collections.OrderedDict()
     ob['type'] = 'hw-counter'
     ob['hw'] = hw
-    ob['scode'] = 'hw%d' % hw
+    ob['scode'] = 'hw%s%d' % ('' if not randomize_overflow else 'r', hw)
     ob['increase_hw'] = increase_hw
     ob['randomize_start'] = randomize_start
+    ob['randomize_overflow'] = randomize_overflow
     return ob
 
 
