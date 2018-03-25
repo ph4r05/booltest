@@ -19,6 +19,8 @@ for line in tv_lines:
     line = line.strip()
     if line == '':
         continue
+    if line.startswith('Camellia'):
+        continue
 
     fch = line[0].lower()
     if fch == 'k':
