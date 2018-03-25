@@ -443,6 +443,7 @@ class Testjobs(Booltest):
 
         memory_threshold = 50
         num_skipped = 0
+        num_skipped_existing = 0
         for fidx, trun in enumerate(test_runs):  # type: TestRun
             hwanalysis = self.testcase(trun.block_size, trun.degree, trun.comb_deg)
             json_config = collections.OrderedDict()
@@ -470,6 +471,10 @@ class Testjobs(Booltest):
                 continue
 
             if os.path.exists(cfg_file_path):
+                if self.args.skip_existing:
+                    num_skipped_existing += 1
+                    continue
+
                 logger.warning('Conflicting config: %s' % common.json_dumps(json_config, indent=2))
                 raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
 
@@ -529,7 +534,8 @@ class Testjobs(Booltest):
                     job_time = '4:00:00'
                 job_files.append((job_file_path, ram, job_time))
 
-        logger.info('Generated job files: %s, skipped: %s' % (len(job_files), num_skipped))
+        logger.info('Generated job files: %s, skipped: %s, skipped existing: %s'
+                    % (len(job_files), num_skipped, num_skipped_existing))
 
         # Enqueue
         with open(os.path.join(self.job_dir, 'enqueue-meta-%s.sh' % int(time.time())), 'w') as fh:
@@ -667,6 +673,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--egen-benchmark', dest='egen_benchmark', action='store_const', const=True, default=False,
                             help='Benchmarks speed of the egenerator')
+
+        parser.add_argument('--skip-existing', dest='skip_existing', action='store_const', const=True, default=False,
+                            help='Skip existing jobs')
 
         parser.add_argument('--skip-finished', dest='skip_finished', action='store_const', const=True, default=False,
                             help='Skip tests with generated valid results')
