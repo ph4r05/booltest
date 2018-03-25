@@ -580,6 +580,8 @@ class Testjobs(Booltest):
         # chmod
         self.try_chmod_x(enqueue_path)
         self.try_chmod_x(testgen_path)
+        logger.info('Gentest: %s' % testgen_path)
+        logger.info('Enqueue: %s' % enqueue_path)
 
     def testcase(self, blocklen, degree, comb_deg):
         """
