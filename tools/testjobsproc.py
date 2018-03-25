@@ -58,7 +58,7 @@ class TestRecord(object):
         return cmp(a, b)
 
     def method_unhw(self):
-        return re.sub(r'hw[0-9]+', 'hw', self.method)
+        return re.sub(r'hw[0-9]+[rsi]{0,3}', 'hw', self.method)
 
     def __repr__(self):
         return '%s-r%d-d%s_bl%d-deg%d-k%d' % (self.function, self.round, self.data, self.block, self.deg, self.comb_deg)
