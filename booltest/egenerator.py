@@ -496,7 +496,7 @@ def get_function_config(func_cfg,
 
     elif func_cfg.stream_type == FUNCTION_ESTREAM:
         stream_obj['init-frequency'] = str(init_frequency)
-        stream_obj['key-size'] = 16
+        stream_obj['key-size'] = ESTREAM[func_cfg.function_name].key_size if ESTREAM[func_cfg.function_name].key_size else 16
         stream_obj['plaintext-type'] = src_input
         stream_obj['key-type'] = src_key
         stream_obj['iv-type'] = src_iv
