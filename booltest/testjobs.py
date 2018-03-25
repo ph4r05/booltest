@@ -386,6 +386,7 @@ class Testjobs(Booltest):
         logger.info('Test array size: %s' % len(test_array))
 
         # For each test specification
+        generator_files = set()
         for test_spec in test_array:  # type: TestCaseEntry
 
             # Generate test cases, run the analysis.
@@ -417,6 +418,9 @@ class Testjobs(Booltest):
                 gen_file = 'gen-%s-%04dMB-%s.json' % (test_spec.strategy, data_size, trt)
                 gen_file = gen_file.replace(' ', '')
 
+                if data_size == test_sizes_mb[0]:
+                    generator_files.add(os.path.join(self.job_dir, gen_file))
+
                 trun = TestRun(test_spec, block_size, degree, comb_deg, total_test_idx, test_desc, res_file, gen_file)
                 trun.iteration = trt
                 test_runs.append(trun)
@@ -431,7 +435,6 @@ class Testjobs(Booltest):
         # Generate job files
         job_files = []
         job_batch = []
-        generator_files = set()
         batch_max_bl = 0
         batch_max_deg = 0
         batch_max_comb_deg = 0
@@ -538,8 +541,10 @@ class Testjobs(Booltest):
         with open(os.path.join(self.job_dir, 'test-generators-%s.sh' % int(time.time())), 'w') as fh:
             fh.write(job_tpl_hdr)
             for fn in sorted(list(generator_files)):
+                if not os.path.exists(fn):
+                    continue
                 fh.write('./generator-metacentrum.sh -c=%s 2>/dev/null >/dev/null\n' % fn)
-                fh.write('if [ $? -ne 0 ]; then echo "Generator failed: %s"; fi\n' % fn)
+                fh.write('if [ $? -ne 0 ]; then echo "Generator failed: %s"; else echo -n "."; fi\n' % fn)
             fh.write('\n')
 
     def testcase(self, blocklen, degree, comb_deg):
