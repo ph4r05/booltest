@@ -434,6 +434,33 @@ def column_stream(source, size=16):
     return ob
 
 
+def pick_iv_size(params, default=None):
+    """
+    Picks IV size for the function
+    :param params:
+    :type params: FunctionParams
+    :param default:
+    :return:
+    """
+    if params is None or params.iv_size is None:
+        return default
+    if isinstance(params.iv_size, (list, tuple)):
+        return params.iv_size[0]
+    return params.iv_size
+
+
+def pick_iv_size_fcfg(fun_cfg, default=None):
+    """
+
+    :param fun_cfg:
+    :param default:
+    :return:
+    """
+    if fun_cfg is None:
+        return default
+    return pick_iv_size(fun_cfg.params, default)
+
+
 def get_function_config(func_cfg,
                         init_frequency='only-once', mode='ECB', generator='pcg32',
                         src_input=None, src_key=None, src_iv=None, **kwargs):
@@ -503,8 +530,10 @@ def get_function_config(func_cfg,
         stream_obj['plaintext-type'] = src_input
         stream_obj['key-type'] = src_key
         stream_obj['iv-type'] = src_iv
-        if func_cfg.params and func_cfg.params.iv_size:
-            stream_obj['iv-size'] = func_cfg.params.iv_size
+
+        iv_size = pick_iv_size_fcfg(func_cfg, None)
+        if iv_size:
+            stream_obj['iv-size'] = iv_size
 
     elif func_cfg.stream_type in [FUNCTION_SHA3, FUNCTION_HASH]:
         stream_obj['source'] = src_input
