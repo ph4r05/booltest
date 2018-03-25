@@ -146,7 +146,7 @@ HASH = {
     'SHA256': FunctionParams(rounds=64, block_size=32, in_size=64, out_size=32),
     'RIPEMD160': FunctionParams(rounds=80, block_size=20, in_size=64, out_size=20),
     'Tiger': FunctionParams(rounds=24, block_size=24, in_size=64, out_size=24),
-    'Whirlpool': FunctionParams(rounds=10, block_size=32, in_size=64, out_size=64),
+    'Whirlpool': FunctionParams(rounds=10, block_size=64, in_size=64, out_size=64),
 }
 
 
@@ -219,7 +219,7 @@ ROUNDS = {
     'Twister': [6, 7],
     'Trivium': [3, 4],
     'TWOFISH': [1, 2, 3, 4],
-    'Whirlpool': [1, 2, 3],
+    'Whirlpool': [1, 2, 3, 6, 7],
 }
 
 
