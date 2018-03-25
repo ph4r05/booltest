@@ -209,6 +209,17 @@ class Testjobs(Booltest):
         r = self.test_random.getrandbits(8*8)
         return '%016x' % r
 
+    def try_chmod_x(self, path):
+        """
+        Attempts to add +x flag
+        :param path:
+        :return:
+        """
+        try:
+            os.chmod(path, 0o750)
+        except Exception as e:
+            logger.warning('Exception chmoddin %s: %s' % (path, e))
+
     def get_test_battery(self):
         """
         Returns function -> [r1, r2, r3, ...] to test on given number of rounds.
@@ -538,13 +549,15 @@ class Testjobs(Booltest):
                     % (len(job_files), num_skipped, num_skipped_existing))
 
         # Enqueue
-        with open(os.path.join(self.job_dir, 'enqueue-meta-%s.sh' % int(time.time())), 'w') as fh:
+        enqueue_path = os.path.join(self.job_dir, 'enqueue-meta-%s.sh' % int(time.time()))
+        with open(enqueue_path, 'w') as fh:
             fh.write('#!/bin/bash\n\n')
             for fn in job_files:
                 fh.write('qsub -l select=1:ncpus=1:mem=%s -l walltime=%s %s \n' % (fn[1], fn[2], fn[0]))
 
         # Generator tester file
-        with open(os.path.join(self.job_dir, 'test-generators-%s.sh' % int(time.time())), 'w') as fh:
+        testgen_path = os.path.join(self.job_dir, 'test-generators-%s.sh' % int(time.time()))
+        with open(testgen_path, 'w') as fh:
             fh.write(job_tpl_hdr)
             for fn in sorted(list(generator_files)):
                 if not os.path.exists(fn):
@@ -552,6 +565,10 @@ class Testjobs(Booltest):
                 fh.write('./generator-metacentrum.sh -c=%s 2>/dev/null >/dev/null\n' % fn)
                 fh.write('if [ $? -ne 0 ]; then echo "Generator failed: %s"; else echo -n "."; fi\n' % fn)
             fh.write('\n')
+
+        # chmod
+        self.try_chmod_x(enqueue_path)
+        self.try_chmod_x(testgen_path)
 
     def testcase(self, blocklen, degree, comb_deg):
         """
