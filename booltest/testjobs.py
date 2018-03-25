@@ -312,6 +312,7 @@ class Testjobs(Booltest):
             params = all_functions[fnc] if fnc in all_functions else None  # type: egenerator.FunctionParams
             tce = TestCaseEntry(fnc, params)
             tce.rounds = rounds
+            is_3des = fnc.lower() == 'triple-des'  # special key handling, cannot use ctr/hw
 
             if egenerator.is_function_egen(fnc):
                 fnc = egenerator.normalize_function_name(fnc)
@@ -353,10 +354,19 @@ class Testjobs(Booltest):
                 # zero input, reinit keys, different types (col style)
                 if not self.args.no_reinit and (is_stream or is_block):
                     fun_configs += [
-                         egenerator.zero_inp_reinit_key(fgc, egenerator.get_hw_stream(hw_key_val)),
-                         egenerator.zero_inp_reinit_key(fgc, egenerator.get_counter_stream()),
                          egenerator.zero_inp_reinit_key(fgc, egenerator.get_random_stream()),
                     ]
+
+                    if not is_3des:
+                        fun_configs += [
+                            egenerator.zero_inp_reinit_key(fgc, egenerator.get_hw_stream(hw_key_val)),
+                            egenerator.zero_inp_reinit_key(fgc, egenerator.get_counter_stream())
+                        ]
+
+                    if self.args.ref_only:
+                        fun_configs += [
+                            egenerator.zero_inp_reinit_key(fgc, egenerator.get_hw_stream(6)),
+                        ]
 
                     if not self.args.no_sac:
                         fun_configs += [
