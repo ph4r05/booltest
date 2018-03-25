@@ -415,7 +415,10 @@ def get_hw_stream(hw=3, increase_hw=False, randomize_start=False, randomize_over
     ob = collections.OrderedDict()
     ob['type'] = 'hw-counter'
     ob['hw'] = hw
-    ob['scode'] = 'hw%s%d' % ('' if not randomize_overflow else 'r', hw)
+    ob['scode'] = 'hw%d%s%s%s' % (hw,
+                                  '' if not randomize_overflow else 'r',
+                                  '' if not randomize_start else 's',
+                                  '' if not increase_hw else 'i')
     ob['increase_hw'] = increase_hw
     ob['randomize_start'] = randomize_start
     ob['randomize_overflow'] = randomize_overflow
