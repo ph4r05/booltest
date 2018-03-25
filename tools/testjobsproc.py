@@ -57,11 +57,17 @@ class TestRecord(object):
         b = (other.function, other.round, other.data, other.block, other.deg, other.comb_deg)
         return cmp(a, b)
 
+    def method_unhw(self):
+        return re.sub(r'hw[0-9]+', 'hw', self.method)
+
     def __repr__(self):
         return '%s-r%d-d%s_bl%d-deg%d-k%d' % (self.function, self.round, self.data, self.block, self.deg, self.comb_deg)
 
     def ref_category(self):
         return self.method, self.block, self.deg, self.comb_deg, self.data
+
+    def ref_category_unhw(self):
+        return self.method_unhw(), self.block, self.deg, self.comb_deg, self.data
 
 
 def get_method(strategy):
@@ -76,6 +82,11 @@ def get_method(strategy):
     method = re.sub(r'tp[\w]+-[\w-]+?-r\d+-tv\d+', '', method)
     method = re.sub(r'^[-]+', '', method)
     method = re.sub(r'[-]+$', '', method)
+    # strip krnd iteration
+    method = method.replace('krnd0', 'krnd')
+    method = method.replace('krnd1', 'krnd')
+    method = method.replace('krnd-1', 'krnd')
+    method = re.sub(r'-krnd[0-9]+-$', 'krnd', method)
     method = method.replace('--', '-')
     return method
 
@@ -147,6 +158,9 @@ def is_over_threshold(ref_avg, tr):
     ctg = tr.ref_category()
     if ctg in ref_avg:
         return abs(tr.zscore) >= ref_avg[ctg] + 1.0
+    ctg_unhw = tr.ref_category_unhw()
+    if ctg_unhw in ref_avg:
+        return abs(tr.zscore) >= ref_avg[ctg_unhw] + 1.0
     return False
 
 
@@ -259,7 +273,12 @@ def main():
 
             if ref_name in tfile:
                 tr.ref = True
-                ref_bins[tr.ref_category()].append(tr)
+                ref_cat = tr.ref_category()
+                ref_cat_unhw = tr.ref_category_unhw()
+
+                ref_bins[ref_cat].append(tr)
+                if ref_cat != ref_cat_unhw:
+                    ref_bins[ref_cat_unhw].append(tr)
 
             test_records.append(tr)
             total_functions.add(tr.function)
