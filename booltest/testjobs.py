@@ -147,6 +147,9 @@ class Testjobs(Booltest):
         self.all_deg = self.args.alldeg
         self.test_random.seed(self.args.tests_random_select_eed)
 
+        if self.args.only_rounds:
+            self.args.only_rounds = [int(x) for x in self.args.only_rounds]
+
     def check_res_file(self, path):
         """
         Returns True if the given result path seems valid
@@ -229,9 +232,14 @@ class Testjobs(Booltest):
             return {'AES': [10]}
 
         battery = dict(egenerator.ROUNDS)
-        if self.args.narrow:
+        if self.args.only_crypto:
+            battery = egenerator.filter_functions(battery, set(self.args.only_crypto))
+        elif self.args.narrow:
             battery = egenerator.filter_functions(battery, egenerator.NARROW_SELECTION)
 
+        if self.args.only_rounds:
+            for fnc in battery:
+                battery[fnc] = self.args.only_rounds
         skip = {}
 
         # Another tested functions, not (yet) included in egen.
@@ -705,6 +713,12 @@ class Testjobs(Booltest):
 
         parser.add_argument('--ref-only', dest='ref_only', action='store_const', const=True, default=False,
                             help='Computes reference statistics')
+
+        parser.add_argument('--only-rounds', dest='only_rounds', nargs=argparse.ZERO_OR_MORE, default=None,
+                            help='Only given number of rounds')
+
+        parser.add_argument('--only-crypto', dest='only_crypto', nargs=argparse.ZERO_OR_MORE, default=None,
+                            help='Only give crypto')
 
         parser.add_argument('--narrow', dest='narrow', action='store_const', const=True, default=False,
                             help='Computes only narrow set of functions')
