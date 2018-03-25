@@ -396,6 +396,21 @@ class Testjobs(Booltest):
                             egenerator.sac_xor_inp(fgc, fun_key),
                         ]
 
+                    if self.args.inhwr1:
+                        fun_configs += [
+                            egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(1, randomize_overflow=True), src_key=fun_key),
+                        ]
+
+                    if self.args.inhwr2:
+                        fun_configs += [
+                            egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(2, randomize_overflow=True), src_key=fun_key),
+                        ]
+
+                    if self.args.inhwr4:
+                        fun_configs += [
+                            egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(4, randomize_overflow=True), src_key=fun_key),
+                        ]
+
                 for fun_cfg in fun_configs:
                     seed = self.random_seed()
                     tce_c.gen_cfg = egenerator.get_config_header(fgc, stdout=True, stream=fun_cfg, seed=seed)
@@ -742,6 +757,13 @@ class Testjobs(Booltest):
 
         parser.add_argument('--no-sac', dest='no_sac', action='store_const', const=True, default=False,
                             help='No sac')
+
+        parser.add_argument('--inhwr1', dest='inhwr1', action='store_const', const=True, default=False,
+                            help='Input HW1 with randomize overflow')
+        parser.add_argument('--inhwr2', dest='inhwr2', action='store_const', const=True, default=False,
+                            help='Input HW2 with randomize overflow')
+        parser.add_argument('--inhwr4', dest='inhwr4', action='store_const', const=True, default=False,
+                            help='Input HW4 with randomize overflow')
 
         #
         # Testing matrix definition
