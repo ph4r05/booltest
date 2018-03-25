@@ -84,7 +84,7 @@ ESTREAM = {
     'Salsa20': FunctionParams(rounds=20),
     'SFINKS': None,
     'SOSEMANUK': FunctionParams(rounds=25),
-    'Trivium': FunctionParams(rounds=9),
+    'Trivium': FunctionParams(rounds=9, iv_size=[4, 8, 10], key_size=10),
     'TSC-4': FunctionParams(rounds=32),
     'Yamb': None,
     'WG': None,
