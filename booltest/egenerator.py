@@ -771,7 +771,7 @@ def determine_strategy(strategy, fgc, iv=None):
     :param fgc:
     :return:
     """
-    match = re.match(r'^(.+?)?-?in(.+?)-k(.+?)-ri(.+?)$', strategy)
+    match = re.match(r'^(.+?-)?in(.+?)-k(.+?)-ri(.+?)$', strategy)
     if not match:
         raise ValueError('Unrecognized strategy string')
 
@@ -871,7 +871,7 @@ def main():
     parser.add_argument('--seed', dest='seed', default=None,
                         help='seed')
 
-    parser.add_argument('--strategy', dest='strategy', default=None, 
+    parser.add_argument('--strategy', dest='strategy', default=None,
                         help='Strategy')
 
     args = parser.parse_args()
