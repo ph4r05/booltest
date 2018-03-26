@@ -753,7 +753,7 @@ def determine_stream(code):
     if code.startswith('hw'):
         m = re.match(r'^hw([0-9]+)(r)?(s)?(i)?$', code)
         if not m:
-            raise ValueError('Unknown hamming weight configuration')
+            raise ValueError('Unknown hamming weight configuration: %s' % code)
         return get_hw_stream(hw=int(m.group(1)), increase_hw=m.group(4),
                              randomize_start=m.group(3), randomize_overflow=m.group(2))
     if code.startswith('xor-'):
@@ -761,7 +761,7 @@ def determine_stream(code):
         ob['source'] = determine_stream(code[4:])
         return ob
 
-    raise ValueError('Unknown stream code')
+    raise ValueError('Unknown stream code: %s' % code)
 
 
 def determine_strategy(strategy, fgc, iv=None):
@@ -774,7 +774,7 @@ def determine_strategy(strategy, fgc, iv=None):
     """
     match = re.match(r'^(.+?-)?in(.+?)-k(.+?)(-iv.+?)?-ri(.+?)$', strategy)
     if not match:
-        raise ValueError('Unrecognized strategy string')
+        raise ValueError('Unrecognized strategy string: %s' % strategy)
 
     pref_group = match.group(1)
     if pref_group:
