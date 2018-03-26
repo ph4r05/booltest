@@ -3,6 +3,9 @@
 
 import collections
 import math
+import re
+import random
+import argparse
 
 from . import common
 
@@ -354,11 +357,8 @@ def is_function_egen(fnc):
     :param fnc:
     :return:
     """
-    return fnc in ROUNDS\
-           or fnc in SHA3 \
-           or fnc in ESTREAM\
-           or fnc in BLOCK\
-           or fnc in HASH
+    fl = fnc.lower()
+    return fl in FUNCTION_CASEMAP
 
 
 class FunctionGenConfig(object):
@@ -415,7 +415,7 @@ def get_counter_stream(**kwargs):
 
 
 def get_xor_stream(**kwargs):
-    return {'type': 'xor-stream', 'scode': 'xor'}
+    return {'type': StreamCodes.XOR, 'scode': 'xor'}
 
 
 def get_rpcs_stream(**kwargs):
@@ -488,7 +488,7 @@ def get_function_config(func_cfg,
     :param src_iv: or zero by defualt
     :return:
     """
-    if init_frequency == 'o':
+    if init_frequency == 'o' or init_frequency is None:
         init_frequency = 'only-once'
     elif init_frequency == 'e':
         init_frequency = 'every-vector'
@@ -724,5 +724,126 @@ def get_config(function_name, rounds=None, seed='1fe40505e131963c', stream_type=
 
     return js
 
+
+def determine_stream(code):
+    """
+    Attempts to determine stream type from code
+    :param code:
+    :return:
+    """
+    if code is None or code == '0':
+        return get_zero_stream()
+    if code.startswith('rnd'):
+        return get_random_stream(0)
+    if code == 'sac':
+        return get_sac_stream()
+    if code == 'sac-step' or code == 'sacstep':
+        return get_sac_step_stream()
+    if code == 'ctr':
+        return get_counter_stream()
+    if code == 'rpcs':
+        return get_rpcs_stream()
+    if code.startswith('hw'):
+        m = re.match(r'^hw([0-9]+)(r)?(s)?(i)?$', code)
+        if not m:
+            raise ValueError('Unknown hamming weight configuration')
+        return get_hw_stream(hw=int(m.group(1)), increase_hw=m.group(4),
+                             randomize_start=m.group(3), randomize_overflow=m.group(2))
+    if code.startswith('xor-'):
+        ob = get_xor_stream()
+        ob['source'] = determine_stream(code[4:])
+        return ob
+
+    raise ValueError('Unknown stream code')
+
+
+def generate_config(args):
+    """
+
+    :param args:
+    :return:
+    """
+    fnc = args.alg
+    if not is_function_egen(fnc):
+        raise ValueError('Function not known')
+
+    fnc = normalize_function_name(fnc)
+    params = ALL_FUNCTIONS[fnc] if fnc in ALL_FUNCTIONS else None
+
+    fgc = FunctionGenConfig(fnc, rounds=args.round, data=args.size*1024*1024, params=params)
+
+    input = args.input
+    iv = args.iv
+    key = args.key
+    reinit = args.reinit
+
+    strategy = args.strategy
+    if strategy:
+        match = re.match(r'^in(.+?)-k(.+?)-ri(.+?)$', strategy)
+        if match:
+            input = match.group(1)
+            key = match.group(2)
+            reinit = int(match.group(3))
+
+    iv_s = determine_stream(iv)
+    key_s = determine_stream(key)
+    input_s = determine_stream(input)
+
+    fun_cfg = get_function_config(fgc, src_input=input_s, src_key=key_s, iv=iv_s, init_frequency='every-vector' if reinit else None)
+
+    rand = random.Random()
+    seed = '%016x' % rand.getrandbits(8*8) if args.seed is None else args.seed
+
+    config = get_config_header(fgc, stdout=True, stream=fun_cfg, seed=seed)
+    return config
+
+
+def main():
+    """
+    Generating test configurations
+    :return:
+    """
+    parser = argparse.ArgumentParser(description='Generate test configurations')
+
+    parser.add_argument('--type', dest='type', default=None,
+                        help='Algorithm type')
+
+    parser.add_argument('--alg', dest='alg', default=None, required=True,
+                        help='Algorithm')
+
+    parser.add_argument('--round', dest='round', default=1, type=int,
+                        help='Round')
+
+    parser.add_argument('--size', dest='size', default=1, type=int,
+                        help='MB of data to generate')
+
+    parser.add_argument('--in', dest='input', default=None,
+                        help='Input')
+
+    parser.add_argument('--key', dest='key', default=None,
+                        help='key')
+
+    parser.add_argument('--iv', dest='iv', default=None,
+                        help='iv')
+
+    parser.add_argument('--reinit', dest='reinit', default=None,
+                        help='reinit')
+
+    parser.add_argument('--seed', dest='seed', default=None,
+                        help='seed')
+
+    parser.add_argument('--strategy', dest='strategy', default=None, type=int,
+                        help='Strategy')
+
+    args = parser.parse_args()
+
+    config = generate_config(args)
+
+    import json
+    print(common.json_dumps(config, indent=2))
+
+
+if __name__ == '__main__':
+    main()
 
 
