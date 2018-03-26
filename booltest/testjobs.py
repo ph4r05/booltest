@@ -9,6 +9,8 @@ import time
 import math
 import traceback
 import copy
+import subprocess
+import sys
 
 import scipy.misc
 import scipy.stats
@@ -619,6 +621,11 @@ class Testjobs(Booltest):
         self.try_chmod_grx(testgen_path)
         logger.info('Gentest: %s' % testgen_path)
         logger.info('Enqueue: %s' % enqueue_path)
+
+        if self.args.enqueue:
+            logger.info('Enqueueing...')
+            p = subprocess.Popen(enqueue_path, stdout=sys.stdout, stderr=sys.stderr, shell=True)
+            p.wait()
 
     def testcase(self, blocklen, degree, comb_deg):
         """
