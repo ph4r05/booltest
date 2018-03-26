@@ -181,7 +181,7 @@ ROUNDS = {
     'ARIRANG': [3, 4],
     'AURORA': [2, 3],
     'BLAKE': [1, 2],
-    'BLOWFISH': [3, 4, 5, 6, 7, 10, 11, 12],
+    'BLOWFISH': [1, 2, 3, 4, 5, 6],
     'CAMELLIA': [1, 2, 3, 4, 5],
     'CAST': [1, 2, 3, 4, 5],
     'Chacha': [1, 2, 3, 4, 5],
@@ -198,7 +198,7 @@ ROUNDS = {
     'Fubuki': [2, 3],
     'Grain': [2, 3],
     'Gost': [1, 2, 3, 4, 5],
-    'GOST_BLOCK': [4, 5, 6, 7, 8, 9, 10, 11],
+    'GOST_BLOCK': [3, 4, 5, 6, 7, 8, 9, 10, 11],
     'Grostl': [2, 3],
     'Hamsi': [0, 1],
     'Hermes': [1, 2],
@@ -209,16 +209,16 @@ ROUNDS = {
     'Lesamnta': [3, 4],
     'Luffa': [7, 8],
     'MARS': [0, 1, 2, 3, 4],
-    'MD5': [10, 11, 12, 13, 14, 15, 16],
+    'MD5': [6,7,8,9, 10, 11, 12, 13, 14, 15, 16],
     'MD6': [8, 9, 10],
     'Rabbit': [1, 2, 3],
-    'RIPEMD160': [8, 9, 10, 11, 16, 24, 32],
-    'RC6': [1, 2, 3, 4, 5],
+    'RIPEMD160': [6,7, 8, 9, 10, 11, 12, 13, 14, 16, 24, 32],
+    'RC6': [1, 2, 3, 4, 5, 6],
     'SIMD': [0, 1],
     'Salsa20': [3, 4, 5, 6],
     'SEED': [1, 2, 3, 4],
-    'SHA1': [8, 9, 10, 11, 12, 16, 18, 20, 24, 32],
-    'SHA256': [8, 9, 10, 11, 12, 14, 16, 24, 32],
+    'SHA1': [5,6,7, 8, 9, 10, 11, 12, 16, 17, 18, 20, 24, 32],
+    'SHA256': [5,6,7, 8, 9, 10, 11, 12, 13, 14, 16, 24, 32],
     'SERPENT': [1, 2, 3, 4, 8],
     'SIMON': [16, 17, 18, 19, 20],
     'SINGLE-DES': [3, 4, 5, 6, 7, 8],
@@ -871,7 +871,7 @@ def main():
     parser.add_argument('--seed', dest='seed', default=None,
                         help='seed')
 
-    parser.add_argument('--strategy', dest='strategy', default=None, type=int,
+    parser.add_argument('--strategy', dest='strategy', default=None, 
                         help='Strategy')
 
     args = parser.parse_args()
