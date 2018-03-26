@@ -433,8 +433,7 @@ def get_hw_stream(hw=3, increase_hw=False, randomize_start=False, randomize_over
                                   '' if not randomize_overflow else 'r',
                                   '' if not randomize_start else 's',
                                   '' if not increase_hw else 'i')
-    if increase_hw:
-        ob['increase_hw'] = bool(increase_hw)
+    ob['increase_hw'] = bool(increase_hw) if increase_hw else False
     if randomize_start:
         ob['randomize_start'] = bool(randomize_start)
     if randomize_overflow:
