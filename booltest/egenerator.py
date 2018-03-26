@@ -151,13 +151,16 @@ HASH = {
 
 
 BLOCK = {
+    'ARIA': FunctionParams(16, 16, rounds=12),
     'BLOWFISH': FunctionParams(8, 56, rounds=16),
     'TEA': FunctionParams(8, 16, rounds=64),
     'AES': FunctionParams(16, 16, rounds=10),
     'CAMELLIA': FunctionParams(16, 16, rounds=18),
+    'IDEA': FunctionParams(8, 16, rounds=8),
     'MARS': FunctionParams(16, 16, rounds=16),
     'RC4': FunctionParams(16, 16),
     'RC6': FunctionParams(16, 16, rounds=20),
+    'SEED': FunctionParams(16, 16, rounds=16),
     'SERPENT': FunctionParams(16, 16, rounds=32),
     'SIMON': FunctionParams(16, 16, rounds=32),
     'SPECK': FunctionParams(16, 16, rounds=22),
@@ -169,11 +172,12 @@ BLOCK = {
 
 # Interesting rounds to test
 ROUNDS = {
+    'ARIA': [1, 2, 3, 4],
     'AES': [1, 3, 4, 10],
     'ARIRANG': [3, 4],
     'AURORA': [2, 3],
     'BLAKE': [1, 2],
-    'BLOWFISH': [3, 4, 5, 6, 7],
+    'BLOWFISH': [3, 4, 5, 6, 7, 10, 11, 12],
     'CAMELLIA': [1, 2, 3, 4, 5],
     'Chacha': [1, 2, 3, 4, 5],
     'Cheetah': [4, 5],
@@ -192,6 +196,7 @@ ROUNDS = {
     'Grostl': [2, 3],
     'Hamsi': [0, 1],
     'Hermes': [1, 2],
+    'IDEA': [1, 2, 3, 4],
     'JH': [5, 6, 7],
     'Keccak': [3, 4],
     'LEX': [3, 4],
@@ -205,6 +210,7 @@ ROUNDS = {
     'RC6': [1, 2, 3, 4, 5],
     'SIMD': [0, 1],
     'Salsa20': [3, 4, 5, 6],
+    'SEED': [1, 2, 3, 4],
     'SHA1': [8, 9, 10, 11, 12, 16, 18, 20, 24, 32],
     'SHA256': [8, 9, 10, 11, 12, 14, 16, 24, 32],
     'SERPENT': [1, 2, 3, 4, 8],
@@ -219,7 +225,7 @@ ROUNDS = {
     'Tangle2': [22, 23, 24],
     'Tiger': [1, 2, 3],
     'Twister': [6, 7],
-    'Trivium': [3, 4],
+    'Trivium': [1, 2, 3, 4],
     'TWOFISH': [1, 2, 3, 4],
     'Whirlpool': [1, 2, 3, 6, 7],
 }
@@ -233,6 +239,7 @@ NARROW_SELECTION = {
     'BLAKE', 'Grostl', 'Grain', 'JH', 'Keccak', 'MD6', 'Skein',
     'GOST_BLOCK', 'Salsa20', 'Chacha', 'MARS', 'RC6', 'SERPENT', 'TWOFISH',
     'Gost', 'MD5', 'SHA1', 'SHA256', 'RIPEMD160', 'Tiger', 'Whirlpool', 'Trivium',
+    'ARIA', 'CAMELLIA', 'IDEA', 'SEED',
 }
 
 
