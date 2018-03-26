@@ -356,7 +356,7 @@ class Testjobs(Booltest):
                 fgc = egenerator.FunctionGenConfig(fnc, rounds=cur_round, data=tce_c.data_size, params=tce_c.params)
                 fun_configs = []
 
-                # Random key, enc zeros
+                # Random key, enc zeros - stream ciphers
                 if is_stream:
                     fun_configs += [
                         egenerator.get_function_config(fgc,
@@ -398,12 +398,18 @@ class Testjobs(Booltest):
                     fun_key = egenerator.get_zero_stream() if i == 0 and not self.args.ref_only else\
                         egenerator.get_random_stream(i-1)
 
-                    fun_configs += [
-                        egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(hw_val), src_key=fun_key),
-                        egenerator.get_function_config(fgc, src_input=egenerator.get_counter_stream(), src_key=fun_key),
-                    ]
+                    if not self.args.no_counters:
+                        fun_configs += [
+                            egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(hw_val), src_key=fun_key),
+                            egenerator.get_function_config(fgc, src_input=egenerator.get_counter_stream(), src_key=fun_key),
+                        ]
 
-                    if not self.args.counters_only:
+                    if self.args.ref_only:
+                        fun_configs += [
+                            egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(6), src_key=fun_key)
+                        ]
+
+                    if not self.args.counters_only and not self.args.no_rpcs:
                         fun_configs += [
                             egenerator.rpcs_inp(fgc, fun_key),
                         ]
@@ -786,6 +792,12 @@ class Testjobs(Booltest):
 
         parser.add_argument('--no-sac', dest='no_sac', action='store_const', const=True, default=False,
                             help='No sac')
+
+        parser.add_argument('--no-rpcs', dest='no_rpcs', action='store_const', const=True, default=False,
+                            help='No Random plaintext ciphertext')
+
+        parser.add_argument('--no-counters', dest='no_counters', action='store_const', const=True, default=False,
+                            help='No counters')
 
         parser.add_argument('--inhwr1', dest='inhwr1', action='store_const', const=True, default=False,
                             help='Input HW1 with randomize overflow')
