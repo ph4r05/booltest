@@ -194,6 +194,7 @@ ROUNDS = {
     'DynamicSHA2': [11, 12],
     'Dragon': [4, 5],
     'ECHO': [1, 2],
+    'F-FCSR': [1, 2, 3],
     'Fubuki': [2, 3],
     'Grain': [2, 3],
     'Gost': [1, 2, 3, 4, 5],
@@ -222,6 +223,7 @@ ROUNDS = {
     'SIMON': [16, 17, 18, 19, 20],
     'SINGLE-DES': [3, 4, 5, 6, 7, 8],
     'Skein': [4, 5, 6],
+    'SOSEMANUK': [1, 2, 3, 4],
     'SPECK': [8, 9, 10, 11],
     'TEA': [4, 5, 6, 7, 8],
     'TRIPLE-DES': [3, 4, 5, 6, 7, 8],
@@ -243,7 +245,8 @@ NARROW_SELECTION = {
     'AES', 'BLOWFISH', 'SINGLE-DES', 'TRIPLE-DES', 'SIMON', 'SPECK', 'TEA',
     'BLAKE', 'Grostl', 'Grain', 'JH', 'Keccak', 'MD6', 'Skein',
     'GOST_BLOCK', 'Salsa20', 'Chacha', 'MARS', 'RC6', 'SERPENT', 'TWOFISH',
-    'Gost', 'MD5', 'SHA1', 'SHA256', 'RIPEMD160', 'Tiger', 'Whirlpool', 'Trivium',
+    'Gost', 'MD5', 'SHA1', 'SHA256', 'RIPEMD160', 'Tiger', 'Whirlpool',
+    'DECIM', 'SOSEMANUK', 'Trivium',
     'ARIA', 'CAST', 'CAMELLIA', 'IDEA', 'SEED',
 }
 
