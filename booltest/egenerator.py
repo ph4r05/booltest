@@ -155,7 +155,7 @@ HASH = {
 
 BLOCK = {
     'ARIA': FunctionParams(16, 16, rounds=12),
-    'BLOWFISH': FunctionParams(8, 56, rounds=16),
+    'BLOWFISH': FunctionParams(8, 16, rounds=16),
     'TEA': FunctionParams(8, 16, rounds=64),
     'AES': FunctionParams(16, 16, rounds=10),
     'CAST': FunctionParams(8, 16, rounds=16),
