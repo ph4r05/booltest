@@ -573,23 +573,29 @@ def zero_inp_reinit_key(func_cfg, key=None, **kwargs):
                                src_input=get_zero_stream(), src_key=key, src_iv=get_zero_stream())
 
 
-def rpcs_inp(func_cfg, key=None, **kwargs):
+def rpcs_raw(source, **kwargs):
     ob = collections.OrderedDict()
-    fcfg = get_function_config(func_cfg, src_input=get_zero_stream(), src_key=key)
     ob['type'] = StreamCodes.RPCS
-    ob['scode'] = 'rpcs-' + get_scode(fcfg)
-    ob['source'] = fcfg
+    ob['scode'] = 'rpcs-' + get_scode(source)
+    ob['source'] = source
     return ob
+
+
+def xors_raw(source, **kwargs):
+    ob = collections.OrderedDict()
+    ob['type'] = StreamCodes.XOR
+    ob['scode'] = 'xor-' + get_scode(source)
+    ob['source'] = source
+    return ob
+
+
+def rpcs_inp(func_cfg, key=None, **kwargs):
+    fcfg = get_function_config(func_cfg, src_input=get_zero_stream(), src_key=key)
+    return rpcs_raw(fcfg)
 
 
 def rpcs_inp_xor(func_cfg, key=None, **kwargs):
-    ob2 = rpcs_inp(func_cfg, key=key)
-
-    ob = collections.OrderedDict()
-    ob['type'] = StreamCodes.XOR
-    ob['scode'] = 'xor-' + ob2['scode']
-    ob['source'] = ob2
-    return ob
+    return xors_raw(rpcs_inp(func_cfg, key=key))
 
 
 def sac_inp(func_cfg, key=None, **kwargs):
@@ -597,12 +603,7 @@ def sac_inp(func_cfg, key=None, **kwargs):
 
 
 def sac_xor_inp(func_cfg, key=None, **kwargs):
-    ob = collections.OrderedDict()
-    fcfg = sac_inp(func_cfg, key=key, **kwargs)
-    ob['type'] = StreamCodes.XOR
-    ob['scode'] = 'xor-' + get_scode(fcfg)
-    ob['source'] = fcfg
-    return ob
+    return xors_raw(sac_inp(func_cfg, key=key, **kwargs))
 
 
 def get_config_header(func_cfg, seed='1fe40505e131963c', stdout=None, filename=None, stream=None):
