@@ -741,7 +741,8 @@ def determine_stream(code):
     if code is None or code == '0':
         return get_zero_stream()
     if code.startswith('rnd'):
-        return get_random_stream(0)
+        rnd_code = code[3:]
+        return get_random_stream(0 if not rnd_code else int(rnd_code))
     if code == 'sac':
         return get_sac_stream()
     if code == 'sac-step' or code == 'sacstep':
@@ -769,9 +770,10 @@ def determine_strategy(strategy, fgc, iv=None):
     Parses strategy string
     :param strategy:
     :param fgc:
+    :param iv:
     :return:
     """
-    match = re.match(r'^(.+?-)?in(.+?)-k(.+?)-ri(.+?)$', strategy)
+    match = re.match(r'^(.+?-)?in(.+?)-k(.+?)(-iv.+?)?-ri(.+?)$', strategy)
     if not match:
         raise ValueError('Unrecognized strategy string')
 
@@ -786,15 +788,17 @@ def determine_strategy(strategy, fgc, iv=None):
         else:
             raise ValueError('Unrecognized strategy prefix %s' % pref_group)
 
+    iv_in = match.group(4)
     input = match.group(2)
     key = match.group(3)
-    reinit = int(match.group(4))
+    reinit = int(match.group(5))
+    iv = iv if iv_in is None else iv_in[3:]
 
     iv_s = determine_stream(iv)
     key_s = determine_stream(key)
     input_s = determine_stream(input)
 
-    fun_cfg = get_function_config(fgc, src_input=input_s, src_key=key_s, iv=iv_s,
+    fun_cfg = get_function_config(fgc, src_input=input_s, src_key=key_s, src_iv=iv_s,
                                   init_frequency='every-vector' if reinit else None)
 
     return fun_cfg
