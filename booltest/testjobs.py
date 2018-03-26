@@ -540,9 +540,11 @@ class Testjobs(Booltest):
                 if self.args.skip_existing:
                     num_skipped_existing += 1
                     continue
-
-                logger.warning('Conflicting config: %s' % common.json_dumps(json_config, indent=2))
-                raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
+                if self.args.overwrite_existing:
+                    logger.debug('Overwriting %s' % cfg_file_path)
+                else:
+                    logger.warning('Conflicting config: %s' % common.json_dumps(json_config, indent=2))
+                    raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
 
             if not os.path.exists(gen_file_path):
                 with open(gen_file_path, 'w+') as fh:
@@ -757,6 +759,9 @@ class Testjobs(Booltest):
         parser.add_argument('--skip-existing', dest='skip_existing', action='store_const', const=True, default=False,
                             help='Skip existing jobs')
 
+        parser.add_argument('--overwrite-existing', dest='overwrite_existing', action='store_const', const=True, default=False,
+                            help='Overwrites existing jobs')
+
         parser.add_argument('--skip-finished', dest='skip_finished', action='store_const', const=True, default=False,
                             help='Skip tests with generated valid results')
 
@@ -805,6 +810,9 @@ class Testjobs(Booltest):
                             help='Input HW2 with randomize overflow')
         parser.add_argument('--inhwr4', dest='inhwr4', action='store_const', const=True, default=False,
                             help='Input HW4 with randomize overflow')
+
+        parser.add_argument('--enqueue', dest='enqueue', action='store_const', const=True, default=False,
+                            help='Enqueues the generated batch after job finishes')
 
         #
         # Testing matrix definition
