@@ -155,6 +155,7 @@ BLOCK = {
     'BLOWFISH': FunctionParams(8, 56, rounds=16),
     'TEA': FunctionParams(8, 16, rounds=64),
     'AES': FunctionParams(16, 16, rounds=10),
+    'CAST': FunctionParams(8, 16, rounds=16),
     'CAMELLIA': FunctionParams(16, 16, rounds=18),
     'IDEA': FunctionParams(8, 16, rounds=8),
     'MARS': FunctionParams(16, 16, rounds=16),
@@ -179,6 +180,7 @@ ROUNDS = {
     'BLAKE': [1, 2],
     'BLOWFISH': [3, 4, 5, 6, 7, 10, 11, 12],
     'CAMELLIA': [1, 2, 3, 4, 5],
+    'CAST': [1, 2, 3, 4, 5],
     'Chacha': [1, 2, 3, 4, 5],
     'Cheetah': [4, 5],
     'CRUNCH': [7, 8],
@@ -239,7 +241,7 @@ NARROW_SELECTION = {
     'BLAKE', 'Grostl', 'Grain', 'JH', 'Keccak', 'MD6', 'Skein',
     'GOST_BLOCK', 'Salsa20', 'Chacha', 'MARS', 'RC6', 'SERPENT', 'TWOFISH',
     'Gost', 'MD5', 'SHA1', 'SHA256', 'RIPEMD160', 'Tiger', 'Whirlpool', 'Trivium',
-    'ARIA', 'CAMELLIA', 'IDEA', 'SEED',
+    'ARIA', 'CAST', 'CAMELLIA', 'IDEA', 'SEED',
 }
 
 
