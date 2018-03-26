@@ -398,31 +398,31 @@ def get_scode(stream):
 
 
 def get_zero_stream(**kwargs):
-    return {'type': 'false-stream', 'scode': '0'}
+    return {'type': StreamCodes.ZERO, 'scode': '0'}
 
 
 def get_random_stream(di=None, **kwargs):
-    return {'type': 'pcg32-stream', 'scode': 'rnd' if di is None else 'rnd%s' % di}
+    return {'type': StreamCodes.RANDOM, 'scode': 'rnd' if di is None else 'rnd%s' % di}
 
 
 def get_sac_stream(**kwargs):
-    return {'type': 'sac', 'scode': 'sac'}
+    return {'type': StreamCodes.SAC, 'scode': 'sac'}
 
 
 def get_sac_step_stream(**kwargs):
-    return {'type': 'sac-step', 'scode': 'sacstep'}
+    return {'type': StreamCodes.SAC_STEP, 'scode': 'sacstep'}
 
 
 def get_counter_stream(**kwargs):
-    return {'type': 'counter', 'scode': 'ctr'}
+    return {'type': StreamCodes.COUNTER, 'scode': 'ctr'}
 
 
-def get_xor_stream(**kwargs):
-    return {'type': StreamCodes.XOR, 'scode': 'xor'}
+def get_xor_stream(source=None, **kwargs):
+    return {'type': StreamCodes.XOR, 'scode': 'xor', 'source': source}
 
 
 def get_rpcs_stream(**kwargs):
-    return {'type': 'rnd-plt-ctx-stream', 'scode': 'rpcs'}
+    return {'type': StreamCodes.RPCS, 'scode': 'rpcs'}
 
 
 def get_hw_stream(hw=3, increase_hw=False, randomize_start=False, randomize_overflow=False, **kwargs):
