@@ -561,7 +561,7 @@ class Testjobs(Booltest):
                     logger.warning('Conflicting config: %s' % common.json_dumps(json_config, indent=2))
                     raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
 
-            if not os.path.exists(gen_file_path):
+            if not os.path.exists(gen_file_path) or self.args.overwrite_existing:
                 with open(gen_file_path, 'w+') as fh:
                     fh.write(common.json_dumps(trun.spec.gen_cfg, indent=2))
                 self.try_chmod_gr(gen_file_path)
