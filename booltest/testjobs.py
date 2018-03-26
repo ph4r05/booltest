@@ -573,10 +573,13 @@ class Testjobs(Booltest):
                 num_skipped += 1
                 continue
 
+            job_expired = False
             if os.path.exists(cfg_file_path):
                 if self.args.skip_existing:
                     if self.args.expiring and self.is_job_expired(cfg_file_path):
+                        job_expired = True
                         logger.debug('Job expired: %s' % cfg_file_path)
+
                     else:
                         num_skipped_existing += 1
                         continue
@@ -584,7 +587,7 @@ class Testjobs(Booltest):
                 if self.args.overwrite_existing:
                     logger.debug('Overwriting %s' % cfg_file_path)
 
-                else:
+                elif not job_expired:
                     logger.warning('Conflicting config: %s' % common.json_dumps(json_config, indent=2))
                     raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
 
