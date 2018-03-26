@@ -526,6 +526,7 @@ class Testjobs(Booltest):
 
             json_config['res_file'] = res_file_path
             json_config['gen_file'] = gen_file_path
+            json_config['backup_dir'] = self.args.backup_dir
             json_config['skip_finished'] = self.args.skip_finished
             json_config['all_zscores'] = self.args.all_zscores
 
@@ -746,6 +747,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--result-dir', dest='results_dir', default=None,
                             help='Directory to put results files to')
+
+        parser.add_argument('--backup-dir', dest='backup_dir', default=None,
+                            help='Backup directory for overwritten results')
 
         parser.add_argument('--data-dir', dest='data_dir', default=None,
                             help='Directory to load data from (precomputed samples to test)')

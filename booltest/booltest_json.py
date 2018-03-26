@@ -9,6 +9,7 @@ import time
 import math
 import traceback
 import copy
+import misc
 
 import scipy.misc
 import scipy.stats
@@ -221,11 +222,15 @@ class BooltestJson(Booltest):
         data_file = test_run['spec']['data_file']
         skip_finished = common.defvalkey(config, 'skip_finished', False)
         res_file = common.defvalkey(config, 'res_file')
+        backup_dir = common.defvalkey(config, 'backup_dir')
         all_zscores = common.defvalkey(config, 'all_zscores')
 
-        if skip_finished and res_file and self.check_res_file(res_file):
-            logger.info('Already computed in %s' % res_file)
-            return
+        if res_file and self.check_res_file(res_file):
+            if skip_finished:
+                logger.info('Already computed in %s' % res_file)
+                return
+            elif backup_dir:
+                misc.file_backup(res_file, backup_dir=backup_dir)
 
         hwanalysis = HWAnalysis()
         hwanalysis.from_json(hw_cfg)
