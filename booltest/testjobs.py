@@ -280,6 +280,15 @@ class Testjobs(Booltest):
 
         return battery
 
+    def is_job_expired(self, config_path):
+        """
+        Determines if the job expired
+        :param config_path:
+        :return:
+        """
+        mtime = os.path.getmtime(config_path)
+        return self.time_experiment >= mtime + 60*60*24*1.2
+
     # noinspection PyBroadException
     def work(self):
         """
@@ -539,10 +548,15 @@ class Testjobs(Booltest):
 
             if os.path.exists(cfg_file_path):
                 if self.args.skip_existing:
-                    num_skipped_existing += 1
-                    continue
+                    if self.args.expiring and self.is_job_expired(cfg_file_path):
+                        logger.debug('Job expired: %s' % cfg_file_path)
+                    else:
+                        num_skipped_existing += 1
+                        continue
+
                 if self.args.overwrite_existing:
                     logger.debug('Overwriting %s' % cfg_file_path)
+
                 else:
                     logger.warning('Conflicting config: %s' % common.json_dumps(json_config, indent=2))
                     raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
@@ -762,6 +776,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--skip-existing', dest='skip_existing', action='store_const', const=True, default=False,
                             help='Skip existing jobs')
+
+        parser.add_argument('--expiring', dest='expiring', action='store_const', const=True, default=False,
+                            help='Skip existing jobs - but check for expiration on result, did job finished?')
 
         parser.add_argument('--overwrite-existing', dest='overwrite_existing', action='store_const', const=True, default=False,
                             help='Overwrites existing jobs')
