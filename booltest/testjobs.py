@@ -289,6 +289,108 @@ class Testjobs(Booltest):
         mtime = os.path.getmtime(config_path)
         return self.time_experiment >= mtime + 60*60*24*1.2
 
+    def generate_strategies(self, fgc, is_stream, is_sha3, is_block, is_3des, hw_val, hw_key_val):
+        """
+        Generate strategy to test
+
+        :param fgc:
+        :param is_stream:
+        :param is_sha3:
+        :param is_block:
+        :param is_3des:
+        :return:
+        """
+        fun_configs = []
+
+        # Random key, enc zeros - stream ciphers
+        if is_stream:
+            fun_configs += [
+                egenerator.get_function_config(fgc,
+                                               src_input=egenerator.get_zero_stream(),
+                                               src_key=egenerator.get_random_stream())
+            ]
+
+        # zero input, reinit keys, different types (col style)
+        if not self.args.no_reinit and (is_stream or is_block):
+            fun_configs += [
+                egenerator.zero_inp_reinit_key(fgc, egenerator.get_random_stream()),
+            ]
+
+            if not is_3des:
+                fun_configs += [
+                    egenerator.zero_inp_reinit_key(fgc, egenerator.get_hw_stream(hw_key_val)),
+                    egenerator.zero_inp_reinit_key(fgc, egenerator.get_counter_stream())
+                ]
+
+            if self.args.ref_only:
+                fun_configs += [
+                    egenerator.zero_inp_reinit_key(fgc, egenerator.get_hw_stream(6)),
+                ]
+
+            if not self.args.no_sac:
+                fun_configs += [
+                    egenerator.zero_inp_reinit_key(fgc, egenerator.get_sac_step_stream()),
+                ]
+
+        # 1. (rpsc, rpsc-xor, sac, sac-xor, hw, counter) input, random key. 2 different random keys
+        target_iterations = 1 if is_sha3 else 2
+        if self.args.ref_only or self.args.all_zscores:
+            target_iterations = 1
+
+        for i in range(target_iterations):
+            if is_stream:
+                continue
+
+            fun_key = egenerator.get_zero_stream() if i == 0 and not self.args.ref_only else \
+                egenerator.get_random_stream(i - 1)
+
+            if not self.args.no_counters:
+                fun_configs += [
+                    egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(hw_val), src_key=fun_key),
+                    egenerator.get_function_config(fgc, src_input=egenerator.get_counter_stream(), src_key=fun_key),
+                ]
+
+            if self.args.ref_only:
+                fun_configs += [
+                    egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(6), src_key=fun_key)
+                ]
+
+            if not self.args.counters_only and not self.args.no_rpcs:
+                fun_configs += [
+                    egenerator.rpcs_inp(fgc, fun_key),
+                ]
+
+            if not self.args.counters_only and not self.args.no_sac:
+                fun_configs += [
+                    egenerator.sac_inp(fgc, fun_key),
+                ]
+
+            if not self.args.counters_only and not self.args.no_xor_strategy:
+                fun_configs += [
+                    egenerator.rpcs_inp_xor(fgc, fun_key),
+                    egenerator.sac_xor_inp(fgc, fun_key),
+                ]
+
+            if self.args.inhwr1:
+                fun_configs += [
+                    egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(1, randomize_overflow=True),
+                                                   src_key=fun_key),
+                ]
+
+            if self.args.inhwr2:
+                fun_configs += [
+                    egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(2, randomize_overflow=True),
+                                                   src_key=fun_key),
+                ]
+
+            if self.args.inhwr4:
+                fun_configs += [
+                    egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(4, randomize_overflow=True),
+                                                   src_key=fun_key),
+                ]
+
+        return fun_configs
+
     # noinspection PyBroadException
     def work(self):
         """
@@ -356,6 +458,7 @@ class Testjobs(Booltest):
                 is_sha3 = tce.stream_type in [egenerator.FUNCTION_SHA3, egenerator.FUNCTION_HASH]
                 is_stream = tce.stream_type == egenerator.FUNCTION_ESTREAM
                 is_block = tce.stream_type == egenerator.FUNCTION_BLOCK
+                use_only_strategy = self.args.only_strategy
 
                 blk_lower_than_16b = params and params.block_size and params.block_size < 16
                 key_lower_than_16b = params and params.key_size and params.key_size < 16
@@ -363,91 +466,15 @@ class Testjobs(Booltest):
                 hw_key_val = 4 if not key_lower_than_16b else 6
 
                 fgc = egenerator.FunctionGenConfig(fnc, rounds=cur_round, data=tce_c.data_size, params=tce_c.params)
+
                 fun_configs = []
+                if not use_only_strategy:
+                    fun_configs += self.generate_strategies(fgc, is_stream, is_sha3, is_block, is_3des, hw_val, hw_key_val)
 
-                # Random key, enc zeros - stream ciphers
-                if is_stream:
-                    fun_configs += [
-                        egenerator.get_function_config(fgc,
-                                                       src_input=egenerator.get_zero_stream(),
-                                                       src_key=egenerator.get_random_stream())
-                    ]
-
-                # zero input, reinit keys, different types (col style)
-                if not self.args.no_reinit and (is_stream or is_block):
-                    fun_configs += [
-                         egenerator.zero_inp_reinit_key(fgc, egenerator.get_random_stream()),
-                    ]
-
-                    if not is_3des:
-                        fun_configs += [
-                            egenerator.zero_inp_reinit_key(fgc, egenerator.get_hw_stream(hw_key_val)),
-                            egenerator.zero_inp_reinit_key(fgc, egenerator.get_counter_stream())
-                        ]
-
-                    if self.args.ref_only:
-                        fun_configs += [
-                            egenerator.zero_inp_reinit_key(fgc, egenerator.get_hw_stream(6)),
-                        ]
-
-                    if not self.args.no_sac:
-                        fun_configs += [
-                            egenerator.zero_inp_reinit_key(fgc, egenerator.get_sac_step_stream()),
-                        ]
-
-                # 1. (rpsc, rpsc-xor, sac, sac-xor, hw, counter) input, random key. 2 different random keys
-                target_iterations = 1 if is_sha3 else 2
-                if self.args.ref_only or self.args.all_zscores:
-                    target_iterations = 1
-
-                for i in range(target_iterations):
-                    if is_stream:
-                        continue
-
-                    fun_key = egenerator.get_zero_stream() if i == 0 and not self.args.ref_only else\
-                        egenerator.get_random_stream(i-1)
-
-                    if not self.args.no_counters:
-                        fun_configs += [
-                            egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(hw_val), src_key=fun_key),
-                            egenerator.get_function_config(fgc, src_input=egenerator.get_counter_stream(), src_key=fun_key),
-                        ]
-
-                    if self.args.ref_only:
-                        fun_configs += [
-                            egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(6), src_key=fun_key)
-                        ]
-
-                    if not self.args.counters_only and not self.args.no_rpcs:
-                        fun_configs += [
-                            egenerator.rpcs_inp(fgc, fun_key),
-                        ]
-
-                    if not self.args.counters_only and not self.args.no_sac:
-                        fun_configs += [
-                            egenerator.sac_inp(fgc, fun_key),
-                        ]
-
-                    if not self.args.counters_only and not self.args.no_xor_strategy:
-                        fun_configs += [
-                            egenerator.rpcs_inp_xor(fgc, fun_key),
-                            egenerator.sac_xor_inp(fgc, fun_key),
-                        ]
-
-                    if self.args.inhwr1:
-                        fun_configs += [
-                            egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(1, randomize_overflow=True), src_key=fun_key),
-                        ]
-
-                    if self.args.inhwr2:
-                        fun_configs += [
-                            egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(2, randomize_overflow=True), src_key=fun_key),
-                        ]
-
-                    if self.args.inhwr4:
-                        fun_configs += [
-                            egenerator.get_function_config(fgc, src_input=egenerator.get_hw_stream(4, randomize_overflow=True), src_key=fun_key),
-                        ]
+                else:
+                    for c_strategy in self.args.only_strategy:
+                        c_fun_config = egenerator.determine_strategy(c_strategy, fgc=fgc)
+                        fun_configs.append(c_fun_config)
 
                 for fun_cfg in fun_configs:
                     seed = self.random_seed()
@@ -799,7 +826,10 @@ class Testjobs(Booltest):
                             help='Only given number of rounds')
 
         parser.add_argument('--only-crypto', dest='only_crypto', nargs=argparse.ZERO_OR_MORE, default=None,
-                            help='Only give crypto')
+                            help='Only given crypto')
+
+        parser.add_argument('--only-strategy', dest='only_strategy', nargs=argparse.ZERO_OR_MORE, default=None,
+                            help='Only given strategy')
 
         parser.add_argument('--narrow', dest='narrow', action='store_const', const=True, default=False,
                             help='Computes only narrow set of functions')
