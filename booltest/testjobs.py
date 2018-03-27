@@ -335,7 +335,7 @@ class Testjobs(Booltest):
                 ]
 
         # 1. (rpsc, rpsc-xor, sac, sac-xor, hw, counter) input, random key. 2 different random keys
-        target_iterations = 1 if is_sha3 else 2
+        target_iterations = 1 if is_sha3 else self.args.rand_runs
         if self.args.ref_only or self.args.all_zscores:
             target_iterations = 1
 
@@ -891,6 +891,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--tests-random-select-seed', dest='tests_random_select_eed', default=0, type=int,
                             help='Seed for test ordering randomization, defined allocation on workers')
+
+        parser.add_argument('--rand-runs', dest='rand_runs', default=2, type=int,
+                            help='NUmber of random runs')
 
         parser.add_argument('--egen-benchmark', dest='egen_benchmark', action='store_const', const=True, default=False,
                             help='Benchmarks speed of the egenerator')
