@@ -252,7 +252,14 @@ NARROW_SELECTION = {
 }
 
 
+NARROW_SELECTION_EXTPAPER = {
+    'AES', 'BLOWFISH', 'SINGLE-DES', 'TRIPLE-DES', 'TEA',
+    'Grostl', 'JH', 'Keccak', 'MD6', 'MD5', 'SHA256',
+}
+
+
 NARROW_SELECTION_LOW = {x.lower() for x in NARROW_SELECTION}
+NARROW_SELECTION_EXTPAPER_LOW = {x.lower() for x in NARROW_SELECTION_EXTPAPER}
 
 
 # lower(function_name) -> function_name
@@ -373,6 +380,22 @@ def is_3des(fnc):
     :return:
     """
     return fnc.lower() == 'triple-des'
+
+
+def is_narrow(fname, narrow_type=0):
+    """
+    Returns true if function is in the narrow set
+    :param fname:
+    :param narrow_type:
+    :return:
+    """
+    lw = fname.lower()
+    narrow_set = NARROW_SELECTION_LOW if narrow_type == 0 else NARROW_SELECTION_EXTPAPER_LOW
+    for fnc in narrow_set:
+        flk = '-a%s-' % fnc
+        if flk in lw:
+            return True
+    return False
 
 
 class FunctionGenConfig(object):
