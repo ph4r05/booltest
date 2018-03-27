@@ -254,7 +254,7 @@ NARROW_SELECTION = {
 
 NARROW_SELECTION_EXTPAPER = {
     'AES', 'BLOWFISH', 'SINGLE-DES', 'TRIPLE-DES', 'TEA',
-    'Grostl', 'JH', 'Keccak', 'MD6', 'MD5', 'SHA256',
+    'Grostl', 'JH', 'Keccak', 'MD6', 'MD5', 'SHA1', 'SHA256',
 }
 
 
