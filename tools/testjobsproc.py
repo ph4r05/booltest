@@ -164,18 +164,14 @@ def is_over_threshold(ref_avg, tr):
     return False
 
 
-def is_narrow(fname):
+def is_narrow(fname, narrow_type=0):
     """
     Returns true if function is in the narrow set
     :param fname:
+    :param narrow_type:
     :return:
     """
-    lw = fname.lower()
-    for fnc in egenerator.NARROW_SELECTION_LOW:
-        flk = '-a%s-' % fnc
-        if flk in lw:
-            return True
-    return False
+    return egenerator.is_narrow(fname, narrow_type)
 
 
 def main():
@@ -212,6 +208,9 @@ def main():
 
     parser.add_argument('--narrow', dest='narrow', default=False, action='store_const', const=True,
                         help='Process only smaller set of functions')
+
+    parser.add_argument('--narrow2', dest='narrow2', default=False, action='store_const', const=True,
+                        help='Process only smaller set of functions2')
 
     parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
                         help='folder with test matrix resutls - result dir of testbed.py')
@@ -257,6 +256,10 @@ def main():
             continue
 
         if args.narrow and not is_narrow(tfile):
+            skipped += 1
+            continue
+
+        if args.narrow2 and not is_narrow(tfile, 2):
             skipped += 1
             continue
 
