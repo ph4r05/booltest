@@ -9,13 +9,13 @@ import time
 import math
 import traceback
 import copy
-import misc
 
 import scipy.misc
 import scipy.stats
 
 from booltest import egenerator
 from booltest import common
+from booltest import misc
 from booltest.booltest_main import *
 
 
