@@ -227,6 +227,9 @@ def main():
 
     # Read all files in the folder.
     logger.info('Reading all testfiles list')
+    test_files = [f for f in os.listdir(main_dir) if os.path.isfile(os.path.join(main_dir, f))]
+    total_files = len(test_files)
+    logger.info('Totally %d tests were performed, parsing...' % total_files)
 
     # Test matrix definition
     total_functions = set()
@@ -245,11 +248,7 @@ def main():
 
     invalid_results = []
     invalid_results_num = 0
-    for idx, tfile in enumerate(os.listdir(main_dir)):
-        test_file = os.path.join(main_dir, tfile)
-        if not os.path.isfile(test_file):
-            continue
-
+    for idx, tfile in enumerate(test_files):
         if idx % 1000 == 0:
             logger.debug('Progress: %d, cur: %s skipped: %s' % (idx, tfile, skipped))
 
@@ -264,6 +263,7 @@ def main():
             skipped += 1
             continue
 
+        test_file = os.path.join(main_dir, tfile)
         try:
             with open(test_file, 'r') as fh:
                 js = json.load(fh)
@@ -309,7 +309,7 @@ def main():
     fname_narrow = 'nw_' if args.narrow else ''
     if args.narrow2:
         fname_narrow = 'nw2_'
-        
+
     fname_time = int(time.time())
     fname_ref_json = os.path.join(args.out_dir, 'ref_%s%s.json' % (fname_narrow, fname_time))
     fname_ref_csv = os.path.join(args.out_dir, 'ref_%s%s.csv' % (fname_narrow, fname_time))
