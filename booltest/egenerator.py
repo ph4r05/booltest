@@ -397,6 +397,9 @@ class FunctionGenConfig(object):
         if self.num is None:
             raise ValueError('Length of data not specified')
 
+    def to_json(self):
+        return dict(self.__dict__)
+    
     def __repr__(self):
         return 'FunctionGenConfig(fnc=%r, ftype=%r, tvsize=%r, rounds=%r, num=%r)' \
                % (self.function_name, self.stream_type, self.tvsize, self.rounds, self.num)
