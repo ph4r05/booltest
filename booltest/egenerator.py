@@ -365,6 +365,16 @@ def is_function_egen(fnc):
     return fl in FUNCTION_CASEMAP
 
 
+def is_3des(fnc):
+    """
+    Is function 3-des?
+    Specific key constrains
+    :param fnc:
+    :return:
+    """
+    return fnc.lower() == 'triple-des'
+
+
 class FunctionGenConfig(object):
     def __init__(self, function_name, stream_type=None, tvsize=None, rounds=None, tvcount=None, data=None, params=None, **kwargs):
         self.function_name = None
