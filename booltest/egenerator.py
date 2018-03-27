@@ -168,7 +168,7 @@ BLOCK = {
     'SERPENT': FunctionParams(16, 16, rounds=32),
     'SIMON': FunctionParams(16, 16, rounds=32),
     'SPECK': FunctionParams(16, 16, rounds=22),
-    'SINGLE-DES': FunctionParams(8, 8, rounds=16),
+    'SINGLE-DES': FunctionParams(8, 7, rounds=16),
     'TRIPLE-DES': FunctionParams(8, 24, rounds=16),
     'TWOFISH': FunctionParams(16, 16, rounds=16),
     'GOST_BLOCK': FunctionParams(rounds=32, block_size=8, key_size=32, fname='GOST'),
