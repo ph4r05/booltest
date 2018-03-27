@@ -249,6 +249,8 @@ class Testjobs(Booltest):
             battery = egenerator.filter_functions(battery, set(self.args.only_crypto))
         elif self.args.narrow:
             battery = egenerator.filter_functions(battery, egenerator.NARROW_SELECTION)
+        elif self.args.narrow2:
+            battery = egenerator.filter_functions(battery, egenerator.NARROW_SELECTION_EXTPAPER)
 
         if self.args.only_rounds:
             for fnc in battery:
@@ -391,18 +393,14 @@ class Testjobs(Booltest):
 
         return fun_configs
 
-    def is_narrow(self, fname):
+    def is_narrow(self, fname, narrow_type=0):
         """
         Returns true if function is in the narrow set
         :param fname:
+        :param narrow_type:
         :return:
         """
-        lw = fname.lower()
-        for fnc in egenerator.NARROW_SELECTION_LOW:
-            flk = '-a%s-' % fnc
-            if flk in lw:
-                return True
-        return False
+        return egenerator.is_narrow(fname, narrow_type)
 
     def rescan_job_files(self):
         """
@@ -434,6 +432,9 @@ class Testjobs(Booltest):
             if self.args.narrow and not self.is_narrow(cur_file):
                 continue
 
+            if self.args.narrow2 and not self.is_narrow(cur_file, 2):
+                continue
+
             js_txt = open(cfg_file_path, 'r').read()
             js = json.loads(js_txt)
             res_file = common.defvalkey(js, 'res_file')
@@ -463,7 +464,9 @@ class Testjobs(Booltest):
             batcher.add_unit(unit)
         batcher.flush()
 
-        logger.info('Generated job files: %s' % (len(batcher.job_files),))
+        logger.info('Generated job files: %s, num missing gen: %s, num ok: %s, num running: %s'
+                    % (len(batcher.job_files), num_gen_file_missing, num_res_ok, num_job_running))
+
         self.finalize_batch(batcher)
 
     def create_batch_unit_js(self, config_file, spec):
@@ -695,7 +698,6 @@ class Testjobs(Booltest):
         batcher = testjobsbase.BatchGenerator()
         batcher.job_dir = self.job_dir
 
-        job_files = []
         num_skipped = 0
         num_skipped_existing = 0
         for fidx, trun in enumerate(test_runs):  # type: TestRun
@@ -718,7 +720,7 @@ class Testjobs(Booltest):
             json_config['all_zscores'] = self.args.all_zscores
 
             if fidx % 1000 == 0:
-                logger.debug('Processing file %s, jobs: %s' % (fidx, len(job_files)))
+                logger.debug('Processing file %s, jobs: %s' % (fidx, len(batcher.job_files)))
 
             if self.args.skip_finished and self.check_res_file(res_file_path):
                 num_skipped += 1
@@ -738,7 +740,7 @@ class Testjobs(Booltest):
                 if self.args.overwrite_existing:
                     logger.debug('Overwriting %s' % cfg_file_path)
 
-                elif not job_expired:
+                elif not job_expired and not self.args.ignore_existing:
                     logger.warning('Conflicting config: %s' % common.json_dumps(json_config, indent=2))
                     raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
 
@@ -765,7 +767,7 @@ class Testjobs(Booltest):
         batcher.flush()
 
         logger.info('Generated job files: %s, skipped: %s, skipped existing: %s'
-                    % (len(job_files), num_skipped, num_skipped_existing))
+                    % (len(batcher.job_files), num_skipped, num_skipped_existing))
 
         self.finalize_batch(batcher)
 
@@ -902,6 +904,9 @@ class Testjobs(Booltest):
         parser.add_argument('--overwrite-existing', dest='overwrite_existing', action='store_const', const=True, default=False,
                             help='Overwrites existing jobs')
 
+        parser.add_argument('--ignore-existing', dest='ignore_existing', action='store_const', const=True, default=False,
+                            help='Ignores existing jobs')
+
         parser.add_argument('--skip-finished', dest='skip_finished', action='store_const', const=True, default=False,
                             help='Skip tests with generated valid results')
 
@@ -925,6 +930,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--narrow', dest='narrow', action='store_const', const=True, default=False,
                             help='Computes only narrow set of functions')
+
+        parser.add_argument('--narrow2', dest='narrow2', action='store_const', const=True, default=False,
+                            help='Computes only narrow2 set of functions')
 
         parser.add_argument('--all-zscores', dest='all_zscores', action='store_const', const=True, default=False,
                             help='All zscore list')
