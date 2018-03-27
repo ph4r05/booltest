@@ -18,7 +18,7 @@ import scipy.stats
 from booltest import egenerator
 from booltest import common
 from booltest.booltest_main import *
-
+from booltest import testjobsbase
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
@@ -391,6 +391,159 @@ class Testjobs(Booltest):
 
         return fun_configs
 
+    def is_narrow(self, fname):
+        """
+        Returns true if function is in the narrow set
+        :param fname:
+        :return:
+        """
+        lw = fname.lower()
+        for fnc in egenerator.NARROW_SELECTION_LOW:
+            flk = '-a%s-' % fnc
+            if flk in lw:
+                return True
+        return False
+
+    def rescan_job_files(self):
+        """
+        Rescans existing jobs, expires them and resubmits for processing if result file is not found.
+        :return:
+        """
+        logger.info('Scanning existing job files dir')
+
+        batcher = testjobsbase.BatchGenerator()
+        batcher.job_dir = self.job_dir
+
+        num_gen_file_missing = 0
+        num_res_ok = 0
+        num_job_running = 0
+
+        for idx, cur_file in enumerate(os.listdir(self.job_dir)):
+            cfg_file_path = os.path.join(self.job_dir, cur_file)
+
+            if idx % 1000 == 0:
+                logger.debug('Scanning %s %s' % (idx, cfg_file_path))
+
+            if not os.path.isfile(cfg_file_path):
+                continue
+
+            # Check if its a configuration file
+            if not cur_file.startswith('cfg-'):
+                continue
+
+            if self.args.narrow and not self.is_narrow(cur_file):
+                continue
+
+            js_txt = open(cfg_file_path, 'r').read()
+            js = json.loads(js_txt)
+            res_file = common.defvalkey(js, 'res_file')
+            gen_file = common.defvalkey(js, 'gen_file')
+            skip_finished = common.defvalkey(js, 'skip_finished')
+            fnc = js['config']['spec']['fnc']
+
+            if not os.path.exists(gen_file):
+                num_gen_file_missing += 1
+                continue
+
+            if self.check_res_file(res_file):
+                num_res_ok += 1
+                continue
+
+            if not self.args.overwrite_existing and self.args.expiring and not self.is_job_expired(cfg_file_path):
+                num_job_running += 1
+                continue
+
+            # Transform not to overwrite existing result.
+            if not skip_finished:
+                js['skip_finished'] = True
+                with open(cfg_file_path, 'w') as fh:
+                    fh.write(common.json_dumps(js, indent=2))
+
+            unit = self.create_batch_unit_js(cfg_file_path, js)
+            batcher.add_unit(unit)
+        batcher.flush()
+
+        logger.info('Generated job files: %s' % (len(batcher.job_files),))
+        self.finalize_batch(batcher)
+
+    def create_batch_unit_js(self, config_file, spec):
+        """
+        Batching unit from generated config - reruning expired jobs
+        :param config_file:
+        :param spec:
+        :return:
+        """
+        unit = testjobsbase.TestBatchUnit()
+        unit.cfg_file_path = config_file
+        unit.res_file_path = spec['res_file']
+        unit.gen_file_path = spec['gen_file']
+        unit.res_file = os.path.basename(unit.res_file_path)
+        unit.block_size = int(spec['hwanalysis']['blocklen'])
+        unit.degree = int(spec['hwanalysis']['deg'])
+        unit.comb_deg = int(spec['hwanalysis']['blocklen'])
+        unit.data_size = int(spec['config']['spec']['data_size'])
+        unit.size_mb = unit.data_size / 1024 / 1024
+        return unit
+
+    def create_batch_unit_trun(self, trun):
+        """
+        Batch unit from test run
+        :param trun:
+        :return:
+        """
+        # TODO:
+
+    def compute_batch(self, jobs):
+        """
+        Computes job batch for GRID / Metacentrum from batch units of work
+        :param jobs: can be generator / iterator
+        :return:
+        """
+        batcher = testjobsbase.BatchGenerator()
+        batcher.job_dir = self.job_dir
+        for unit in jobs:
+            batcher.add_unit(unit)
+        batcher.flush()
+
+        logger.info('Generated job files: %s' % (len(batcher.job_files), ))
+        self.finalize_batch(batcher)
+
+    def finalize_batch(self, batcher):
+        """
+        Creates final enqueueing scripts for the batch
+        :param batcher:
+        :type batcher: testjobsbase.BatchGenerator
+        :return:
+        """
+        # Enqueue
+        enqueue_path = os.path.join(self.job_dir, 'enqueue-meta-%s.sh' % int(time.time()))
+        with open(enqueue_path, 'w') as fh:
+            fh.write('#!/bin/bash\n\n')
+            for fn in batcher.job_files:
+                fh.write('qsub -l select=1:ncpus=1:mem=%s -l walltime=%s %s \n' % (fn[1], fn[2], fn[0]))
+
+        # Generator tester file
+        testgen_path = os.path.join(self.job_dir, 'test-generators-%s.sh' % int(time.time()))
+        with open(testgen_path, 'w') as fh:
+            fh.write(job_tpl_hdr)
+            for fn in sorted(list(batcher.generator_files)):
+                if not os.path.exists(fn):
+                    continue
+                fh.write('./generator-metacentrum.sh -c=%s 2>/dev/null >/dev/null\n' % fn)
+                fh.write('if [ $? -ne 0 ]; then echo "Generator failed: %s"; else echo -n "."; fi\n' % fn)
+            fh.write('\n')
+
+        # chmod
+        self.try_chmod_grx(enqueue_path)
+        self.try_chmod_grx(testgen_path)
+        logger.info('Gentest: %s' % testgen_path)
+        logger.info('Enqueue: %s' % enqueue_path)
+
+        if self.args.enqueue:
+            logger.info('Enqueueing...')
+            p = subprocess.Popen(enqueue_path, stdout=sys.stdout, stderr=sys.stderr, shell=True)
+            p.wait()
+
     # noinspection PyBroadException
     def work(self):
         """
@@ -422,6 +575,10 @@ class Testjobs(Booltest):
                 combinations[bl][ii] = int(scipy.misc.comb(bl, ii, True))
         full_combination = combinations[max(test_block_sizes)][max(max(test_degree), max(test_comb_k))]
 
+        if self.args.rescan_jobs:
+            self.rescan_job_files()
+            return
+
         # (function, round, processing_type)
         test_array = []
 
@@ -436,7 +593,7 @@ class Testjobs(Booltest):
             params = all_functions[fnc] if fnc in all_functions else None  # type: egenerator.FunctionParams
             tce = TestCaseEntry(fnc, params)
             tce.rounds = rounds
-            is_3des = fnc.lower() == 'triple-des'  # special key handling, cannot use ctr/hw
+            is_3des = egenerator.is_3des(fnc)  # special key handling, cannot use ctr/hw
 
             if egenerator.is_function_egen(fnc):
                 fnc = egenerator.normalize_function_name(fnc)
@@ -535,21 +692,15 @@ class Testjobs(Booltest):
         self.load_input_poly()
 
         # Generate job files
-        job_files = []
-        job_batch = []
-        batch_max_bl = 0
-        batch_max_deg = 0
-        batch_max_comb_deg = 0
-        job_batch_max_size = 50
-        cur_batch_def = None  # type: TestRun
+        batcher = testjobsbase.BatchGenerator()
+        batcher.job_dir = self.job_dir
 
-        memory_threshold = 50
+        job_files = []
         num_skipped = 0
         num_skipped_existing = 0
         for fidx, trun in enumerate(test_runs):  # type: TestRun
             hwanalysis = self.testcase(trun.block_size, trun.degree, trun.comb_deg)
             json_config = collections.OrderedDict()
-            size_mb = trun.spec.data_size / 1024 / 1024
             json_config['exp_time'] = self.time_experiment
             json_config['config'] = trun
             json_config['hwanalysis'] = hwanalysis
@@ -599,86 +750,24 @@ class Testjobs(Booltest):
             with open(cfg_file_path, 'w+') as fh:
                 fh.write(common.json_dumps(json_config, indent=2))
 
-            args = ' --config-file %s' % cfg_file_path
-            job_data = job_tpl % (gen_file_path, args, trun.res_file, trun.res_file)
-            job_batch.append(job_data)
-            generator_files.add(gen_file_path)
-
-            batch_max_bl = max(batch_max_bl, trun.block_size)
-            batch_max_deg = max(batch_max_deg, trun.degree)
-            batch_max_comb_deg = max(batch_max_comb_deg, trun.comb_deg)
-
-            flush_batch = False
-            if cur_batch_def is None:
-                cur_batch_def = trun
-                job_batch_max_size = 15
-
-                if size_mb < 11:
-                    job_batch_max_size = 25
-                    if batch_max_deg <= 2 and batch_max_comb_deg <= 2:
-                        job_batch_max_size = 50
-                    if batch_max_deg <= 1 and batch_max_comb_deg <= 2:
-                        job_batch_max_size = 100
-
-                if size_mb < 2:
-                    job_batch_max_size = 100
-                    if batch_max_deg <= 2 and batch_max_comb_deg <= 2:
-                        job_batch_max_size = 200
-                    if batch_max_deg <= 1 and batch_max_comb_deg <= 2:
-                        job_batch_max_size = 300
-
-            elif cur_batch_def.spec.data_size != trun.spec.data_size \
-                    or len(job_batch) >= job_batch_max_size:
-                flush_batch = True
-
-            if flush_batch:
-                job_data = job_tpl_hdr + '\n'.join(job_batch)
-                job_batch = []
-                batch_max_bl = 0
-                batch_max_deg = 0
-                batch_max_comb_deg = 0
-                cur_batch_def = None
-
-                with open(job_file_path, 'w+') as fh:
-                    fh.write(job_data)
-
-                ram = '12gb' if size_mb > memory_threshold else '6gb'
-                job_time = '24:00:00'
-                if size_mb < 11:
-                    job_time = '4:00:00'
-                job_files.append((job_file_path, ram, job_time))
+            # Job batch creation
+            unit = testjobsbase.TestBatchUnit()
+            unit.cfg_file_path = cfg_file_path
+            unit.gen_file_path = gen_file_path
+            unit.res_file_path = res_file_path
+            unit.res_file = trun.res_file
+            unit.block_size = trun.block_size
+            unit.degree = trun.degree
+            unit.comb_deg = trun.comb_deg
+            unit.data_size = trun.spec.data_size
+            unit.size_mb = trun.spec.data_size / 1024 / 1024
+            batcher.add_unit(unit)
+        batcher.flush()
 
         logger.info('Generated job files: %s, skipped: %s, skipped existing: %s'
                     % (len(job_files), num_skipped, num_skipped_existing))
 
-        # Enqueue
-        enqueue_path = os.path.join(self.job_dir, 'enqueue-meta-%s.sh' % int(time.time()))
-        with open(enqueue_path, 'w') as fh:
-            fh.write('#!/bin/bash\n\n')
-            for fn in job_files:
-                fh.write('qsub -l select=1:ncpus=1:mem=%s -l walltime=%s %s \n' % (fn[1], fn[2], fn[0]))
-
-        # Generator tester file
-        testgen_path = os.path.join(self.job_dir, 'test-generators-%s.sh' % int(time.time()))
-        with open(testgen_path, 'w') as fh:
-            fh.write(job_tpl_hdr)
-            for fn in sorted(list(generator_files)):
-                if not os.path.exists(fn):
-                    continue
-                fh.write('./generator-metacentrum.sh -c=%s 2>/dev/null >/dev/null\n' % fn)
-                fh.write('if [ $? -ne 0 ]; then echo "Generator failed: %s"; else echo -n "."; fi\n' % fn)
-            fh.write('\n')
-
-        # chmod
-        self.try_chmod_grx(enqueue_path)
-        self.try_chmod_grx(testgen_path)
-        logger.info('Gentest: %s' % testgen_path)
-        logger.info('Enqueue: %s' % enqueue_path)
-
-        if self.args.enqueue:
-            logger.info('Enqueueing...')
-            p = subprocess.Popen(enqueue_path, stdout=sys.stdout, stderr=sys.stderr, shell=True)
-            p.wait()
+        self.finalize_batch(batcher)
 
     def testcase(self, blocklen, degree, comb_deg):
         """
@@ -867,6 +956,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--enqueue', dest='enqueue', action='store_const', const=True, default=False,
                             help='Enqueues the generated batch after job finishes')
+
+        parser.add_argument('--rescan-jobs', dest='rescan_jobs', action='store_const', const=True, default=False,
+                            help='Rescans job dir for configured but expired jobs')
 
         #
         # Testing matrix definition
