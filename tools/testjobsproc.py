@@ -348,9 +348,7 @@ def main():
     fh_json.write('[\n')
 
     # Headers
-    fh_csv.write('function' + args.delim)
-    fh_rf_csv.write('function' + args.delim)
-    hdr = []
+    hdr = ['fnc_name' 'fnc_round', 'method', 'data_mb']
     for cur_key in itertools.product(*total_cases):
         hdr.append('%s-%s-%s' % (cur_key[0], cur_key[1], cur_key[2]))
     fh_csv.write(args.delim.join(hdr) + '\n')
