@@ -198,17 +198,6 @@ class BooltestJson(Booltest):
                 fh.write('\n')
         logger.info('All zscore computed')
 
-    def permissions(self, path):
-        """
-        Update permissions
-        :param path:
-        :return:
-        """
-        try:
-            os.chmod(path, 0o640)
-        except Exception as e:
-            logger.warning('Error chmodding %s : %s' % (path, e))
-
     def work(self):
         """
         Main entry point - data processing
@@ -344,7 +333,7 @@ class BooltestJson(Booltest):
 
         with open(res_file, 'w+') as fh:
             fh.write(common.json_dumps(jsres, indent=2))
-        self.permissions(res_file)
+        misc.try_chmod_gr(res_file)
 
         return jsres
 

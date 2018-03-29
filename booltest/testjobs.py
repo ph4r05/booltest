@@ -16,7 +16,7 @@ import scipy.misc
 import scipy.stats
 
 from booltest import egenerator
-from booltest import common
+from booltest import common, misc
 from booltest.booltest_main import *
 from booltest import testjobsbase
 
@@ -207,28 +207,6 @@ class Testjobs(Booltest):
 
             return fpath
         return None
-
-    def try_chmod_grx(self, path):
-        """
-        Attempts to add +x flag
-        :param path:
-        :return:
-        """
-        try:
-            os.chmod(path, 0o750)
-        except Exception as e:
-            logger.warning('Exception chmoddin %s: %s' % (path, e))
-
-    def try_chmod_gr(self, path):
-        """
-        Update permissions
-        :param path:
-        :return:
-        """
-        try:
-            os.chmod(path, 0o640)
-        except Exception as e:
-            logger.warning('Error chmodding %s : %s' % (path, e))
 
     def get_test_battery(self):
         """
@@ -531,8 +509,8 @@ class Testjobs(Booltest):
             fh.write('\n')
 
         # chmod
-        self.try_chmod_grx(enqueue_path)
-        self.try_chmod_grx(testgen_path)
+        misc.try_chmod_grx(enqueue_path)
+        misc.try_chmod_grx(testgen_path)
         logger.info('Gentest: %s' % testgen_path)
         logger.info('Enqueue: %s' % enqueue_path)
 
@@ -747,7 +725,7 @@ class Testjobs(Booltest):
             if not os.path.exists(gen_file_path) or self.args.overwrite_existing:
                 with open(gen_file_path, 'w+') as fh:
                     fh.write(common.json_dumps(trun.spec.gen_cfg, indent=2))
-                self.try_chmod_gr(gen_file_path)
+                misc.try_chmod_gr(gen_file_path)
 
             with open(cfg_file_path, 'w+') as fh:
                 fh.write(common.json_dumps(json_config, indent=2))
