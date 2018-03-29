@@ -12,11 +12,21 @@ export LOGDIR="/storage/brno3-cerit/home/${LOGNAME}/bool-log"
 
 cd "${BOOLDIR}"
 
+set -o pipefail
+export RRES=0
+
 '''
 
 job_tpl = '''
 ./generator-metacentrum.sh -c=%s | ./booltest-json-metacentrum.sh \\
     %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"
+RBOOL=$?
+RRES=$(($RBOOL == 0 ? $RRES : 10 + (($RRES - 10 + 1) %% 100)))
+
+'''
+
+job_tpl_footer = '''
+exit $RRES
 '''
 
 
@@ -110,6 +120,7 @@ class BatchGenerator(object):
 
         with open(self.job_file_path, 'w+') as fh:
             fh.write(job_data)
+            fh.write(job_tpl_footer)
 
         ram = '12gb' if unit.size_mb > self.memory_threshold else '6gb'
         job_time = '24:00:00'
