@@ -14,6 +14,7 @@ import random
 import signal
 import subprocess
 import sys
+import binascii
 from functools import reduce
 
 import scipy.misc
@@ -23,7 +24,7 @@ import bitarray
 from bitstring import Bits, BitArray, BitStream, ConstBitStream
 from repoze.lru import lru_cache, LRUCache
 
-from booltest.crypto_util import aes_ctr, get_zero_vector
+from booltest.crypto_util import aes_ctr, get_zero_vector, aes_ecb, dump_uint
 
 # Enables bitarray - with native C extension
 FAST_IMPL = True
@@ -416,6 +417,24 @@ def defvalkeys(js, key, default=None):
     except:
         pass
     return default
+
+
+def generate_seed(iteration=0):
+    """
+    Deterministic seed generation for experiment comparison.
+    :param iteration:
+    :return:
+    """
+    seed0 = b'1fe40505e131963c'
+    if iteration == 0:
+        return seed0
+
+    in_block = bytearray(dump_uint(iteration))
+    in_block = in_block + bytearray([0] * (16 - len(in_block)))
+
+    aes = aes_ecb(hashlib.sha256(seed0).digest())
+    seed = aes.encrypt(bytes(in_block))[:8]
+    return binascii.hexlify(seed)
 
 
 class InputObject(object):
