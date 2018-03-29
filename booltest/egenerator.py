@@ -7,7 +7,7 @@ import re
 import random
 import argparse
 
-from . import common
+from . import common, misc
 
 # Regex for parsing arg names from source codes
 # if \(name == "(.+?)".+
@@ -52,7 +52,7 @@ class FunctionParams(object):
         self.fname = fname
 
     def to_json(self):
-        return dict(self.__dict__)
+        return dict(misc.slot_obj_dict(self))
 
     def __repr__(self):
         return 'FunctionParams(%r, block_size=%r, key_size=%r, iv_size=%r, rounds=%r, ' \
