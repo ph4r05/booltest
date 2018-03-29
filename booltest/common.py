@@ -349,6 +349,8 @@ class AutoJSONEncoder(json.JSONEncoder):
     def default_classic(self, o):
         if isinstance(o, set):
             return list(o)
+        elif isinstance(o, bytes):
+            return o.decode('utf8')
         else:
             try:
                 return super(AutoJSONEncoder, self).default(o)
