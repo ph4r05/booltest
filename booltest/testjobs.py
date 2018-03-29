@@ -50,6 +50,7 @@ class TestCaseEntry(object):
         self.data_size = None
         self.is_egen = False
         self.gen_cfg = None
+        self.seed_code = 0
         self.strategy = 'static'
 
     def to_json(self):
@@ -205,14 +206,6 @@ class Testjobs(Booltest):
 
             return fpath
         return None
-
-    def random_seed(self):
-        """
-        Generates random seed
-        :return:
-        """
-        r = self.test_random.getrandbits(8*8)
-        return '%016x' % r
 
     def try_chmod_grx(self, path):
         """
@@ -663,8 +656,10 @@ class Testjobs(Booltest):
 
                 if trt > 0:
                     test_spec = copy.deepcopy(test_spec)
+                    test_spec.seed_code = trt
                     seed = common.generate_seed(trt)
                     test_spec.gen_cfg['seed'] = seed
+                    test_spec.gen_cfg['seed_code'] = test_spec.seed_code
 
                 test_desc = 'idx: %04d, data: %04d, block: %s, deg: %s, comb-deg: %s, fun: %s, round: %s scode: %s, %s' \
                             % (total_test_idx, data_size, block_size, degree, comb_deg, test_spec.fnc,
