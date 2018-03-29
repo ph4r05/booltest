@@ -895,8 +895,16 @@ def generate_config(args):
         input_s = determine_stream(input)
         fun_cfg = get_function_config(fgc, src_input=input_s, src_key=key_s, iv=iv_s, init_frequency='every-vector' if reinit else None)
 
-    rand = random.Random()
-    seed = '%016x' % rand.getrandbits(8*8) if args.seed is None else args.seed
+    seed = args.seed
+    if args.seed_random:
+        rand = random.Random()
+        seed = '%016x' % rand.getrandbits(8*8)
+
+    elif args.seed_code is not None:
+        seed = common.generate_seed(args.seed_code)
+
+    if seed is None:
+        seed = common.generate_seed(0)
 
     config = get_config_header(fgc, stdout=True, stream=fun_cfg, seed=seed)
     return config
@@ -935,6 +943,12 @@ def main():
 
     parser.add_argument('--seed', dest='seed', default=None,
                         help='seed')
+
+    parser.add_argument('--seed-code', dest='seed_code', default=None, type=int,
+                        help='seed index')
+
+    parser.add_argument('--seed-random', dest='seed_random', default=False, action='store_const', const=True,
+                        help='Randomize seed')
 
     parser.add_argument('--strategy', dest='strategy', default=None,
                         help='Strategy')
