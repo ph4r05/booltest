@@ -434,6 +434,27 @@ def get_scode(stream):
     return 'na'
 
 
+def is_randomized(stream):
+    """
+    Returns true if the seed is randomized - affected by different seed values
+    :param stream:
+    :return:
+    """
+    seed_dep = common.defvalkey(stream, 'seed_dep', take_none=True)
+    if seed_dep is not None:
+        return seed_dep
+
+    stype = common.defvalkey(stream, 'type')
+    if stype in [StreamCodes.ZERO, StreamCodes.COUNTER]:
+        return False
+
+    elif stype in [StreamCodes.RANDOM, StreamCodes.SAC, StreamCodes.SAC_STEP, StreamCodes.RPCS]:
+        return True
+
+    else:
+        raise ValueError('Seed dependency is not known: %s' % stype)
+
+
 def get_zero_stream(**kwargs):
     return {'type': StreamCodes.ZERO, 'scode': '0'}
 
@@ -470,11 +491,14 @@ def get_hw_stream(hw=3, increase_hw=False, randomize_start=False, randomize_over
                                   '' if not randomize_overflow else 'r',
                                   '' if not randomize_start else 's',
                                   '' if not increase_hw else 'i')
+
     ob['increase_hw'] = bool(increase_hw) if increase_hw else False
     if randomize_start:
         ob['randomize_start'] = bool(randomize_start)
     if randomize_overflow:
         ob['randomize_overflow'] = bool(randomize_overflow)
+
+    ob['seed_dep'] = bool(randomize_start) or bool(randomize_overflow)
     return ob
 
 
@@ -554,6 +578,7 @@ def get_function_config(func_cfg,
     stream_obj['gen_key'] = src_key
     stream_obj['scode_inp'] = get_scode(src_input)
     stream_obj['scode_key'] = get_scode(src_key)
+    stream_obj['seed_dep'] = is_randomized(src_input) or is_randomized(src_iv) or is_randomized(src_key)
 
     if func_cfg.stream_type == FUNCTION_BLOCK and init_frequency == 'every-vector':
         init_frequency = 1
