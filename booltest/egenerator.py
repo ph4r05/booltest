@@ -451,6 +451,9 @@ def is_randomized(stream):
     elif stype in [StreamCodes.RANDOM, StreamCodes.SAC, StreamCodes.SAC_STEP, StreamCodes.RPCS]:
         return True
 
+    elif stype in [StreamCodes.XOR]:
+        return is_randomized(stream['source'])
+
     else:
         raise ValueError('Seed dependency is not known: %s' % stype)
 
