@@ -359,7 +359,8 @@ class BooltestJson(Booltest):
                             help='Directory to load data from (precomputed samples to test)')
 
         self.args = parser.parse_args()
-        self.work()
+        jsres = self.work()
+        return 0 if jsres['data_read'] > 0 else 2
 
 
 # Launcher
