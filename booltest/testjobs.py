@@ -51,6 +51,7 @@ class TestCaseEntry(object):
         self.is_egen = False
         self.gen_cfg = None
         self.seed_code = 0
+        self.is_randomized = False
         self.strategy = 'static'
 
     def to_json(self):
@@ -633,6 +634,7 @@ class Testjobs(Booltest):
                     seed = common.generate_seed()
                     tce_c.gen_cfg = egenerator.get_config_header(fgc, stdout=True, stream=fun_cfg, seed=seed)
                     tce_c.gen_cfg['exp_time'] = self.time_experiment
+                    tce_c.is_randomized = egenerator.is_randomized(tce_c.gen_cfg['stream'])
                     tce_c.strategy = egenerator.get_scode(fun_cfg)
                     test_array.append(copy.deepcopy(tce_c))
 
@@ -640,14 +642,14 @@ class Testjobs(Booltest):
         test_runs = []  # type: list[TestRun]
         logger.info('Test array size: %s' % len(test_array))
 
+        # Generate test cases, run the analysis.
+        test_runs_times = range(self.args.test_rand_runs)
+        if self.args.ref_only:
+            test_runs_times = range(100)
+
         # For each test specification
         generator_files = set()
         for test_spec in test_array:  # type: TestCaseEntry
-
-            # Generate test cases, run the analysis.
-            test_runs_times = [0]
-            if self.args.ref_only:
-                test_runs_times = range(100)
 
             for test_case in itertools.product(test_block_sizes, test_degree, test_comb_k, test_runs_times):
                 block_size, degree, comb_deg, trt = test_case
@@ -655,6 +657,9 @@ class Testjobs(Booltest):
                 total_test_idx += 1
 
                 if trt > 0:
+                    if not test_spec.is_randomized:
+                        continue
+
                     test_spec = copy.deepcopy(test_spec)
                     test_spec.seed_code = trt
                     seed = common.generate_seed(trt)
@@ -888,7 +893,10 @@ class Testjobs(Booltest):
                             help='Seed for test ordering randomization, defined allocation on workers')
 
         parser.add_argument('--rand-runs', dest='rand_runs', default=2, type=int,
-                            help='NUmber of random runs')
+                            help='Number of random runs')
+
+        parser.add_argument('--test-rand-runs', dest='test_rand_runs', default=1, type=int,
+                            help='Number of random runs for the whole tests')
 
         parser.add_argument('--egen-benchmark', dest='egen_benchmark', action='store_const', const=True, default=False,
                             help='Benchmarks speed of the egenerator')
