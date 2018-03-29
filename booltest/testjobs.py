@@ -678,7 +678,7 @@ class Testjobs(Booltest):
 
         num_skipped = 0
         num_skipped_existing = 0
-        for fidx, trun in enumerate(test_runs):  # type: TestRun
+        for fidx, trun in enumerate(test_runs):  # type: tuple(int, TestRun)
             hwanalysis = self.testcase(trun.block_size, trun.degree, trun.comb_deg)
             json_config = collections.OrderedDict()
             json_config['exp_time'] = self.time_experiment
@@ -688,7 +688,6 @@ class Testjobs(Booltest):
 
             res_file_path = os.path.join(self.results_dir, trun.res_file)
             gen_file_path = os.path.join(self.job_dir, trun.gen_file)
-            job_file_path = os.path.join(self.job_dir, 'job-' + trun.res_file + '.sh')
             cfg_file_path = os.path.join(self.job_dir, 'cfg-' + trun.res_file)
 
             json_config['res_file'] = res_file_path
