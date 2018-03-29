@@ -13,6 +13,30 @@ from . import common
 # if \(name == "(.+?)".+
 
 
+FUNCTION_ESTREAM = 1
+FUNCTION_SHA3 = 2
+FUNCTION_BLOCK = 3
+FUNCTION_HASH = 4
+
+
+STREAM_TYPES = {
+    FUNCTION_ESTREAM: 'estream',
+    FUNCTION_SHA3: 'sha3',
+    FUNCTION_BLOCK: 'block',
+    FUNCTION_HASH: 'hash',
+}
+
+
+class StreamCodes:
+    ZERO = 'false-stream'
+    RANDOM = 'pcg32-stream'
+    SAC = 'sac'
+    SAC_STEP = 'sac-step'
+    COUNTER = 'counter'
+    XOR = 'xor-stream'
+    RPCS = 'rnd-plt-ctx-stream'
+
+
 class FunctionParams(object):
     __slots__ = ['block_size', 'key_size', 'iv_size', 'rounds', 'min_rounds', 'in_size', 'out_size', 'fname']
 
@@ -37,28 +61,18 @@ class FunctionParams(object):
                   self.out_size)
 
 
-FUNCTION_ESTREAM = 1
-FUNCTION_SHA3 = 2
-FUNCTION_BLOCK = 3
-FUNCTION_HASH = 4
+class Stream(object):
+    """
+    Base stream object
+    """
+    def __init__(self):
+        pass
 
+    def is_randomized(self):
+        return False
 
-STREAM_TYPES = {
-    FUNCTION_ESTREAM: 'estream',
-    FUNCTION_SHA3: 'sha3',
-    FUNCTION_BLOCK: 'block',
-    FUNCTION_HASH: 'hash',
-}
-
-
-class StreamCodes:
-    ZERO = 'false-stream'
-    RANDOM = 'pcg32-stream'
-    SAC = 'sac'
-    SAC_STEP = 'sac-step'
-    COUNTER = 'counter'
-    XOR = 'xor-stream'
-    RPCS = 'rnd-plt-ctx-stream'
+    def scode(self):
+        return None
 
 
 # eStream
@@ -93,6 +107,7 @@ ESTREAM = {
     'WG': None,
     'Zk-Crypt': None
 }
+
 
 # SHA3
 SHA3 = {
@@ -142,6 +157,7 @@ SHA3 = {
 }
 
 
+# Hash
 HASH = {
     'Gost': FunctionParams(rounds=32, block_size=32, out_size=32),
     'MD5': FunctionParams(rounds=64, block_size=16, out_size=16),
@@ -153,6 +169,7 @@ HASH = {
 }
 
 
+# Block ciphers
 BLOCK = {
     'ARIA': FunctionParams(16, 16, rounds=12),
     'BLOWFISH': FunctionParams(8, 16, rounds=16),
@@ -173,6 +190,7 @@ BLOCK = {
     'TWOFISH': FunctionParams(16, 16, rounds=16),
     'GOST_BLOCK': FunctionParams(rounds=32, block_size=8, key_size=32, fname='GOST'),
 }
+
 
 # Interesting rounds to test
 ROUNDS = {
