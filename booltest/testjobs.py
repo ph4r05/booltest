@@ -637,7 +637,7 @@ class Testjobs(Booltest):
                         fun_configs.append(c_fun_config)
 
                 for fun_cfg in fun_configs:
-                    seed = self.random_seed()
+                    seed = common.generate_seed()
                     tce_c.gen_cfg = egenerator.get_config_header(fgc, stdout=True, stream=fun_cfg, seed=seed)
                     tce_c.gen_cfg['exp_time'] = self.time_experiment
                     tce_c.strategy = egenerator.get_scode(fun_cfg)
@@ -663,7 +663,7 @@ class Testjobs(Booltest):
 
                 if trt > 0:
                     test_spec = copy.deepcopy(test_spec)
-                    seed = self.random_seed()
+                    seed = common.generate_seed(trt)
                     test_spec.gen_cfg['seed'] = seed
 
                 test_desc = 'idx: %04d, data: %04d, block: %s, deg: %s, comb-deg: %s, fun: %s, round: %s scode: %s, %s' \
