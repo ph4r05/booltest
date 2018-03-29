@@ -148,7 +148,7 @@ def str_equals(a, b):
     al = len(a)
     bl = len(b)
     match = True
-    for i in xrange(0, min(al, bl)):
+    for i in range(0, min(al, bl)):
         match &= a[i] == b[i]
     return match
 
@@ -192,6 +192,21 @@ def bytes_to_byte(byte, offset=0):
 
 def byte_to_bytes(byte):
     return struct.pack('>B', int(byte) & 0xFF)
+
+
+def dump_uint(n):
+    """
+    Constant-width integer serialization
+    :param writer:
+    :param n:
+    :param width:
+    :return:
+    """
+    buffer = []
+    while n:
+        buffer.append(n & 0xff)
+        n >>= 8
+    return buffer
 
 
 #
@@ -334,6 +349,18 @@ class PKCS15(Padding):
 #
 # Encryption
 #
+
+def aes_ecb(key):
+    """
+    Returns AES-ECB instance that can be used for [incremental] encryption/decryption in ProcessData.
+    Uses zero IV.
+
+    :param key:
+    :param iv:
+    :return:
+    """
+    return AES.new(key, AES.MODE_ECB)
+
 
 def aes_cbc(key, iv=None):
     """
