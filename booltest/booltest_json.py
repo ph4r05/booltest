@@ -366,6 +366,9 @@ class BooltestJson(Booltest):
 # Launcher
 app = None
 if __name__ == "__main__":
+    import sys
+
     app = BooltestJson()
-    app.main()
+    code = app.main()
+    sys.exit(code)
 
