@@ -316,7 +316,7 @@ class Testjobs(Booltest):
                 continue
 
             fun_key = egenerator.get_zero_stream() if i == 0 and not self.args.ref_only else \
-                egenerator.get_random_stream(i - 1)
+                egenerator.get_random_stream()
 
             if not self.args.no_counters:
                 fun_configs += [
