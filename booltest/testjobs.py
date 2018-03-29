@@ -622,8 +622,6 @@ class Testjobs(Booltest):
 
         # Generate test cases, run the analysis.
         test_runs_times = range(self.args.test_rand_runs)
-        if self.args.ref_only:
-            test_runs_times = range(100)
 
         # For each test specification
         generator_files = set()
