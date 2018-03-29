@@ -252,7 +252,7 @@ def main():
         if idx % 1000 == 0:
             logger.debug('Progress: %d, cur: %s skipped: %s' % (idx, tfile, skipped))
 
-        if tfile.endswith('csv'):
+        if not tfile.endswith('json'):
             continue
 
         if args.narrow and not is_narrow(tfile):
