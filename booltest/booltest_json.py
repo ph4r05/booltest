@@ -16,6 +16,7 @@ import scipy.stats
 from booltest import egenerator
 from booltest import common
 from booltest import misc
+from booltest import timer
 from booltest.booltest_main import *
 
 
@@ -217,6 +218,10 @@ class BooltestJson(Booltest):
         with open(self.args.config_file) as fh:
             config = json.load(fh)
 
+        timer_data_read = timer.Timer(start=False)
+        timer_data_bins = timer.Timer(start=False)
+        timer_process = timer.Timer(start=False)
+
         hw_cfg = config['hwanalysis']
         test_run = config['config']
         data_file = test_run['spec']['data_file']
@@ -278,13 +283,17 @@ class BooltestJson(Booltest):
                 if rounds is not None and cur_round > rounds:
                     break
 
-                data = iobj.read(tvsize)
+                with timer_data_read:
+                    data = iobj.read(tvsize)
+
                 if (len(data)*8 % hwanalysis.blocklen) != 0:
                     logger.warning('Not aligned block read, terminating. Data: %s bits remainder: %s'
                                    % (len(data)*8, hwanalysis.blocklen))
                     break
 
-                bits = common.to_bitarray(data)
+                with timer_data_bins:
+                    bits = common.to_bitarray(data)
+
                 if len(bits) == 0:
                     logger.info('File read completely')
                     break
@@ -294,7 +303,8 @@ class BooltestJson(Booltest):
                             (hwanalysis.deg, hwanalysis.blocklen, tvsize, tvsize/1024.0, tvsize/1024.0/1024.0,
                              cur_round, len(bits)))
 
-                hwanalysis.proces_chunk(bits, None)
+                with timer_process:
+                    hwanalysis.proces_chunk(bits, None)
                 cur_round += 1
 
         data_hash = iobj.sha1.hexdigest()
@@ -322,6 +332,9 @@ class BooltestJson(Booltest):
         jsres['top_k'] = self.top_k
         jsres['all_deg'] = self.all_deg
         jsres['time_elapsed'] = time.time() - time_test_start
+        jsres['time_data_read'] = timer_data_read.total()
+        jsres['time_data_bins'] = timer_data_bins.total()
+        jsres['time_process'] = timer_process.total()
 
         jsres['data_hash'] = data_hash
         jsres['data_read'] = iobj.data_read
