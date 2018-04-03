@@ -210,6 +210,8 @@ class BooltestJson(Booltest):
         timer_data_read = timer.Timer(start=False)
         timer_data_bins = timer.Timer(start=False)
         timer_process = timer.Timer(start=False)
+        cpu_pcnt_load_before = misc.try_get_cpu_percent()
+        cpu_load_before = misc.try_get_cpu_load()
 
         hw_cfg = config['hwanalysis']
         test_run = config['config']
@@ -331,6 +333,10 @@ class BooltestJson(Booltest):
         jsres['best_dists'] = best_dists
         jsres['config'] = config
         jsres['hostname'] = misc.try_get_hostname()
+        jsres['cpu_pcnt_load_before'] = cpu_pcnt_load_before
+        jsres['cpu_load_before'] = cpu_load_before
+        jsres['cpu_pcnt_load_after'] = misc.try_get_cpu_percent()
+        jsres['cpu_load_after'] = misc.try_get_cpu_load()
         jsres['cpu'] = misc.try_get_cpu_info()
 
         with open(res_file, 'w+') as fh:
