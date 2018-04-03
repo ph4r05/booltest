@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# graphing dependencies: matplotlib, seaborn, pandas
 
 __author__ = 'dusanklinec'
 
@@ -366,7 +367,7 @@ def main():
             else:
                 cur_data.append(num_samples)
                 avg = sum(time_arr) / float(num_samples)
-                stddev = math.sqrt(sum([(x-avg)**2 for x in time_arr])/(num_samples - 1)) if num_samples > 1 else None
+                stddev = math.sqrt(sum([(x-avg)**2 for x in time_arr])/(float(num_samples) - 1)) if num_samples > 1 else None
                 cur_data += [avg, stddev]
                 cur_data += time_arr
             fh.write(args.delim.join([str(x) for x in cur_data]) + '\n')
