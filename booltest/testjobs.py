@@ -225,6 +225,8 @@ class Testjobs(Booltest):
             battery = egenerator.filter_functions(battery, egenerator.NARROW_SELECTION)
         elif self.args.narrow2:
             battery = egenerator.filter_functions(battery, egenerator.NARROW_SELECTION_EXTPAPER)
+        elif self.args.benchmark:
+            battery = egenerator.filter_functions(battery, egenerator.BENCHMARK_SELECTION)
 
         if self.args.only_rounds:
             for fnc in battery:
@@ -406,7 +408,10 @@ class Testjobs(Booltest):
             if self.args.narrow and not self.is_narrow(cur_file):
                 continue
 
-            if self.args.narrow2 and not self.is_narrow(cur_file, 2):
+            if self.args.narrow2 and not self.is_narrow(cur_file, 1):
+                continue
+
+            if self.args.benchmark and not self.is_narrow(cur_file, 2):
                 continue
 
             js_txt = open(cfg_file_path, 'r').read()
@@ -924,6 +929,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--narrow2', dest='narrow2', action='store_const', const=True, default=False,
                             help='Computes only narrow2 set of functions')
+
+        parser.add_argument('--benchmark', dest='benchmark', action='store_const', const=True, default=False,
+                            help='Computes only benchmark set of functions')
 
         parser.add_argument('--all-zscores', dest='all_zscores', action='store_const', const=True, default=False,
                             help='All zscore list')

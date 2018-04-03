@@ -276,6 +276,11 @@ NARROW_SELECTION_EXTPAPER = {
 }
 
 
+BENCHMARK_SELECTION = {
+    'AES', 'Keccak', 'MD5', 'SHA256', 'TRIPLE-DES'
+}
+
+
 NARROW_SELECTION_LOW = {x.lower() for x in NARROW_SELECTION}
 NARROW_SELECTION_EXTPAPER_LOW = {x.lower() for x in NARROW_SELECTION_EXTPAPER}
 
@@ -408,7 +413,15 @@ def is_narrow(fname, narrow_type=0):
     :return:
     """
     lw = fname.lower()
-    narrow_set = NARROW_SELECTION_LOW if narrow_type == 0 else NARROW_SELECTION_EXTPAPER_LOW
+    if narrow_type == 0:
+        narrow_set = NARROW_SELECTION_LOW
+    elif narrow_type == 1:
+        narrow_set = NARROW_SELECTION_EXTPAPER_LOW
+    elif narrow_type == 2:
+        narrow_set = BENCHMARK_SELECTION
+    else:
+        raise ValueError('Unknown narrow type')
+
     for fnc in narrow_set:
         flk = '-a%s-' % fnc
         if flk in lw:

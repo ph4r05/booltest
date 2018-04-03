@@ -219,6 +219,9 @@ def main():
     parser.add_argument('--narrow2', dest='narrow2', default=False, action='store_const', const=True,
                         help='Process only smaller set of functions2')
 
+    parser.add_argument('--benchmark', dest='benchmark', default=False, action='store_const', const=True,
+                        help='Process only smaller set of fnc: benchmark')
+
     parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
                         help='folder with test matrix resutls - result dir of testbed.py')
 
@@ -268,7 +271,11 @@ def main():
             skipped += 1
             continue
 
-        if args.narrow2 and not is_narrow(tfile, 2):
+        if args.narrow2 and not is_narrow(tfile, 1):
+            skipped += 1
+            continue
+
+        if args.benchmark and not is_narrow(tfile, 2):
             skipped += 1
             continue
 
@@ -320,6 +327,8 @@ def main():
     fname_narrow = 'nw_' if args.narrow else ''
     if args.narrow2:
         fname_narrow = 'nw2_'
+    elif args.benchmark:
+        fname_narrow = 'bench_'
 
     fname_time = int(time.time())
     fname_ref_json = os.path.join(args.out_dir, 'ref_%s%s.json' % (fname_narrow, fname_time))
