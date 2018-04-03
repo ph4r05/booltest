@@ -21,7 +21,9 @@ from booltest.booltest_main import *
 from booltest import testjobsbase
 
 logger = logging.getLogger(__name__)
-coloredlogs.install(level=logging.DEBUG)
+coloredlogs.CHROOT_FILES = []
+coloredlogs.install(level=logging.DEBUG, use_chroot=False)
+
 
 job_tpl_hdr = '''#!/bin/bash
 
