@@ -40,6 +40,7 @@ class TestRecord(object):
         self.strategy = None
         self.method = None
         self.ref = False
+        self.time_process = None
 
         self.zscore = None
         self.best_poly = None
@@ -65,6 +66,9 @@ class TestRecord(object):
 
     def ref_category(self):
         return self.method, self.block, self.deg, self.comb_deg, self.data
+
+    def bool_category(self):
+        return self.block, self.deg, self.comb_deg, self.data
 
     def ref_category_unhw(self):
         return self.method_unhw(), self.block, self.deg, self.comb_deg, self.data
@@ -112,6 +116,7 @@ def process_file(js, fname, args=None):
     tr.data = common.defvalkeys(js, 'config.config.spec.data_size')
     tr.strategy = common.defvalkeys(js, 'config.config.spec.strategy')
     tr.method = get_method(tr.strategy)
+    tr.time_process = common.defvalkeys(js, 'time_process')
 
     if tr.data:
         tr.data = int(math.ceil(math.ceil(tr.data/1024.0)/1024.0))
@@ -236,12 +241,14 @@ def main():
     total_block = [128, 256, 384, 512]
     total_deg = [1, 2, 3]
     total_comb_deg = [1, 2, 3]
-    total_sizes = [1, 10, 100]
+    total_sizes = [10, 100]
     total_cases = [total_block, total_deg, total_comb_deg]
+    total_cases_size = total_cases + [total_sizes]
 
     # ref bins: method, bl, deg, comb, data
     ref_name = '-aAES-r10-'
     ref_bins = collections.defaultdict(lambda: [])
+    timing_bins = collections.defaultdict(lambda: [])
 
     test_records = []
     skipped = 0
@@ -285,6 +292,8 @@ def main():
 
             test_records.append(tr)
             total_functions.add(tr.function)
+            if tr.time_process:
+                timing_bins[tr.bool_category()].append(tr.time_process)
 
         except Exception as e:
             logger.error('Exception during processing %s: %s' % (tfile, e))
@@ -316,6 +325,7 @@ def main():
     fname_results_json = os.path.join(args.out_dir, 'results_%s%s.json' % (fname_narrow, fname_time))
     fname_results_csv = os.path.join(args.out_dir, 'results_%s%s.csv' % (fname_narrow, fname_time))
     fname_results_rf_csv = os.path.join(args.out_dir, 'results_rf_%s%s.csv' % (fname_narrow, fname_time))
+    fname_timing_csv = os.path.join(args.out_dir, 'results_time_%s%s.csv' % (fname_narrow, fname_time))
 
     ref_keys = sorted(list(ref_bins.keys()))
     with open(fname_ref_csv, 'w+') as fh_csv, open(fname_ref_json, 'w+') as fh_json:
@@ -340,6 +350,26 @@ def main():
             json.dump(js_cur, fh_json, indent=2)
             fh_json.write(', \n')
         fh_json.write('\n    null\n]\n')
+
+    # Timing resuls
+    with open(fname_timing_csv, 'w+') as fh:
+        hdr = ['block', 'degree', 'combdeg', 'data', 'num_samples', 'avg', 'stddev', 'data']
+        fh.write(args.delim.join(hdr) + '\n')
+        for case in itertools.product(*total_cases_size):
+            cur_data = list(case)
+            time_arr = timing_bins[case]
+            num_samples = len(time_arr)
+
+            if num_samples == 0:
+                cur_data += [0, None, None, None]
+
+            else:
+                cur_data.append(num_samples)
+                avg = sum(time_arr) / float(num_samples)
+                stddev = math.sqrt(sum([(x-avg)**2 for x in time_arr])/(num_samples - 1)) if num_samples > 1 else None
+                cur_data += [avg, stddev]
+                cur_data += time_arr
+            fh.write(args.delim.join([str(x) for x in cur_data]) + '\n')
 
     # Result processing
     fh_json = open(fname_results_json, 'w+')
