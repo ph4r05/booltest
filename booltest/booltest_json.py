@@ -330,6 +330,8 @@ class BooltestJson(Booltest):
         jsres['generator'] = self.config_js
         jsres['best_dists'] = best_dists
         jsres['config'] = config
+        jsres['hostname'] = misc.try_get_hostname()
+        jsres['cpu'] = misc.try_get_cpu_info()
 
         with open(res_file, 'w+') as fh:
             fh.write(common.json_dumps(jsres, indent=2))
