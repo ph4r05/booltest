@@ -9,6 +9,8 @@ import os
 import logging
 import shutil
 import errno
+import cpuinfo
+import socket
 
 
 logger = logging.getLogger(__name__)
@@ -159,4 +161,29 @@ def eq_obj_contents(l, r):
         return l.__dict__ == r.__dict__
 
 
+def try_get_cpu_info():
+    """
+    Returns CPU info
+    https://github.com/workhorsy/py-cpuinfo
+    :return:
+    """
+    try:
+        return cpuinfo.get_cpu_info()
+
+    except Exception as e:
+        logger.error('Cpuinfo exception %s' % e)
+        return None
+
+
+def try_get_hostname():
+    """
+    Returns hostname or none
+    :return:
+    """
+    try:
+        return socket.getfqdn()
+
+    except Exception as e:
+        logger.error('Hostname exception %s' % e)
+        return None
 

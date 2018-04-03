@@ -24,7 +24,8 @@ install_requires = [
     'ufx',
      # 'matplotlib',  # apt-get install python-tk
     'filelock',
-    'repoze.lru'
+    'repoze.lru',
+    'py-cpuinfo',
 ]
 
 dev_extras = [
