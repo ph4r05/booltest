@@ -11,6 +11,7 @@ import shutil
 import errno
 import cpuinfo
 import socket
+import psutil
 
 
 logger = logging.getLogger(__name__)
@@ -185,5 +186,29 @@ def try_get_hostname():
 
     except Exception as e:
         logger.error('Hostname exception %s' % e)
+        return None
+
+
+def try_get_cpu_percent():
+    """
+    CPU usage before run
+    :return:
+    """
+    try:
+        return psutil.cpu_percent()
+    except Exception as e:
+        logger.error('Cpu percent exception %s' % e)
+        return None
+
+
+def try_get_cpu_load():
+    """
+    CPU unix-like load
+    :return:
+    """
+    try:
+        return os.getloadavg()
+    except Exception as e:
+        logger.error('Cpu load exception %s' % e)
         return None
 

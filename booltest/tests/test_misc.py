@@ -34,6 +34,22 @@ class CommonTest(unittest.TestCase):
         hst = misc.try_get_hostname()
         self.assertIsNotNone(hst)
 
+    def test_cpu_pcnt(self):
+        """
+        Get cpu percent
+        :return:
+        """
+        res = misc.try_get_cpu_percent()
+        self.assertIsNotNone(res)
+
+    def test_cpu_load(self):
+        """
+        Get cpu load
+        :return:
+        """
+        res = misc.try_get_cpu_load()
+        self.assertIsNotNone(res)
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover
