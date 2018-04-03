@@ -837,7 +837,7 @@ def determine_stream(code):
         return get_zero_stream()
     if code.startswith('rnd'):
         rnd_code = code[3:]
-        return get_random_stream(0 if not rnd_code else int(rnd_code))
+        return get_random_stream(None if not rnd_code else int(rnd_code))
     if code == 'sac':
         return get_sac_stream()
     if code == 'sac-step' or code == 'sacstep':
