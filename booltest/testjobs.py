@@ -443,8 +443,8 @@ class Testjobs(Booltest):
             batcher.add_unit(unit)
         batcher.flush()
 
-        logger.info('Generated job files: %s, num missing gen: %s, num ok: %s, num running: %s'
-                    % (len(batcher.job_files), num_gen_file_missing, num_res_ok, num_job_running))
+        logger.info('Generated job files: %s, tests: %s, num missing gen: %s, num ok: %s, num running: %s'
+                    % (len(batcher.job_files), batcher.num_units, num_gen_file_missing, num_res_ok, num_job_running))
 
         self.finalize_batch(batcher)
 
@@ -487,7 +487,7 @@ class Testjobs(Booltest):
             batcher.add_unit(unit)
         batcher.flush()
 
-        logger.info('Generated job files: %s' % (len(batcher.job_files), ))
+        logger.info('Generated job files: %s, tests: %s' % (len(batcher.job_files), batcher.num_units))
         self.finalize_batch(batcher)
 
     def finalize_batch(self, batcher):
@@ -756,8 +756,8 @@ class Testjobs(Booltest):
             batcher.add_unit(unit)
         batcher.flush()
 
-        logger.info('Generated job files: %s, skipped: %s, skipped existing: %s'
-                    % (len(batcher.job_files), num_skipped, num_skipped_existing))
+        logger.info('Generated job files: %s, tests: %s, skipped: %s, skipped existing: %s'
+                    % (len(batcher.job_files), batcher.num_units, num_skipped, num_skipped_existing))
 
         self.finalize_batch(batcher)
 

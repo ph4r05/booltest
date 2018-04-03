@@ -61,6 +61,7 @@ class BatchGenerator(object):
         self.job_batch_max_size = 50
         self.cur_batch_def = None  # type: TestBatchUnit
         self.memory_threshold = 50
+        self.num_units = 0
         self.num_skipped = 0
         self.num_skipped_existing = 0
         self.job_file_path = None
@@ -73,6 +74,7 @@ class BatchGenerator(object):
         """
         args = ' --config-file %s' % unit.cfg_file_path
         job_data = job_tpl % (unit.gen_file_path, args, unit.res_file, unit.res_file)
+        self.num_units += 1
         self.job_batch.append(job_data)
         self.generator_files.add(unit.gen_file_path)
 
