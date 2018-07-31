@@ -73,6 +73,10 @@ class BatchGenerator(object):
         self.num_skipped = 0
         self.num_skipped_existing = 0
         self.job_file_path = None
+        self.aggregation_factor = 1.0
+
+    def aggregate(self, jobs, fact, min_jobs=1):
+        return min(min_jobs, int(jobs * fact))
 
     def add_unit(self, unit):
         """
@@ -100,21 +104,27 @@ class BatchGenerator(object):
         flush_batch = False
         if self.cur_batch_def is None:
             self.cur_batch_def = unit
-            self.job_batch_max_size = 15
+
+            # 11 MB data and more
+            self.job_batch_max_size = self.aggregate(5, self.aggregation_factor)
+            if self.batch_max_deg <= 2 and self.batch_max_comb_deg <= 2:
+                self.job_batch_max_size = self.aggregate(10, self.aggregation_factor)
+            if self.batch_max_deg <= 1 and self.batch_max_comb_deg <= 2:
+                self.job_batch_max_size = self.aggregate(15, self.aggregation_factor)
 
             if unit.size_mb < 11:
-                self.job_batch_max_size = 25
+                self.job_batch_max_size = self.aggregate(25, self.aggregation_factor)
                 if self.batch_max_deg <= 2 and self.batch_max_comb_deg <= 2:
-                    self.job_batch_max_size = 50
+                    self.job_batch_max_size = self.aggregate(50, self.aggregation_factor)
                 if self.batch_max_deg <= 1 and self.batch_max_comb_deg <= 2:
-                    self.job_batch_max_size = 100
+                    self.job_batch_max_size = self.aggregate(100, self.aggregation_factor)
 
             if unit.size_mb < 2:
-                self.job_batch_max_size = 100
+                self.job_batch_max_size = self.aggregate(100, self.aggregation_factor)
                 if self.batch_max_deg <= 2 and self.batch_max_comb_deg <= 2:
-                    self.job_batch_max_size = 200
+                    self.job_batch_max_size = self.aggregate(200, self.aggregation_factor)
                 if self.batch_max_deg <= 1 and self.batch_max_comb_deg <= 2:
-                    self.job_batch_max_size = 300
+                    self.job_batch_max_size = self.aggregate(300, self.aggregation_factor)
 
         elif self.cur_batch_def.data_size != unit.data_size \
                 or len(self.job_batch) >= self.job_batch_max_size:
