@@ -222,6 +222,9 @@ def main():
     parser.add_argument('--benchmark', dest='benchmark', default=False, action='store_const', const=True,
                         help='Process only smaller set of fnc: benchmark')
 
+    parser.add_argument('--static', dest='static', default=False, action='store_const', const=True,
+                        help='Process only static test files')
+
     parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
                         help='folder with test matrix resutls - result dir of testbed.py')
 
@@ -261,6 +264,8 @@ def main():
     invalid_results = []
     invalid_results_num = 0
     for idx, tfile in enumerate(test_files):
+        bname = os.path.basename(tfile)
+
         if idx % 1000 == 0:
             logger.debug('Progress: %d, cur: %s skipped: %s' % (idx, tfile, skipped))
 
@@ -276,6 +281,10 @@ def main():
             continue
 
         if args.benchmark and not is_narrow(tfile, 2):
+            skipped += 1
+            continue
+
+        if args.static and ('static' not in bname and ref_name not in bname):
             skipped += 1
             continue
 
