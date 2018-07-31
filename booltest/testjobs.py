@@ -31,14 +31,10 @@ job_tpl_hdr = '''#!/bin/bash
 export BOOLDIR="/storage/brno3-cerit/home/${LOGNAME}/booltest/assets"
 export RESDIR="/storage/brno3-cerit/home/${LOGNAME}/bool-res"
 export LOGDIR="/storage/brno3-cerit/home/${LOGNAME}/bool-log"
+export SIGDIR="/storage/brno3-cerit/home/${LOGNAME}/bool-sig"
 
 cd "${BOOLDIR}"
 
-'''
-
-job_tpl = '''
-./generator-metacentrum.sh -c=%s | ./booltest-json-metacentrum.sh \\
-    %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"
 '''
 
 
