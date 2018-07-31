@@ -3,6 +3,7 @@
 
 import itertools
 import os
+import functools
 import shutil
 import subprocess
 import time
@@ -550,6 +551,11 @@ class Testjobs(Booltest):
         # misc.unpack_keys()
         pass
 
+    @functools.lru_cache(maxsize=4096)
+    def file_data_size(self, fname):
+        st = os.stat(fname)
+        return st.st_size
+
     # noinspection PyBroadException
     def work(self):
         """
@@ -633,12 +639,14 @@ class Testjobs(Booltest):
                 if not tested_obj.is_fnc:
                     tce_c.data_file = os.path.abspath(tested_obj.data_file)
                     tce_c.strategy = '%s-static' % fnc
-                    test_array.append(tce_c)
-                    continue
 
-                if not tce.is_egen:
+                elif not tce.is_egen:
                     tce_c.data_file = self.find_data_file(function=tce.fnc, round=cur_round, size=tce_c.data_size)
                     tce_c.strategy = '%s-static' % misc.normalize_card_name(os.path.basename(tce_c.data_file))
+
+                if tce_c.data_file:
+                    if self.file_data_size(tce_c.data_file) < tce_c.data_size:
+                        continue
                     test_array.append(tce_c)
                     continue
 
