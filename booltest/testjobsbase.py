@@ -76,7 +76,7 @@ class BatchGenerator(object):
         self.aggregation_factor = 1.0
 
     def aggregate(self, jobs, fact, min_jobs=1):
-        return min(min_jobs, int(jobs * fact))
+        return max(min_jobs, int(jobs * fact))
 
     def add_unit(self, unit):
         """
