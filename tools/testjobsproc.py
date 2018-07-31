@@ -63,6 +63,9 @@ class TestRecord(object):
     def method_unhw(self):
         return re.sub(r'hw[0-9]+[rsi]{0,3}', 'hw', self.method)
 
+    def method_generic(self):
+        return 'inctr-krnd-ri0'
+
     def __repr__(self):
         return '%s-r%d-d%s_bl%d-deg%d-k%d' % (self.function, self.round, self.data, self.block, self.deg, self.comb_deg)
 
@@ -74,6 +77,9 @@ class TestRecord(object):
 
     def ref_category_unhw(self):
         return self.method_unhw(), self.block, self.deg, self.comb_deg, self.data
+
+    def ref_category_generic(self):
+        return self.method_generic(), self.block, self.deg, self.comb_deg, self.data
 
 
 def get_method(strategy):
@@ -94,6 +100,8 @@ def get_method(strategy):
     method = method.replace('krnd-1', 'krnd')
     method = re.sub(r'-krnd[0-9]+-$', 'krnd', method)
     method = method.replace('--', '-')
+    if method.endswith('-static'):
+        return 'static'
     return method
 
 
@@ -168,6 +176,9 @@ def is_over_threshold(ref_avg, tr):
     ctg_unhw = tr.ref_category_unhw()
     if ctg_unhw in ref_avg:
         return abs(tr.zscore) >= ref_avg[ctg_unhw] + 1.0
+    ctg_gen = tr.ref_category_generic()
+    if ctg_gen in ref_avg:
+        return abs(tr.zscore) >= ref_avg[ctg_gen] + 1.0
     return False
 
 
