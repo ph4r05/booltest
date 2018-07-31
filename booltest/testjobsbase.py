@@ -9,6 +9,7 @@ job_tpl_hdr = '''#!/bin/bash
 export BOOLDIR="/storage/brno3-cerit/home/${LOGNAME}/booltest/assets"
 export RESDIR="/storage/brno3-cerit/home/${LOGNAME}/bool-res"
 export LOGDIR="/storage/brno3-cerit/home/${LOGNAME}/bool-log"
+export SIGDIR="/storage/brno3-cerit/home/${LOGNAME}/bool-sig"
 
 cd "${BOOLDIR}"
 
@@ -17,19 +18,40 @@ export RRES=0
 
 '''
 
+tpl_clean_signals = '''
+IND_BASE=${SIGDIR}/%s
+/bin/rm ${IND_BASE}.started
+/bin/rm ${IND_BASE}.finished
+/bin/rm ${IND_BASE}.failed
+'''
+
+job_tpl_prefix = '''
+# -------------------------------------------------------------------
+IND_BASE=${SIGDIR}/%s
+touch ${IND_BASE}.started
+/bin/rm ${IND_BASE}.finished
+/bin/rm ${IND_BASE}.failed
+
+'''
+
 job_tpl = '''
 ./generator-metacentrum.sh -c=%s | ./booltest-json-metacentrum.sh \\
     %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"
-RBOOL=$?
-RRES=$(($RBOOL == 0 ? $RRES : 10 + (($RRES - 10 + 1) %% 100)))
-
 '''
 
 job_tpl_data_file = '''
 ./booltest-json-metacentrum.sh \\
     %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"
+'''
+
+tpl_handle_res = '''
 RBOOL=$?
 RRES=$(($RBOOL == 0 ? $RRES : 10 + (($RRES - 10 + 1) %% 100)))
+
+echo $RBOOL > ${IND_BASE}.finished
+if [ $RBOOL -ne 0 ]; then
+    touch ${IND_BASE}.failed
+fi
 
 '''
 
@@ -63,6 +85,7 @@ class BatchGenerator(object):
         self.job_dir = None
         self.job_files = []
         self.job_batch = []
+        self.job_clean_batch = []
         self.batch_max_bl = 0
         self.batch_max_deg = 0
         self.batch_max_comb_deg = 0
@@ -85,13 +108,18 @@ class BatchGenerator(object):
         :return:
         """
         args = ' --config-file %s' % unit.cfg_file_path
+        job_data = job_tpl_prefix % unit.res_file
+
         if unit.gen_file_path:
-            job_data = job_tpl % (unit.gen_file_path, args, unit.res_file, unit.res_file)
+            job_data += job_tpl % (unit.gen_file_path, args, unit.res_file, unit.res_file)
         else:
-            job_data = job_tpl_data_file % (args, unit.res_file, unit.res_file)
+            job_data += job_tpl_data_file % (args, unit.res_file, unit.res_file)
+
+        job_data += tpl_handle_res
 
         self.num_units += 1
         self.job_batch.append(job_data)
+        self.job_clean_batch.append(tpl_clean_signals % unit.res_file)
 
         if unit.gen_file_path:
             self.generator_files.add(unit.gen_file_path)
@@ -141,7 +169,7 @@ class BatchGenerator(object):
         if len(self.job_batch) == 0:
             return
 
-        job_data = job_tpl_hdr + '\n'.join(self.job_batch)
+        job_data = job_tpl_hdr + '\n'.join(self.job_clean_batch) + '\n\n' + '\n'.join(self.job_batch)
         unit = self.cur_batch_def
 
         with open(self.job_file_path, 'w+') as fh:
@@ -156,6 +184,7 @@ class BatchGenerator(object):
 
         self.cur_batch_def = None
         self.job_batch = []
+        self.job_clean_batch = []
         self.batch_max_bl = 0
         self.batch_max_deg = 0
         self.batch_max_comb_deg = 0
