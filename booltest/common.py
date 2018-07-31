@@ -483,17 +483,17 @@ class FileInputObject(InputObject):
     """
     File input object - reading from the file
     """
-    def __init__(self, fname, *args, **kwargs):
+    def __init__(self, fname, open_mode='rb', *args, **kwargs):
         """
         File reading input object
         :param fname:
-        :param fmode:
+        :param open_mode:
         :param args:
         :param kwargs:
         """
         super(FileInputObject, self).__init__(*args, **kwargs)
         self.fname = fname
-        self.fmode = kwargs.get('fmode', 'r')
+        self.fmode = kwargs.get('fmode', open_mode)
         self.fh = None
 
     def __enter__(self):
