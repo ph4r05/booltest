@@ -26,6 +26,10 @@ coloredlogs.CHROOT_FILES = []
 coloredlogs.install(level=logging.DEBUG, use_chroot=False)
 
 
+# Method used for generating reference looking data stream
+REFERENCE_METHOD = 'inctr-krnd-ri0'
+
+
 class TestRecord(object):
     """
     Represents one performed test and its result.
@@ -64,7 +68,7 @@ class TestRecord(object):
         return re.sub(r'hw[0-9]+[rsi]{0,3}', 'hw', self.method)
 
     def method_generic(self):
-        return 'inctr-krnd-ri0'
+        return REFERENCE_METHOD
 
     def __repr__(self):
         return '%s-r%d-d%s_bl%d-deg%d-k%d' % (self.function, self.round, self.data, self.block, self.deg, self.comb_deg)
@@ -162,6 +166,26 @@ def fls(x):
     return str(x).replace('.', ',')
 
 
+def get_ref_value(ref_avg, tr):
+    """
+    Returns reference value closest to the test.
+    Fallbacks to the generic
+    :param ref_avg:
+    :param tr:
+    :return:
+    """
+    ctg = tr.ref_category()
+    if ctg in ref_avg:
+        return ref_avg[ctg]
+    ctg_unhw = tr.ref_category_unhw()
+    if ctg_unhw in ref_avg:
+        return ref_avg[ctg_unhw]
+    ctg_gen = tr.ref_category_generic()
+    if ctg_gen in ref_avg:
+        return ref_avg[ctg_gen]
+    return None
+
+
 def is_over_threshold(ref_avg, tr):
     """
     Returns true of tr is over the reference threshold
@@ -170,16 +194,16 @@ def is_over_threshold(ref_avg, tr):
     :type tr: TestRecord
     :return:
     """
-    ctg = tr.ref_category()
-    if ctg in ref_avg:
-        return abs(tr.zscore) >= ref_avg[ctg] + 1.0
-    ctg_unhw = tr.ref_category_unhw()
-    if ctg_unhw in ref_avg:
-        return abs(tr.zscore) >= ref_avg[ctg_unhw] + 1.0
-    ctg_gen = tr.ref_category_generic()
-    if ctg_gen in ref_avg:
-        return abs(tr.zscore) >= ref_avg[ctg_gen] + 1.0
-    return False
+    ref = get_ref_value(ref_avg, tr)
+    if ref is None:
+        return False
+
+    return abs(tr.zscore) >= ref + 1.0
+
+
+def get_ref_val_def(ref_avg, block, deg, comb_deg, data):
+    cat = (REFERENCE_METHOD, block, deg, comb_deg, data)
+    return ref_avg[cat] if cat in ref_avg else None
 
 
 def is_narrow(fname, narrow_type=0):
@@ -356,6 +380,8 @@ def main():
     fname_results_json = os.path.join(args.out_dir, 'results_%s%s.json' % (fname_narrow, fname_time))
     fname_results_csv = os.path.join(args.out_dir, 'results_%s%s.csv' % (fname_narrow, fname_time))
     fname_results_rf_csv = os.path.join(args.out_dir, 'results_rf_%s%s.csv' % (fname_narrow, fname_time))
+    fname_results_rfd_csv = os.path.join(args.out_dir, 'results_rfd_%s%s.csv' % (fname_narrow, fname_time))
+    fname_results_rfr_csv = os.path.join(args.out_dir, 'results_rfr_%s%s.csv' % (fname_narrow, fname_time))
     fname_timing_csv = os.path.join(args.out_dir, 'results_time_%s%s.csv' % (fname_narrow, fname_time))
 
     ref_keys = sorted(list(ref_bins.keys()))
@@ -406,17 +432,22 @@ def main():
     fh_json = open(fname_results_json, 'w+')
     fh_csv = open(fname_results_csv, 'w+')
     fh_rf_csv = open(fname_results_rf_csv, 'w+')
+    fh_rfd_csv = open(fname_results_rfd_csv, 'w+')
+    fh_rfr_csv = open(fname_results_rfr_csv, 'w+')
     fh_json.write('[\n')
 
     # Headers
-    hdr = ['fnc_name' 'fnc_round', 'method', 'data_mb']
+    hdr = ['fnc_name', 'fnc_round', 'method', 'data_mb']
     for cur_key in itertools.product(*total_cases):
         hdr.append('%s-%s-%s' % (cur_key[0], cur_key[1], cur_key[2]))
     fh_csv.write(args.delim.join(hdr) + '\n')
     fh_rf_csv.write(args.delim.join(hdr) + '\n')
+    fh_rfd_csv.write(args.delim.join(hdr) + '\n')
+    fh_rfr_csv.write(args.delim.join(hdr) + '\n')
 
     # Processing
     js_out = []
+    ref_added = set()
     for k, g in itertools.groupby(test_records, key=lambda x: (x.function, x.round, x.method, x.data)):
         logger.info('Key: %s' % list(k))
 
@@ -427,6 +458,18 @@ def main():
 
         group_expanded = list(g)
         results_map = {(x.block, x.deg, x.comb_deg): x for x in group_expanded}
+        prefix_cols = [fnc_name, fls(fnc_round), method, fls(data_mb)]
+
+        # Add line with reference values so one can compare
+        if data_mb not in ref_added:
+            ref_added.add(data_mb)
+            results_list = []
+            for cur_key in itertools.product(*total_cases):
+                results_list.append(get_ref_val_def(ref_avg, *cur_key, data=data_mb))
+
+            csv_line = args.delim.join(['ref-AES', '10', REFERENCE_METHOD, fls(data_mb)]
+                                       + [(fls(x) if x is not None else '-') for x in results_list])
+            fh_csv.write(csv_line + '\n')
 
         # Grid list for booltest params
         results_list = []
@@ -437,25 +480,36 @@ def main():
                 results_list.append(None)
 
         # CSV result
-        csv_line = args.delim.join(
-            [
-                 fnc_name, fls(fnc_round), method, fls(data_mb)
-            ] + [(fls(x.zscore) if x is not None else '-') for x in results_list])
+        csv_line = args.delim.join(prefix_cols + [(fls(x.zscore) if x is not None else '-') for x in results_list])
         fh_csv.write(csv_line+'\n')
 
         # CSV only if above threshold
-        def zscoreref(x):
+        def zscoreref(x, retmode=0):
             if x is None:
                 return '-'
+            thr = get_ref_value(ref_avg, x)
+            if thr is None:
+                return '?'
             if is_over_threshold(ref_avg, x):
-                return fls(x.zscore)
+                if retmode == 0:
+                    return fls(x.zscore)
+                elif retmode == 1:
+                    return fls(abs(x.zscore) - abs(thr))
+                elif retmode == 2:
+                    return fls(abs(x.zscore) / abs(thr))
             return '.'
 
         csv_line_rf = args.delim.join(
-            [
-                 fnc_name, fls(fnc_round), method, fls(data_mb)
-            ] + [zscoreref(x) for x in results_list])
+            prefix_cols + [zscoreref(x) for x in results_list])
         fh_rf_csv.write(csv_line_rf + '\n')
+
+        csv_line_rfd = args.delim.join(
+            prefix_cols + [zscoreref(x, 1) for x in results_list])
+        fh_rfd_csv.write(csv_line_rfd + '\n')
+
+        csv_line_rfr = args.delim.join(
+            prefix_cols + [zscoreref(x, 2) for x in results_list])
+        fh_rfr_csv.write(csv_line_rfr + '\n')
 
         # JSON result
         cur_js = collections.OrderedDict()
@@ -480,6 +534,8 @@ def main():
     fh_json.close()
     fh_csv.close()
     fh_rf_csv.close()
+    fh_rfd_csv.close()
+    fh_rfr_csv.close()
 
 
 if __name__ == '__main__':
