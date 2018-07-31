@@ -25,6 +25,14 @@ RRES=$(($RBOOL == 0 ? $RRES : 10 + (($RRES - 10 + 1) %% 100)))
 
 '''
 
+job_tpl_data_file = '''
+./booltest-json-metacentrum.sh \\
+    %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"
+RBOOL=$?
+RRES=$(($RBOOL == 0 ? $RRES : 10 + (($RRES - 10 + 1) %% 100)))
+
+'''
+
 job_tpl_footer = '''
 exit $RRES
 '''
@@ -73,10 +81,16 @@ class BatchGenerator(object):
         :return:
         """
         args = ' --config-file %s' % unit.cfg_file_path
-        job_data = job_tpl % (unit.gen_file_path, args, unit.res_file, unit.res_file)
+        if unit.gen_file_path:
+            job_data = job_tpl % (unit.gen_file_path, args, unit.res_file, unit.res_file)
+        else:
+            job_data = job_tpl_data_file % (args, unit.res_file, unit.res_file)
+
         self.num_units += 1
         self.job_batch.append(job_data)
-        self.generator_files.add(unit.gen_file_path)
+
+        if unit.gen_file_path:
+            self.generator_files.add(unit.gen_file_path)
 
         self.batch_max_bl = max(self.batch_max_bl, unit.block_size)
         self.batch_max_deg = max(self.batch_max_deg, unit.degree)
