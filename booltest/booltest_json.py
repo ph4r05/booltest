@@ -234,7 +234,7 @@ class BooltestJson(Booltest):
         if all_zscores:
             hwanalysis.all_zscore_comp = True
 
-        rounds = None
+        rounds = common.defvalkey(test_run['spec'], 'data_rounds')
         size_mb = test_run['spec']['data_size'] / 1024 / 1024
         tvsize = test_run['spec']['data_size']
 
@@ -272,7 +272,7 @@ class BooltestJson(Booltest):
             cur_round = 0
 
             while size < 0 or data_read < size:
-                if rounds is not None and cur_round > rounds:
+                if rounds is not None and cur_round >= rounds:
                     break
 
                 with timer_data_read:
