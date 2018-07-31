@@ -12,6 +12,7 @@ import errno
 import cpuinfo
 import socket
 import psutil
+import glob
 
 
 logger = logging.getLogger(__name__)
@@ -212,3 +213,46 @@ def try_get_cpu_load():
         logger.error('Cpu load exception %s' % e)
         return None
 
+
+def normalize_card_name(name):
+    name = name.replace(' - ', '_')
+    name = name.replace('+', '')
+    name = name.replace('-', '_')
+    name = name.replace(' ', '_')
+    name = name.lower()
+    name = re.sub(r'[^a-zA-Z0-9_]', '', name)
+    return name
+
+
+def unpack_keys(card_dir, out_dir, bitsize):
+    files = glob.glob(os.path.join(card_dir, '*.rar'))
+    filt = '1024b' if bitsize == 1024 else '512b'
+    files = [x for x in files if filt in x]
+    logger.debug('Files: %s' % files)
+
+    import tempfile
+    from pyunpack import Archive
+
+    for fl in files:
+        dir_name = tempfile.mkdtemp(prefix='tmp_card', dir=out_dir)
+        bname = os.path.basename(fl)
+        bname = os.path.splitext(bname)[0]
+        bname = normalize_card_name(bname)
+        dest_file = os.path.join(out_dir, '%s.csv' % bname)
+        fh = open(dest_file, 'w+')
+        logger.debug('Processing %s to %s' % (bname, dest_file))
+
+        try:
+            Archive(fl).extractall(dir_name)
+            csvs = glob.glob(os.path.join(dir_name, '*.csv'))
+            for cl in csvs:
+                logger.debug(' .. %s' % cl)
+
+                with open(cl) as cfh:
+                    data = cfh.read()
+                fh.write(data)
+                fh.flush()
+
+        finally:
+            shutil.rmtree(dir_name)
+            fh.close()
