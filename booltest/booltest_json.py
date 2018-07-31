@@ -369,7 +369,7 @@ class BooltestJson(Booltest):
 
         self.args = parser.parse_args()
         jsres = self.work()
-        return 0 if jsres['data_read'] > 0 else 2
+        return 0 if jsres is None or jsres['data_read'] > 0 else 2
 
 
 # Launcher
