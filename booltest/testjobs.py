@@ -47,6 +47,7 @@ class TestCaseEntry(object):
         self.params = params
         self.stream_type = stream_type
         self.data_file = data_file
+        self.data_rounds = 1
         self.rounds = None
         self.c_round = None
         self.data_size = None
@@ -83,6 +84,14 @@ class TestRun(object):
         :return:
         """
         return dict(self.__dict__)
+
+
+class TestedObject(object):
+    def __init__(self, fnc=None, is_fnc=True, rounds=None, data_file=None):
+        self.fnc = fnc
+        self.is_fnc = is_fnc
+        self.rounds = rounds
+        self.data_file = data_file
 
 
 # Main - argument parsing + processing
@@ -140,11 +149,11 @@ class Testjobs(Booltest):
 
         # Generator path
         self.generator_path = self.args.generator_path
-        if self.generator_path is None:
+        if not self.args.no_functions and self.generator_path is None:
             logger.warning('Generator path is not given, using current directory')
             self.generator_path = os.path.join(os.getcwd(), 'generator')
 
-        if not os.path.exists(self.generator_path):
+        if not self.args.no_functions and not os.path.exists(self.generator_path):
             raise ValueError('Generator not found: %s' % self.generator_path)
 
         # Other
@@ -215,6 +224,9 @@ class Testjobs(Booltest):
         Returns function -> [r1, r2, r3, ...] to test on given number of rounds.
         :return:
         """
+        if self.args.no_functions:
+            return {}
+
         if self.args.ref_only or self.args.all_zscores:
             return {'AES': [10]}
 
@@ -534,12 +546,20 @@ class Testjobs(Booltest):
             p = subprocess.Popen(enqueue_path, stdout=sys.stdout, stderr=sys.stderr, shell=True)
             p.wait()
 
+    def unpack_prng(self, data_dir, out_dir):
+        # misc.unpack_keys()
+        pass
+
     # noinspection PyBroadException
     def work(self):
         """
         Main entry point - data processing
         :return:
         """
+        if self.args.unpack:
+            self.unpack_prng(self.args.data_dir, out_dir=self.args.res_dir)
+            return
+
         self.init_params()
 
         # Init logic, analysis.
@@ -571,13 +591,26 @@ class Testjobs(Booltest):
 
         # (function, round, processing_type)
         test_array = []
-
         total_test_idx = 0
+
+        # Process arguments to object for testing
+        tested_objects = []
         for fnc in functions:
-            rounds = battery[fnc]
+            tested_objects.append(TestedObject(fnc=fnc, rounds=battery[fnc], is_fnc=True))
+
+        for fl in self.args.test_files:
+            if not os.path.exists(fl):
+                raise ValueError('File does not exist: %s' % fl)
+            bname = misc.normalize_card_name(os.path.basename(fl))
+            tested_objects.append(TestedObject(fnc=bname, rounds=[1], is_fnc=False, data_file=fl))
+
+        # Process objects for testing
+        for tested_obj in tested_objects:
+            fnc = tested_obj.fnc
+            rounds = tested_obj.rounds
 
             # Validation round 1
-            if self.args.add_round1 and 1 not in rounds:
+            if tested_obj.is_fnc and self.args.add_round1 and 1 not in rounds:
                 rounds.insert(0, 1)
 
             params = all_functions[fnc] if fnc in all_functions else None  # type: egenerator.FunctionParams
@@ -597,8 +630,15 @@ class Testjobs(Booltest):
                 tce_c.c_round = cur_round
                 tce_c.data_size = size_mb*1024*1024
 
+                if not tested_obj.is_fnc:
+                    tce_c.data_file = os.path.abspath(tested_obj.data_file)
+                    tce_c.strategy = '%s-static' % fnc
+                    test_array.append(tce_c)
+                    continue
+
                 if not tce.is_egen:
                     tce_c.data_file = self.find_data_file(function=tce.fnc, round=cur_round, size=tce_c.data_size)
+                    tce_c.strategy = '%s-static' % misc.normalize_card_name(os.path.basename(tce_c.data_file))
                     test_array.append(tce_c)
                     continue
 
@@ -668,11 +708,13 @@ class Testjobs(Booltest):
                               ('-%s' % trt) if trt > 0 else '', test_type, suffix)
                 res_file = res_file.replace(' ', '')
 
-                gen_file = 'gen-%s-%04dMB-%s.json' % (test_spec.strategy, data_size, trt)
-                gen_file = gen_file.replace(' ', '')
+                gen_file = None
+                if test_spec.gen_cfg:
+                    gen_file = 'gen-%s-%04dMB-%s.json' % (test_spec.strategy, data_size, trt)
+                    gen_file = gen_file.replace(' ', '')
 
-                if data_size == test_sizes_mb[0]:
-                    generator_files.add(os.path.join(self.job_dir, gen_file))
+                    if data_size == test_sizes_mb[0]:
+                        generator_files.add(os.path.join(self.job_dir, gen_file))
 
                 trun = TestRun(test_spec, block_size, degree, comb_deg, total_test_idx, test_desc, res_file, gen_file)
                 trun.iteration = trt
@@ -700,7 +742,7 @@ class Testjobs(Booltest):
             json_config['fidx'] = fidx
 
             res_file_path = os.path.join(self.results_dir, trun.res_file)
-            gen_file_path = os.path.join(self.job_dir, trun.gen_file)
+            gen_file_path = os.path.join(self.job_dir, trun.gen_file) if trun.gen_file else None
             cfg_file_path = os.path.join(self.job_dir, 'cfg-' + trun.res_file)
 
             json_config['res_file'] = res_file_path
@@ -734,7 +776,7 @@ class Testjobs(Booltest):
                     logger.warning('Conflicting config: %s' % common.json_dumps(json_config, indent=2))
                     raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
 
-            if not os.path.exists(gen_file_path) or self.args.overwrite_existing:
+            if gen_file_path and (not os.path.exists(gen_file_path) or self.args.overwrite_existing):
                 with open(gen_file_path, 'w+') as fh:
                     fh.write(common.json_dumps(trun.spec.gen_cfg, indent=2))
                 misc.try_chmod_gr(gen_file_path)
@@ -924,6 +966,9 @@ class Testjobs(Booltest):
         parser.add_argument('--only-strategy', dest='only_strategy', nargs=argparse.ZERO_OR_MORE, default=None,
                             help='Only given strategy')
 
+        parser.add_argument('--no-functions', dest='no_functions', action='store_const', const=True, default=False,
+                            help='Do not test any functions (e.g., only data files)')
+
         parser.add_argument('--narrow', dest='narrow', action='store_const', const=True, default=False,
                             help='Computes only narrow set of functions')
 
@@ -972,6 +1017,12 @@ class Testjobs(Booltest):
 
         parser.add_argument('--rescan-jobs', dest='rescan_jobs', action='store_const', const=True, default=False,
                             help='Rescans job dir for configured but expired jobs')
+
+        parser.add_argument('--unpack', dest='unpack', action='store',
+                            help='Unpack card keys')
+
+        parser.add_argument('--test-files', dest='test_files', nargs=argparse.ZERO_OR_MORE, default=[],
+                            help='Files with input data to test')
 
         #
         # Testing matrix definition
