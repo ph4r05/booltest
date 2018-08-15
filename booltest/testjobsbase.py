@@ -20,17 +20,17 @@ export RRES=0
 
 tpl_clean_signals = '''
 IND_BASE=${SIGDIR}/%s
-/bin/rm ${IND_BASE}.started
-/bin/rm ${IND_BASE}.finished
-/bin/rm ${IND_BASE}.failed
+/bin/rm ${IND_BASE}.started 2>/dev/null
+/bin/rm ${IND_BASE}.finished 2>/dev/null
+/bin/rm ${IND_BASE}.failed 2>/dev/null
 '''
 
 job_tpl_prefix = '''
 # -------------------------------------------------------------------
 IND_BASE=${SIGDIR}/%s
 touch ${IND_BASE}.started
-/bin/rm ${IND_BASE}.finished
-/bin/rm ${IND_BASE}.failed
+/bin/rm ${IND_BASE}.finished 2>/dev/null
+/bin/rm ${IND_BASE}.failed 2>/dev/null
 
 '''
 
@@ -44,16 +44,30 @@ job_tpl_data_file = '''
     %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"
 '''
 
-tpl_handle_res = '''
-RBOOL=$?
-RRES=$(($RBOOL == 0 ? $RRES : 10 + (($RRES - 10 + 1) %% 100)))
+tpl_handle_res_common = '''
+RRES=$(($RBOOL == 0 ? $RRES : 10 + (($RRES - 10 + 1) % 100)))
 
 echo $RBOOL > ${IND_BASE}.finished
 if [ $RBOOL -ne 0 ]; then
     touch ${IND_BASE}.failed
 fi
-
 '''
+
+tpl_handle_res = '''
+RBOOL=$?
+''' + tpl_handle_res_common
+
+tpl_handle_res_retry = '''
+C_ITER=0
+RBOOL=2
+
+while [ $C_ITER -lt 4 -a $RBOOL -eq 2 ]; do
+    C_ITER=$((C_ITER+1))
+    echo "`hostname` iteration <<JOBNAME>> ${C_ITER}..."
+    <<JOB>>
+    RBOOL=$?
+done
+''' + tpl_handle_res_common
 
 job_tpl_footer = '''
 exit $RRES
@@ -97,6 +111,7 @@ class BatchGenerator(object):
         self.num_skipped_existing = 0
         self.job_file_path = None
         self.aggregation_factor = 1.0
+        self.retry = True
 
     def aggregate(self, jobs, fact, min_jobs=1):
         return max(min_jobs, int(jobs * fact))
@@ -110,12 +125,19 @@ class BatchGenerator(object):
         args = ' --config-file %s' % unit.cfg_file_path
         job_data = job_tpl_prefix % unit.res_file
 
+        job_exec = ''
         if unit.gen_file_path:
-            job_data += job_tpl % (unit.gen_file_path, args, unit.res_file, unit.res_file)
+            job_exec = job_tpl % (unit.gen_file_path, args, unit.res_file, unit.res_file)
         else:
-            job_data += job_tpl_data_file % (args, unit.res_file, unit.res_file)
+            job_exec = job_tpl_data_file % (args, unit.res_file, unit.res_file)
 
-        job_data += tpl_handle_res
+        if self.retry:
+            chunk = tpl_handle_res_retry.replace('<<JOB>>', job_exec)
+            chunk = chunk.replace('<<JOBNAME>>', unit.res_file)
+            job_data += chunk
+        else:
+            job_data += job_exec
+            job_data += tpl_handle_res
 
         self.num_units += 1
         self.job_batch.append(job_data)
