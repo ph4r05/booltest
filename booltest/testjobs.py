@@ -125,12 +125,15 @@ class Testjobs(Booltest):
         self.data_to_gen = 0
         self.config_js = None
         self.cur_data_file = None  # (tmpdir, config, file)
+        self.mbsep = 1000
 
     def init_params(self):
         """
         Parameter processing
         :return:
         """
+        self.mbsep = 1024 if self.args.mibs else 1000
+
         # Results dir
         self.job_dir = self.args.job_dir
         if not self.job_dir:
@@ -161,6 +164,12 @@ class Testjobs(Booltest):
 
         if self.args.only_rounds:
             self.args.only_rounds = [int(x) for x in self.args.only_rounds]
+
+    def to_mbs(self, x, full_div=False):
+        return (x // (self.mbsep * self.mbsep)) if not full_div else (x / (self.mbsep * self.mbsep))
+
+    def from_mbs(self, x):
+        return x * self.mbsep * self.mbsep
 
     def check_res_file(self, path):
         """
@@ -194,7 +203,7 @@ class Testjobs(Booltest):
 
         size = size if size else self.data_to_gen
         candidates = [
-            '%s_r%s_seed%s_%sMB.bin' % (function, round, self.seed, size//1024//1024),
+            '%s_r%s_seed%s_%sMB.bin' % (function, round, self.seed, self.to_mbs(size)),
             '%s_r%s_seed%s.bin' % (function, round, self.seed),
             '%s_r%s_b8.bin' % (function, round),
             '%s_r%s_b16.bin' % (function, round),
@@ -473,7 +482,7 @@ class Testjobs(Booltest):
         unit.degree = int(spec['hwanalysis']['deg'])
         unit.comb_deg = int(spec['hwanalysis']['blocklen'])
         unit.data_size = int(spec['config']['spec']['data_size'])
-        unit.size_mb = unit.data_size / 1024 / 1024
+        unit.size_mb = self.to_mbs(unit.data_size, True)
         return unit
 
     def create_batch_unit_trun(self, trun):
@@ -630,7 +639,7 @@ class Testjobs(Booltest):
             for cur_round, size_mb in iterator:
                 tce_c = copy.deepcopy(tce)
                 tce_c.c_round = cur_round
-                tce_c.data_size = size_mb*1024*1024
+                tce_c.data_size = self.from_mbs(size_mb)
 
                 if not tested_obj.is_fnc:
                     tce_c.data_file = os.path.abspath(tested_obj.data_file)
@@ -688,7 +697,7 @@ class Testjobs(Booltest):
 
             for test_case in itertools.product(test_block_sizes, test_degree, test_comb_k, test_runs_times):
                 block_size, degree, comb_deg, trt = test_case
-                data_size = int(test_spec.data_size / 1024 / 1024)
+                data_size = int(self.to_mbs(test_spec.data_size, True))
                 total_test_idx += 1
 
                 if trt > 0:
@@ -798,7 +807,7 @@ class Testjobs(Booltest):
             unit.degree = trun.degree
             unit.comb_deg = trun.comb_deg
             unit.data_size = trun.spec.data_size
-            unit.size_mb = trun.spec.data_size / 1024 / 1024
+            unit.size_mb = self.to_mbs(trun.spec.data_size, True)
             batcher.add_unit(unit)
         batcher.flush()
 
@@ -1027,6 +1036,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--test-files', dest='test_files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='Files with input data to test')
+
+        parser.add_argument('--mibs', dest='mibs', action='store_const', const=True, default=False,
+                            help='Use mibs - 2^x basis')
 
         #
         # Testing matrix definition
