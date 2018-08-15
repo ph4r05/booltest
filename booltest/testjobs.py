@@ -12,6 +12,8 @@ import traceback
 import copy
 import subprocess
 import sys
+import hashlib
+import fnmatch
 
 import scipy.misc
 import scipy.stats
@@ -84,11 +86,16 @@ class TestRun(object):
 
 
 class TestedObject(object):
-    def __init__(self, fnc=None, is_fnc=True, rounds=None, data_file=None):
+    def __init__(self, fnc=None, is_fnc=True, rounds=None, data_file=None, gen_file=None, gen_data=None,
+                 res_name=None, gen_size=None):
         self.fnc = fnc
         self.is_fnc = is_fnc
         self.rounds = rounds
         self.data_file = data_file
+        self.gen_file = gen_file
+        self.gen_data = gen_data
+        self.res_name = res_name
+        self.gen_size = gen_size
 
 
 # Main - argument parsing + processing
@@ -561,6 +568,75 @@ class Testjobs(Booltest):
         st = os.stat(fname)
         return st.st_size
 
+    def find_generator_files(self):
+        """
+        Finds all generator files specified by args
+        :return:
+        """
+        for cur_fold in self.args.generator_folder:
+            for root, dirnames, filenames in os.walk(cur_fold):
+                for filename in fnmatch.filter(filenames, '*.json'):
+                    yield (os.path.join(root, filename), cur_fold)
+
+    def recursive_algorithm_search(self, js):
+        """
+        Finds first algorithm in the JS hierarchy
+        :param js:
+        :return:
+        """
+        if isinstance(js, list):
+            for xr in js:
+                res = self.recursive_algorithm_search(xr)
+                if res is not None:
+                    return res
+
+        elif isinstance(js, dict):
+            if 'algorithm' in js:
+                return js
+
+            for key in js:
+                res = self.recursive_algorithm_search(js[key])
+                if res is not None:
+                    return res
+        return None
+
+    def read_generator_files(self, acc):
+        """
+        Recursivelly finds all generator files in the folders and run them
+        :param acc:
+        :return:
+        """
+        for cfile, root in self.find_generator_files():
+            dirname = os.path.abspath(os.path.dirname(cfile))
+            absroot = os.path.abspath(root)
+            config_dir = dirname.replace(absroot, '')
+            exp_name = config_dir.replace('/', '-')
+            exp_name = exp_name.replace('.', '')
+
+            bname = os.path.splitext(os.path.basename(cfile))[0]
+            with open(cfile) as fh:
+                js = json.load(fh)
+
+            js['stdout'] = True
+            js_stream = self.recursive_algorithm_search(js)
+            if js_stream is None:
+                raise ValueError('Could not find generating algorithm in %s' % cfile)
+
+            fnc = common.defvalkey(js_stream, 'algorithm')
+            if fnc is None:
+                raise ValueError('Generator %s has no algorithm' % cfile)
+
+            round = common.defvalkey(js_stream, 'round', 1)
+            cfg_hash = hashlib.sha1(json.dumps(js['stream']).encode('utf8')).hexdigest()[12:]
+            gen_size = js['tv_size'] * js['tv_count']
+            gen_size_mb = self.to_mbs(gen_size)
+            res_name = '%s-r%s-e%s-cfg%s' % (fnc, round, exp_name, cfg_hash)
+            logger.debug('Generator found, fnc %s, round %s, cfile %s, res_name %s, gen_size %s MB, exp_name %s'
+                         % (fnc, round, cfile, res_name, gen_size_mb, exp_name))
+            acc.append(TestedObject(fnc=fnc, rounds=[round], is_fnc=False, gen_file=cfile, res_name=res_name,
+                                    gen_data=js, gen_size=gen_size_mb))
+        pass
+
     # noinspection PyBroadException
     def work(self):
         """
@@ -609,6 +685,10 @@ class Testjobs(Booltest):
         for fnc in functions:
             tested_objects.append(TestedObject(fnc=fnc, rounds=battery[fnc], is_fnc=True))
 
+        # Generator files
+        self.read_generator_files(tested_objects)
+
+        # Raw files generated for testing
         for fl in self.args.test_files:
             if not os.path.exists(fl):
                 raise ValueError('File does not exist: %s' % fl)
@@ -635,13 +715,21 @@ class Testjobs(Booltest):
                 tce.stream_type = egenerator.function_to_stream_type(fnc)
                 tce.is_egen = True
 
-            iterator = itertools.product(rounds, test_sizes_mb)
+            test_sizes_cur = test_sizes_mb
+            if tested_obj.gen_size:  # fixed generator size
+                test_sizes_cur = [tested_obj.gen_size]
+
+            iterator = itertools.product(rounds, test_sizes_cur)
             for cur_round, size_mb in iterator:
                 tce_c = copy.deepcopy(tce)
                 tce_c.c_round = cur_round
                 tce_c.data_size = self.from_mbs(size_mb)
 
-                if not tested_obj.is_fnc:
+                if tested_obj.gen_file:
+                    tce_c.gen_cfg = tested_obj.gen_data
+                    tce_c.strategy = tested_obj.res_name
+
+                elif not tested_obj.is_fnc:
                     tce_c.data_file = os.path.abspath(tested_obj.data_file)
                     tce_c.strategy = '%s-static' % fnc
 
@@ -652,6 +740,11 @@ class Testjobs(Booltest):
                 if tce_c.data_file:
                     if self.file_data_size(tce_c.data_file) < tce_c.data_size:
                         continue
+
+                    test_array.append(tce_c)
+                    continue
+
+                if tested_obj.gen_file:
                     test_array.append(tce_c)
                     continue
 
@@ -1039,6 +1132,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--mibs', dest='mibs', action='store_const', const=True, default=False,
                             help='Use mibs - 2^x basis')
+
+        parser.add_argument('--generator-folder', dest='generator_folder', nargs=argparse.ZERO_OR_MORE, default=[],
+                            help='Folders with generator files to run')
 
         #
         # Testing matrix definition
