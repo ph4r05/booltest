@@ -18,9 +18,16 @@ module add gmp-6.1.2
 module add mpfr-3.1.4
 
 eval "$(pyenv init -)"
+if [ $? -eq 2 ]; then
+    exit 2
+fi
+
 sleep 3
 
 pyenv local 3.6.4
+if [ $? -eq 2 ]; then
+    exit 2
+fi
 sleep 3
 
 exec stdbuf -eL python -m booltest.booltest_json $@
