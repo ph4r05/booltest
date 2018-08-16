@@ -199,6 +199,9 @@ class BatchGenerator(object):
             fh.write(job_tpl_footer)
 
         ram = '12gb' if unit.size_mb > self.memory_threshold else '6gb'
+        if unit.size_mb > 4000:
+            ram = '16gb'
+
         job_time = '24:00:00'
         if unit.size_mb < 11:
             job_time = '4:00:00'
