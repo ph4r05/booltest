@@ -202,7 +202,7 @@ class BatchGenerator(object):
         if unit.size_mb >= 4000:
             ram = '16gb'
         if unit.size_mb >= 7000:
-            ram = '20gb'
+            ram = '32gb'
 
         job_time = '24:00:00'
         if unit.size_mb < 11:
