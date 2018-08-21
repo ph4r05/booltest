@@ -532,10 +532,11 @@ class Testjobs(Booltest):
             if self.args.cluster:
                 qsub_args.append('cl_%s=True' % self.args.cluster)
 
+            nprocs = self.args.qsub_ncpu
             qsub_args = ':'.join(qsub_args)
             qsub_args = (':%s' % qsub_args) if qsub_args != '' else ''
             for fn in batcher.job_files:
-                fh.write('qsub -l select=1:ncpus=1:mem=%s%s -l walltime=%s %s \n' % (fn[1], qsub_args, fn[2], fn[0]))
+                fh.write('qsub -l select=1:ncpus=%s:mem=%s%s -l walltime=%s %s \n' % (nprocs, fn[1], qsub_args, fn[2], fn[0]))
 
         # Generator tester file
         testgen_path = os.path.join(self.job_dir, 'test-generators-%s.sh' % int(time.time()))
@@ -1117,6 +1118,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--cluster', dest='cluster', default=None,
                             help='Enqueue on specific cluster')
+
+        parser.add_argument('--qsub-ncpu', dest='qsub_ncpu', default=1, type=int,
+                            help='Number of processors for qsub')
 
         parser.add_argument('--enqueue', dest='enqueue', action='store_const', const=True, default=False,
                             help='Enqueues the generated batch after job finishes')
