@@ -28,13 +28,13 @@ STREAM_TYPES = {
 
 
 class StreamCodes:
-    ZERO = 'false-stream'
-    RANDOM = 'pcg32-stream'
+    ZERO = 'false_stream'
+    RANDOM = 'pcg32_stream'
     SAC = 'sac'
-    SAC_STEP = 'sac-step'
+    SAC_STEP = 'sac_step'
     COUNTER = 'counter'
-    XOR = 'xor-stream'
-    RPCS = 'rnd-plt-ctx-stream'
+    XOR = 'xor_stream'
+    RPCS = 'rnd_plt_ctx_stream'
 
 
 class FunctionParams(object):
@@ -519,7 +519,7 @@ def get_rpcs_stream(**kwargs):
 
 def get_hw_stream(hw=3, increase_hw=False, randomize_start=False, randomize_overflow=False, **kwargs):
     ob = collections.OrderedDict()
-    ob['type'] = 'hw-counter'
+    ob['type'] = 'hw_counter'
     ob['hw'] = hw
     ob['scode'] = 'hw%d%s%s%s' % (hw,
                                   '' if not randomize_overflow else 'r',
@@ -538,7 +538,7 @@ def get_hw_stream(hw=3, increase_hw=False, randomize_start=False, randomize_over
 
 def column_stream(source, size=16):
     ob = collections.OrderedDict()
-    ob['type'] = 'column-stream'
+    ob['type'] = 'column_stream'
     ob['size'] = size
     ob['scode'] = 'col-' + get_scode(source)
     ob['source'] = source
@@ -573,7 +573,7 @@ def pick_iv_size_fcfg(fun_cfg, default=None):
 
 
 def get_function_config(func_cfg,
-                        init_frequency='only-once', mode='ECB', generator='pcg32',
+                        init_frequency='only_once', mode='ECB', generator='pcg32',
                         src_input=None, src_key=None, src_iv=None, **kwargs):
     """
     Function stream.
@@ -589,9 +589,9 @@ def get_function_config(func_cfg,
     :return:
     """
     if init_frequency == 'o' or init_frequency is None:
-        init_frequency = 'only-once'
+        init_frequency = 'only_once'
     elif init_frequency == 'e':
-        init_frequency = 'every-vector'
+        init_frequency = 'every_vector'
 
     fname = func_cfg.params.fname if func_cfg and func_cfg.params and func_cfg.params.fname else func_cfg.function_name
     stream_obj = collections.OrderedDict()
@@ -600,7 +600,7 @@ def get_function_config(func_cfg,
     stream_obj['generator'] = generator
     stream_obj['algorithm'] = fname
     stream_obj['round'] = func_cfg.rounds
-    stream_obj['block-size'] = func_cfg.tvsize
+    stream_obj['block_size'] = func_cfg.tvsize
 
     def_input = get_random_stream() if func_cfg.stream_type in [FUNCTION_SHA3, FUNCTION_HASH] else get_zero_stream()
 
@@ -614,12 +614,12 @@ def get_function_config(func_cfg,
     stream_obj['scode_key'] = get_scode(src_key)
     stream_obj['seed_dep'] = is_randomized(src_input) or is_randomized(src_iv) or is_randomized(src_key)
 
-    if func_cfg.stream_type == FUNCTION_BLOCK and init_frequency == 'every-vector':
+    if func_cfg.stream_type == FUNCTION_BLOCK and init_frequency == 'every_vector':
         init_frequency = 1
 
-    if init_frequency == 'only-once':
+    if init_frequency == 'only_once':
         stream_obj['scode_init'] = '0'
-    elif init_frequency == 'every-vector':
+    elif init_frequency == 'every_vector':
         stream_obj['scode_init'] = 'e'
     else:
         stream_obj['scode_init'] = init_frequency
@@ -629,27 +629,27 @@ def get_function_config(func_cfg,
                              stream_obj['scode_inp'], stream_obj['scode_key'], stream_obj['scode_init'])
 
     if func_cfg.stream_type == FUNCTION_BLOCK:
-        stream_obj['init-frequency'] = str(init_frequency)
-        stream_obj['key-size'] = BLOCK[func_cfg.function_name].key_size
+        stream_obj['init_frequency'] = str(init_frequency)
+        stream_obj['key_size'] = BLOCK[func_cfg.function_name].key_size
         stream_obj['plaintext'] = src_input
         stream_obj['key'] = src_key
         stream_obj['iv'] = src_iv
         stream_obj['mode'] = mode
 
     elif func_cfg.stream_type == FUNCTION_ESTREAM:
-        stream_obj['init-frequency'] = str(init_frequency)
-        stream_obj['key-size'] = ESTREAM[func_cfg.function_name].key_size if ESTREAM[func_cfg.function_name].key_size else 16
-        stream_obj['plaintext-type'] = src_input
-        stream_obj['key-type'] = src_key
-        stream_obj['iv-type'] = src_iv
+        stream_obj['init_frequency'] = str(init_frequency)
+        stream_obj['key_size'] = ESTREAM[func_cfg.function_name].key_size if ESTREAM[func_cfg.function_name].key_size else 16
+        stream_obj['plaintext_type'] = src_input
+        stream_obj['key_type'] = src_key
+        stream_obj['iv_type'] = src_iv
 
         iv_size = pick_iv_size_fcfg(func_cfg, None)
         if iv_size:
-            stream_obj['iv-size'] = iv_size
+            stream_obj['iv_size'] = iv_size
 
     elif func_cfg.stream_type in [FUNCTION_SHA3, FUNCTION_HASH]:
         stream_obj['source'] = src_input
-        stream_obj['hash-size'] = func_cfg.tvsize
+        stream_obj['hash_size'] = func_cfg.tvsize
 
     else:
         raise ValueError('Unknown stream type')
@@ -664,7 +664,7 @@ def zero_inp_reinit_key(func_cfg, key=None, **kwargs):
     :param kwargs:
     :return:
     """
-    return get_function_config(func_cfg, init_frequency='every-vector',
+    return get_function_config(func_cfg, init_frequency='every_vector',
                                src_input=get_zero_stream(), src_key=key, src_iv=get_zero_stream())
 
 
@@ -725,12 +725,12 @@ def get_config_header(func_cfg, seed='1fe40505e131963c', stdout=None, filename=N
     js['seed'] = seed
     js['function_name'] = func_cfg.function_name
     js['stream_type'] = func_cfg.stream_type
-    js['tv-size'] = tv_size
-    js['tv-count'] = func_cfg.num
+    js['tv_size'] = tv_size
+    js['tv_count'] = func_cfg.num
     if stdout:
         js['stdout'] = True
     if filename:
-        js['file-name'] = filename
+        js['file_name'] = filename
     js['stream'] = stream
     return js
 
@@ -738,7 +738,7 @@ def get_config_header(func_cfg, seed='1fe40505e131963c', stdout=None, filename=N
 # noinspection PyUnusedLocal
 def get_config(function_name, rounds=None, seed='1fe40505e131963c', stream_type=None,
                tvsize=None, tvcount=None, data=None,
-               generator='pcg32', init_frequency='only-once', mode='ECB', plaintext_type='counter',
+               generator='pcg32', init_frequency='only_once', mode='ECB', plaintext_type='counter',
                stdout=False, filename=None,
                *args, **kwargs):
     """
@@ -783,41 +783,41 @@ def get_config(function_name, rounds=None, seed='1fe40505e131963c', stream_type=
     js = collections.OrderedDict()
     js['notes'] = 'Configuration generated by poly-verif-egen'
     js['seed'] = seed
-    js['tv-size'] = tvsize
-    js['tv-count'] = num
+    js['tv_size'] = tvsize
+    js['tv_count'] = num
     if stdout:
         js['stdout'] = True
     if filename:
-        js['file-name'] = filename
+        js['file_name'] = filename
 
     stream_obj = collections.OrderedDict()
     stream_obj['type'] = STREAM_TYPES[stream_type]
     stream_obj['generator'] = generator
     stream_obj['algorithm'] = function_name
     stream_obj['round'] = rounds
-    stream_obj['block-size'] = tvsize
+    stream_obj['block_size'] = tvsize
 
     if stream_type == FUNCTION_BLOCK:
-        stream_obj['init-frequency'] = str(init_frequency)
-        stream_obj['key-size'] = BLOCK[function_name].key_size
+        stream_obj['init_frequency'] = str(init_frequency)
+        stream_obj['key_size'] = BLOCK[function_name].key_size
         stream_obj['plaintext'] = {'type': plaintext_type}
-        stream_obj['key'] = {'type': 'pcg32-stream'}
-        stream_obj['iv'] = {'type': 'false-stream'}
+        stream_obj['key'] = {'type': 'pcg32_stream'}
+        stream_obj['iv'] = {'type': 'false_stream'}
         stream_obj['mode'] = mode
 
     elif stream_type == FUNCTION_ESTREAM:
-        stream_obj['init-frequency'] = str(init_frequency)
-        stream_obj['key-size'] = 16
+        stream_obj['init_frequency'] = str(init_frequency)
+        stream_obj['key_size'] = 16
         stream_obj['plaintext'] = {'type': plaintext_type}
-        stream_obj['plaintext-type'] = {'type': plaintext_type}
-        stream_obj['key-type'] = {'type': 'random'}
-        stream_obj['key-type'] = 'random'
+        stream_obj['plaintext_type'] = {'type': plaintext_type}
+        stream_obj['key_type'] = {'type': 'random'}
+        stream_obj['key_type'] = 'random'
         stream_obj['iv'] = {'type': 'zeros'}
-        stream_obj['iv-type'] = 'zeros'
+        stream_obj['iv_type'] = 'zeros'
 
     elif stream_type == FUNCTION_SHA3 or stream_type == FUNCTION_HASH:
         stream_obj['source'] = {'type': plaintext_type}
-        stream_obj['hash-bitsize'] = 8 * tvsize
+        stream_obj['hash_bitsize'] = 8 * tvsize
 
     else:
         raise ValueError('Unknown stream type')
@@ -840,7 +840,7 @@ def determine_stream(code):
         return get_random_stream(None if not rnd_code else int(rnd_code))
     if code == 'sac':
         return get_sac_stream()
-    if code == 'sac-step' or code == 'sacstep':
+    if code == 'sac_step' or code == 'sacstep':
         return get_sac_step_stream()
     if code == 'ctr':
         return get_counter_stream()
@@ -894,7 +894,7 @@ def determine_strategy(strategy, fgc, iv=None):
     input_s = determine_stream(input)
 
     fun_cfg = get_function_config(fgc, src_input=input_s, src_key=key_s, src_iv=iv_s,
-                                  init_frequency='every-vector' if reinit else None)
+                                  init_frequency='every_vector' if reinit else None)
 
     return fun_cfg
 
@@ -927,7 +927,7 @@ def generate_config(args):
         iv_s = determine_stream(iv)
         key_s = determine_stream(key)
         input_s = determine_stream(input)
-        fun_cfg = get_function_config(fgc, src_input=input_s, src_key=key_s, iv=iv_s, init_frequency='every-vector' if reinit else None)
+        fun_cfg = get_function_config(fgc, src_input=input_s, src_key=key_s, iv=iv_s, init_frequency='every_vector' if reinit else None)
 
     seed = args.seed
     if args.seed_random:
