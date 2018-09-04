@@ -412,6 +412,7 @@ class Testjobs(Booltest):
 
         batcher = testjobsbase.BatchGenerator()
         batcher.job_dir = self.job_dir
+        batcher.aggregation_factor = self.args.aggregation_factor
 
         num_gen_file_missing = 0
         num_res_ok = 0
@@ -508,6 +509,7 @@ class Testjobs(Booltest):
         """
         batcher = testjobsbase.BatchGenerator()
         batcher.job_dir = self.job_dir
+        batcher.aggregation_factor = self.args.aggregation_factor
         for unit in jobs:
             batcher.add_unit(unit)
         batcher.flush()
@@ -837,6 +839,7 @@ class Testjobs(Booltest):
         # Generate job files
         batcher = testjobsbase.BatchGenerator()
         batcher.job_dir = self.job_dir
+        batcher.aggregation_factor = self.args.aggregation_factor
 
         num_skipped = 0
         num_skipped_existing = 0
@@ -1121,6 +1124,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--qsub-ncpu', dest='qsub_ncpu', default=1, type=int,
                             help='Number of processors for qsub')
+
+        parser.add_argument('--aggregation-factor', dest='aggregation_factor', default=1.0, type=float,
+                            help='Job aggregation factor, changes number of tests in one job file')
 
         parser.add_argument('--enqueue', dest='enqueue', action='store_const', const=True, default=False,
                             help='Enqueues the generated batch after job finishes')
