@@ -155,12 +155,19 @@ class BatchGenerator(object):
         if self.cur_batch_def is None:
             self.cur_batch_def = unit
 
-            # 11 MB data and more
-            self.job_batch_max_size = self.aggregate(5, self.aggregation_factor)
+            # 1100 MB data and more
+            self.job_batch_max_size = self.aggregate(2, self.aggregation_factor)
             if self.batch_max_deg <= 2 and self.batch_max_comb_deg <= 2:
-                self.job_batch_max_size = self.aggregate(10, self.aggregation_factor)
+                self.job_batch_max_size = self.aggregate(5, self.aggregation_factor)
             if self.batch_max_deg <= 1 and self.batch_max_comb_deg <= 2:
-                self.job_batch_max_size = self.aggregate(15, self.aggregation_factor)
+                self.job_batch_max_size = self.aggregate(10, self.aggregation_factor)
+
+            if unit.size_mb < 1100:
+                self.job_batch_max_size = self.aggregate(5, self.aggregation_factor)
+                if self.batch_max_deg <= 2 and self.batch_max_comb_deg <= 2:
+                    self.job_batch_max_size = self.aggregate(10, self.aggregation_factor)
+                if self.batch_max_deg <= 1 and self.batch_max_comb_deg <= 2:
+                    self.job_batch_max_size = self.aggregate(15, self.aggregation_factor)
 
             if unit.size_mb < 11:
                 self.job_batch_max_size = self.aggregate(25, self.aggregation_factor)
