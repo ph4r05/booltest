@@ -183,7 +183,7 @@ class BatchGenerator(object):
                 if self.batch_max_deg <= 1 and self.batch_max_comb_deg <= 2:
                     self.job_batch_max_size = self.aggregate(300, self.aggregation_factor)
 
-        elif self.cur_batch_def.data_size != unit.data_size \
+        if self.cur_batch_def.data_size != unit.data_size \
                 or len(self.job_batch) >= self.job_batch_max_size:
             flush_batch = True
 
