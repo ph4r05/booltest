@@ -237,7 +237,7 @@ class HWAnalysis(object):
     def unrank(self, deg, index):
         """
         Converts index to the polynomial of given degree.
-        Uses either memoryzed table or unranking algorithm
+        Uses either memorized table or unranking algorithm
         :param deg:
         :param index:
         :return:
@@ -825,12 +825,26 @@ class Booltest(object):
             expp = term_eval.expp_poly(poly)
             print('  Expected probability: %s' % expp)
 
+    def init_params(self):
+        self.blocklen = int(self.defset(self.args.blocklen, 128))
+
+        # Default params
+        if self.args.default_params:
+            self.args.topk = 128
+            self.args.no_comb_and = True
+            self.args.only_top_comb = True
+            self.args.only_top_deg = True
+            self.args.no_term_map = True
+            self.args.topterm_heap = True
+            self.args.topterm_heap_k = 256
+
     def work(self):
         """
         Main entry point - data processing
         :return:
         """
-        self.blocklen = int(self.defset(self.args.blocklen, 128))
+        self.init_params()
+
         deg = int(self.defset(self.args.degree, 3))
         tvsize_orig = int(self.defset(self.process_size(self.args.tvsize), 1024*256))
         zscore_thresh = float(self.args.conf)
@@ -955,29 +969,32 @@ class Booltest(object):
                             help='reference file with random data')
 
         parser.add_argument('--block', dest='blocklen',
-                            help='block size in bits')
+                            help='block size in bits, number of bit variables to construct terms from')
+
         parser.add_argument('--degree', dest='degree',
-                            help='maximum degree of computation')
+                            help='maximum degree of terms to construct')
+
         parser.add_argument('--tv', dest='tvsize',
                             help='Size of one test vector, in this interpretation = number of bytes to read from file. '
                                  'Has to be aligned on block size')
+
         parser.add_argument('-r', '--rounds', dest='rounds',
-                            help='Maximal number of rounds')
+                            help='Maximal number of test rounds')
 
         parser.add_argument('--top', dest='topk', default=30, type=int,
-                            help='top K number of best distinguishers to combine together')
+                            help='top K number of the best distinguishers to select to the combination phase')
 
         parser.add_argument('--comb-rand', dest='comb_random', default=0, type=int,
                             help='number of terms to add randomly to the combination set')
 
         parser.add_argument('--combine-deg', dest='combdeg', default=2, type=int,
-                            help='Degree of combination')
+                            help='Degree of combinations in the second phase. Number of terms to combine to one distinguisher.')
 
         parser.add_argument('--conf', dest='conf', type=float, default=1.96,
                             help='Zscore failing threshold')
 
         parser.add_argument('--alldeg', dest='alldeg', action='store_const', const=True, default=False,
-                            help='Add top K best terms to the combination group also for lower degree, not just top one')
+                            help='Add top K best terms to the combination phase also for lower degree, not just the top one')
 
         parser.add_argument('--poly', dest='polynomials', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='input polynomial to evaluate on the input data instead of generated one')
@@ -992,32 +1009,35 @@ class Booltest(object):
                             help='Mod input polynomial variables out of range')
 
         parser.add_argument('--no-comb-xor', dest='no_comb_xor', action='store_const', const=True, default=False,
-                            help='Disables XOR combinations')
+                            help='Disables XOR in the combination phase')
 
         parser.add_argument('--no-comb-and', dest='no_comb_and', action='store_const', const=True, default=False,
-                            help='Disables AND combinations')
+                            help='Disables AND in the combination phase')
 
         parser.add_argument('--only-top-comb', dest='only_top_comb', action='store_const', const=True, default=False,
-                            help='If set only the top combination is performed, otherwise all up to given combination degree')
+                            help='If set, only the comb-degree combination is performed, otherwise all combinations up to given comb-degree')
 
         parser.add_argument('--only-top-deg', dest='only_top_deg', action='store_const', const=True, default=False,
-                            help='If set only the top degree if base polynomials combinations are considered, otherwise '
+                            help='If set, only the top degree of 1st stage polynomials are evaluated (zscore is computed), otherwise '
                                  'also lower degrees are input to the topk for next state - combinations')
 
         parser.add_argument('--no-term-map', dest='no_term_map', action='store_const', const=True, default=False,
                             help='Disables term map precomputation, uses unranking algorithm instead')
 
         parser.add_argument('--topterm-heap', dest='topterm_heap', action='store_const', const=True, default=False,
-                            help='Use heap to compute best X terms for stats & input to the combinations')
+                            help='Use heap to compute best K terms for stats & input to the combinations')
 
         parser.add_argument('--topterm-heap-k', dest='topterm_heap_k', default=None, type=int,
-                            help='Number of terms to keep in the heap')
+                            help='Number of terms to keep in the heap, should be at least top_k')
 
         parser.add_argument('--best-x-combs', dest='best_x_combinations', default=None, type=int,
                             help='Number of best combinations to return. If defined, heap is used')
 
         parser.add_argument('--prob-comb', dest='prob_comb', type=float, default=1.0,
-                            help='Probability the given combination is going to be chosen.')
+                            help='Probability the given combination is going to be chosen. Enables stochastic test, useful for large degrees.')
+
+        parser.add_argument('--default-params', dest='default_params', action='store_const', const=True, default=False,
+                            help='Default parameter settings for testing, used in the paper')
 
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='files to process')

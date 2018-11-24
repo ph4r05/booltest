@@ -172,6 +172,16 @@ class Testjobs(Booltest):
         if self.args.only_rounds:
             self.args.only_rounds = [int(x) for x in self.args.only_rounds]
 
+        # Default params
+        if self.args.default_params:
+            self.args.topk = 128
+            self.args.no_comb_and = True
+            self.args.only_top_comb = True
+            self.args.only_top_deg = True
+            self.args.no_term_map = True
+            self.args.topterm_heap = True
+            self.args.topterm_heap_k = 256
+
     def to_mbs(self, x, full_div=False):
         return (x // (self.mbsep * self.mbsep)) if not full_div else (x / (self.mbsep * self.mbsep))
 
@@ -952,7 +962,7 @@ class Testjobs(Booltest):
     def main(self):
         logger.debug('App started')
 
-        parser = argparse.ArgumentParser(description='Generates a job matrix of tests on multiple possible functions.')
+        parser = argparse.ArgumentParser(description='Generates a job matrix of tests on multiple possible functions, used with PBSPro')
 
         parser.add_argument('--debug', dest='debug', action='store_const', const=True,
                             help='enables debug mode')
@@ -960,8 +970,8 @@ class Testjobs(Booltest):
         parser.add_argument('--verbose', dest='verbose', action='store_const', const=True,
                             help='enables verbose mode')
 
-        parser.add_argument('--top', dest='topk', default=30, type=int,
-                            help='top K number of best distinguishers to combine together')
+        parser.add_argument('--top', dest='topk', default=128, type=int,
+                            help='top K number of the best distinguishers to select to the combination phase')
 
         parser.add_argument('--comb-rand', dest='comb_random', default=0, type=int,
                             help='number of terms to add randomly to the combination set')
@@ -970,7 +980,7 @@ class Testjobs(Booltest):
                             help='Zscore failing threshold')
 
         parser.add_argument('--alldeg', dest='alldeg', action='store_const', const=True, default=False,
-                            help='Add top K best terms to the combination group also for lower degree, not just top one')
+                            help='Add top K best terms to the combination phase also for lower degree, not just the top one')
 
         parser.add_argument('--poly', dest='polynomials', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='input polynomial to evaluate on the input data instead of generated one')
@@ -985,39 +995,42 @@ class Testjobs(Booltest):
                             help='Mod input polynomial variables out of range')
 
         parser.add_argument('--no-comb-xor', dest='no_comb_xor', action='store_const', const=True, default=False,
-                            help='Disables XOR combinations')
+                            help='Disables XOR in the combination phase')
 
         parser.add_argument('--no-comb-and', dest='no_comb_and', action='store_const', const=True, default=False,
-                            help='Disables AND combinations')
+                            help='Disables AND in the combination phase')
 
         parser.add_argument('--only-top-comb', dest='only_top_comb', action='store_const', const=True, default=False,
-                            help='If set only the top combination is performed, otherwise all up to given combination degree')
+                            help='If set, only the comb-degree combination is performed, otherwise all combinations up to given comb-degree')
 
         parser.add_argument('--only-top-deg', dest='only_top_deg', action='store_const', const=True, default=False,
-                            help='If set only the top degree if base polynomials combinations are considered, otherwise '
+                            help='If set, only the top degree of 1st stage polynomials are evaluated (zscore is computed), otherwise '
                                  'also lower degrees are input to the topk for next state - combinations')
 
         parser.add_argument('--no-term-map', dest='no_term_map', action='store_const', const=True, default=False,
-                            help='Disables term map precomputation, uses unranking algorithm instead')
+                            help='Disables term map precomputation (memory-heavy mapping idx->term), uses unranking algorithm instead')
 
         parser.add_argument('--prob-comb', dest='prob_comb', type=float, default=1.0,
-                            help='Probability the given combination is going to be chosen.')
+                            help='Probability the given combination is going to be chosen. Enables stochastic test, useful for large degrees')
 
         parser.add_argument('--topterm-heap', dest='topterm_heap', action='store_const', const=True, default=False,
-                            help='Use heap to compute best X terms for stats & input to the combinations')
+                            help='Use heap to compute best K terms for stats & input to the combinations')
 
         parser.add_argument('--topterm-heap-k', dest='topterm_heap_k', default=None, type=int,
-                            help='Number of terms to keep in the heap')
+                            help='Number of terms to keep in the heap, should be at least top_k')
 
         parser.add_argument('--best-x-combs', dest='best_x_combinations', default=None, type=int,
                             help='Number of best combinations to return. If defined, heap is used')
+
+        parser.add_argument('--default-params', dest='default_params', action='store_const', const=True, default=False,
+                            help='Default parameter settings for testing, used in the paper')
 
         #
         # Testbed related options
         #
 
         parser.add_argument('--generator-path', dest='generator_path', default=None,
-                            help='Path to the EAcirc generator executable')
+                            help='Path to the CryptoStreams generator executable')
 
         parser.add_argument('--job-dir', dest='job_dir', default=None,
                             help='Directory to put job files to')
@@ -1117,25 +1130,25 @@ class Testjobs(Booltest):
                             help='Input HW4 with randomize overflow')
 
         parser.add_argument('--brno', dest='brno', action='store_const', const=True, default=False,
-                            help='Enqueue on Brno clusters')
+                            help='qsub: Enqueue on Brno clusters')
 
         parser.add_argument('--cluster', dest='cluster', default=None,
-                            help='Enqueue on specific cluster')
+                            help='qsub: Enqueue on specific cluster name, e.g., brno, elixir')
 
         parser.add_argument('--qsub-ncpu', dest='qsub_ncpu', default=1, type=int,
-                            help='Number of processors for qsub')
+                            help='qsub:  Number of processors to allocate for a job')
 
         parser.add_argument('--aggregation-factor', dest='aggregation_factor', default=1.0, type=float,
                             help='Job aggregation factor, changes number of tests in one job file')
 
         parser.add_argument('--enqueue', dest='enqueue', action='store_const', const=True, default=False,
-                            help='Enqueues the generated batch after job finishes')
+                            help='Enqueues the generated batch via qsub after job finishes')
 
         parser.add_argument('--rescan-jobs', dest='rescan_jobs', action='store_const', const=True, default=False,
                             help='Rescans job dir for configured but expired jobs')
 
         parser.add_argument('--unpack', dest='unpack', action='store',
-                            help='Unpack card keys')
+                            help='Unpack card keys from archive')
 
         parser.add_argument('--test-files', dest='test_files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='Files with input data to test')
@@ -1144,7 +1157,7 @@ class Testjobs(Booltest):
                             help='Use mibs - 2^x basis')
 
         parser.add_argument('--generator-folder', dest='generator_folder', nargs=argparse.ZERO_OR_MORE, default=[],
-                            help='Folders with generator files to run')
+                            help='Folders with CryptoStreams config files to run')
 
         #
         # Testing matrix definition
