@@ -1187,9 +1187,14 @@ class Testjobs(Booltest):
         self.work()
 
 
-# Launcher
 app = None
-if __name__ == "__main__":
+
+
+def main():
+    global app
     app = Testjobs()
     app.main()
 
+
+if __name__ == "__main__":
+    main()

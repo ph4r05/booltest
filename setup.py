@@ -83,6 +83,9 @@ setup(
     entry_points={
         'console_scripts': [
             'booltest = booltest.booltest_main:main',
+            'booltest_json = booltest.booltest_json:main',
+            'booltest_egenerator = booltest.egenerator:main',
+            'booltest_jobs = booltest.testjobs:main',
         ],
     }
 )
