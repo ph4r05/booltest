@@ -272,7 +272,7 @@ class TestBatteries(Booltest):
             except Exception as e:
                 logger.error('Exception when computing %s:%s : %s' % (function, cur_round, e))
                 logger.debug(traceback.format_exc())
-                sys.exit(1)
+                sys.exit(9)
 
             finally:
                 # Job finished
