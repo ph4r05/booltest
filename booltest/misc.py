@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import collections
+import subprocess
+import json
 import math
 import re
 import random
@@ -256,3 +258,32 @@ def unpack_keys(card_dir, out_dir, bitsize):
         finally:
             shutil.rmtree(dir_name)
             fh.close()
+
+
+def get_jobs_in_progress():
+    uname = os.getenv('LOGNAME', None)
+    uname_prefix = uname + '@' if uname else None
+
+    p = subprocess.Popen("qstat -f -F json", stdout=subprocess.PIPE, shell=True)
+    output, err = p.communicate()
+    p_status = p.wait()
+    if p_status != 0:
+        raise ValueError('Could not get running jobs')
+
+    js = json.loads(output)
+    jobs = js['Jobs']
+    res = {}
+
+    for jid in jobs:
+        jb = jobs[jid]
+        if uname_prefix is not None and not jb['Job_Owner'].startswith(uname_prefix):
+            continue
+        obj = collections.OrderedDict()
+        obj['jid'] = jid
+        obj['id'] = jb['Job_Name']
+        obj['running'] = jb['job_state'] == 'R'
+        obj['queued'] = jb['job_state'] == 'Q'
+        obj['info'] = jb
+        res[jb['Job_Name']] = obj
+    scheduled = set(k for k, v in res.items() if v['running'] or v['queued'])
+    return res, scheduled

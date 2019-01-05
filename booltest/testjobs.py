@@ -846,6 +846,11 @@ class Testjobs(Booltest):
         # Load input polynomials
         self.load_input_poly()
 
+        # Load jobs if scheduling matters
+        cjobs, jobs_scheduled = misc.get_jobs_in_progress() if self.args.skip_scheduled else {}, {}
+        if self.args.skip_scheduled:
+            logger.info('Jobs scheduled: %s' % len(jobs_scheduled))
+
         # Generate job files
         batcher = testjobsbase.BatchGenerator()
         batcher.job_dir = self.job_dir
@@ -853,6 +858,7 @@ class Testjobs(Booltest):
 
         num_skipped = 0
         num_skipped_existing = 0
+        num_skipped_scheduled = 0
         for fidx, trun in enumerate(test_runs):  # type: tuple(int, TestRun)
             hwanalysis = self.testcase(trun.block_size, trun.degree, trun.comb_deg)
             json_config = collections.OrderedDict()
@@ -861,6 +867,7 @@ class Testjobs(Booltest):
             json_config['hwanalysis'] = hwanalysis
             json_config['fidx'] = fidx
 
+            job_fname = 'job-%s.sh' % trun.res_file
             res_file_path = os.path.join(self.results_dir, trun.res_file)
             gen_file_path = os.path.join(self.job_dir, trun.gen_file) if trun.gen_file else None
             cfg_file_path = os.path.join(self.job_dir, 'cfg-' + trun.res_file)
@@ -876,6 +883,10 @@ class Testjobs(Booltest):
 
             if self.args.skip_finished and self.check_res_file(res_file_path):
                 num_skipped += 1
+                continue
+
+            if self.args.skip_scheduled and job_fname in jobs_scheduled:
+                num_skipped_scheduled += 1
                 continue
 
             job_expired = False
@@ -918,8 +929,8 @@ class Testjobs(Booltest):
             batcher.add_unit(unit)
         batcher.flush()
 
-        logger.info('Generated job files: %s, tests: %s, skipped: %s, skipped existing: %s'
-                    % (len(batcher.job_files), batcher.num_units, num_skipped, num_skipped_existing))
+        logger.info('Generated job files: %s, tests: %s, skipped: %s, skipped existing: %s, skipped scheduled: %s'
+                    % (len(batcher.job_files), batcher.num_units, num_skipped, num_skipped_existing, num_skipped_scheduled))
 
         self.finalize_batch(batcher)
 
@@ -1070,6 +1081,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--skip-finished', dest='skip_finished', action='store_const', const=True, default=False,
                             help='Skip tests with generated valid results')
+
+        parser.add_argument('--skip-scheduled', dest='skip_scheduled', action='store_const', const=True, default=False,
+                            help='Skip tests scheduled or running')
 
         parser.add_argument('--add-round1', dest='add_round1', action='store_const', const=True, default=False,
                             help='Adds first round to the testing - validation round')
