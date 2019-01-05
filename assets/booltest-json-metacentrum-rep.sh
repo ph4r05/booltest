@@ -13,7 +13,7 @@ export PATH="${PYENV_ROOT}/bin:${PATH}"
 C_ITER=0
 RETCODE=2
 
-while [ $C_ITER -lt 4 -a $RETCODE -eq 2 ]; do
+while (( $C_ITER < 6 && ($RETCODE == 2 || $RETCODE == 1) )); do
 
     C_ITER=$((C_ITER+1))
     echo "`hostname` starting ${C_ITER}..."
@@ -26,7 +26,7 @@ while [ $C_ITER -lt 4 -a $RETCODE -eq 2 ]; do
 
     eval "$(pyenv init -)"
     RETCODE=$?
-    if [ $RETCODE -eq 2 ]; then
+    if (( $RETCODE == 2 || $RETCODE == 1 )); then
         continue
     fi
 
@@ -34,7 +34,7 @@ while [ $C_ITER -lt 4 -a $RETCODE -eq 2 ]; do
 
     pyenv local 3.6.4
     RETCODE=$?
-    if [ $RETCODE -eq 2 ]; then
+    if (( $RETCODE == 2 || $RETCODE == 1 )); then
         continue
     fi
     sleep 1
