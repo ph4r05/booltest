@@ -270,6 +270,20 @@ def get_jobs_in_progress():
     if p_status != 0:
         raise ValueError('Could not get running jobs')
 
+    if len(output) == 0:
+        return {}, {}
+
+    lines = output.split(b'\n')
+    output = []
+    for l in lines:
+        if b'"comment":' not in l:
+            output.append(l)
+        elif l.count(b'"') > 4:
+            output.append(b'"comment":"INVALID",')
+        else:
+            output.append(l)
+
+    output = b"\n".join(output)
     js = json.loads(output)
     jobs = js['Jobs']
     res = {}
