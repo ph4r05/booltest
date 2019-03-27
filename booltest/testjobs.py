@@ -182,8 +182,11 @@ class Testjobs(Booltest):
             self.args.topterm_heap = True
             self.args.topterm_heap_k = 256
 
-    def to_mbs(self, x, full_div=False):
-        return (x // (self.mbsep * self.mbsep)) if not full_div else (x / (self.mbsep * self.mbsep))
+    def to_mbs(self, x, full_div=False, ceiling=False):
+        if ceiling:
+            full_div = False
+        rs = (float(x) / (self.mbsep * self.mbsep)) if full_div else (x // (self.mbsep * self.mbsep))
+        return int(math.ceil(rs)) if ceiling else int(rs)
 
     def from_mbs(self, x):
         return x * self.mbsep * self.mbsep
@@ -220,7 +223,7 @@ class Testjobs(Booltest):
 
         size = size if size else self.data_to_gen
         candidates = [
-            '%s_r%s_seed%s_%sMB.bin' % (function, round, self.seed, self.to_mbs(size)),
+            '%s_r%s_seed%s_%sMB.bin' % (function, round, self.seed, self.to_mbs(size, ceiling=True)),
             '%s_r%s_seed%s.bin' % (function, round, self.seed),
             '%s_r%s_b8.bin' % (function, round),
             '%s_r%s_b16.bin' % (function, round),
@@ -500,7 +503,7 @@ class Testjobs(Booltest):
         unit.degree = int(spec['hwanalysis']['deg'])
         unit.comb_deg = int(spec['hwanalysis']['blocklen'])
         unit.data_size = int(spec['config']['spec']['data_size'])
-        unit.size_mb = self.to_mbs(unit.data_size, True)
+        unit.size_mb = self.to_mbs(unit.data_size, ceiling=True)
         return unit
 
     def create_batch_unit_trun(self, trun):
@@ -642,7 +645,7 @@ class Testjobs(Booltest):
             round = common.defvalkey(js_stream, 'round', 1)
             cfg_hash = hashlib.sha1(json.dumps(js['stream']).encode('utf8')).hexdigest()[12:]
             gen_size = js['tv_size'] * js['tv_count']
-            gen_size_mb = self.to_mbs(gen_size)
+            gen_size_mb = self.to_mbs(gen_size, ceiling=True)
             res_name = '%s-r%s-e%s-cfg%s' % (fnc, round, exp_name, cfg_hash)
             logger.debug('Generator found, fnc %s, round %s, cfile %s, res_name %s, gen_size %s MB, exp_name %s'
                          % (fnc, round, cfile, res_name, gen_size_mb, exp_name))
@@ -803,7 +806,7 @@ class Testjobs(Booltest):
 
             for test_case in itertools.product(test_block_sizes, test_degree, test_comb_k, test_runs_times):
                 block_size, degree, comb_deg, trt = test_case
-                data_size = int(self.to_mbs(test_spec.data_size, True))
+                data_size = self.to_mbs(test_spec.data_size, ceiling=True)
                 total_test_idx += 1
 
                 if trt > 0:
@@ -847,6 +850,7 @@ class Testjobs(Booltest):
         self.load_input_poly()
 
         # Load jobs if scheduling matters
+        logger.info('Getting running and scheduled jobs...')
         cjobs, jobs_scheduled = misc.get_jobs_in_progress() if self.args.skip_scheduled else {}, {}
         if self.args.skip_scheduled:
             logger.info('Jobs scheduled: %s' % len(jobs_scheduled))
@@ -925,7 +929,7 @@ class Testjobs(Booltest):
             unit.degree = trun.degree
             unit.comb_deg = trun.comb_deg
             unit.data_size = trun.spec.data_size
-            unit.size_mb = self.to_mbs(trun.spec.data_size, True)
+            unit.size_mb = self.to_mbs(trun.spec.data_size, ceiling=True)
             batcher.add_unit(unit)
         batcher.flush()
 
