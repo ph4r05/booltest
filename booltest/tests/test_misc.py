@@ -12,11 +12,11 @@ from booltest import misc
 __author__ = 'dusanklinec'
 
 
-class CommonTest(unittest.TestCase):
+class MiscTest(unittest.TestCase):
     """Simple Booltest tests"""
 
     def __init__(self, *args, **kwargs):
-        super(CommonTest, self).__init__(*args, **kwargs)
+        super(MiscTest, self).__init__(*args, **kwargs)
 
     def test_cpuinfo(self):
         """

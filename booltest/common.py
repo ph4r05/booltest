@@ -225,6 +225,18 @@ def clone_bitarray(other, src=None):
     return to_bitarray(other)
 
 
+def hw(bits):
+    """
+    Hamming weight of the bitarray
+    :param bits:
+    :return:
+    """
+    if FAST_IMPL:
+        return bits.count()
+    else:
+        return bits.count(True)
+
+
 def build_term_map(deg, blocklen):
     """
     Builds term map (degree, index) -> term
@@ -240,7 +252,7 @@ def build_term_map(deg, blocklen):
     return term_map
 
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=8192)
 def comb_cached(n, k):
     """
     Computes C(n,k) - combinatorial number of N elements, k choices
@@ -256,7 +268,22 @@ def comb_cached(n, k):
     return val
 
 
-@lru_cache(maxsize=1024)
+def rank(s, n):
+    """
+    Returns index of the combination s in (N,K)
+    https://computationalcombinatorics.wordpress.com/2012/09/10/ranking-and-unranking-of-combinations-and-permutations/
+    :param s:
+    :return:
+    """
+    k = len(s)
+    r = 0
+    for i in range(0, k):
+        for v in range(s[i-1]+1 if i > 0 else 0, s[i]):
+            r += comb_cached(n - v - 1, k - i - 1)
+    return r
+
+
+@lru_cache(maxsize=8192)
 def unrank(i, n, k):
     """
     returns the i-th combination of k numbers chosen from 0,2,...,n-1, indexing from 0
@@ -266,9 +293,17 @@ def unrank(i, n, k):
     j = 0
     for s in range(1, k+1):
         cs = j+1
-        while r-comb_cached(n-cs, k-s) >= 0:
-            r -= comb_cached(n-cs, k-s)
-            cs += 1
+
+        while True:
+            decr = comb_cached(n-cs, k-s)
+            if r > 0 and decr == 0:
+                raise ValueError('Invalid index')
+            if r - decr >= 0:
+                r -= decr
+                cs += 1
+            else:
+                break
+
         c.append(cs-1)
         j = cs
     return c
@@ -689,7 +724,7 @@ class TermEval(object):
 
     def new_buffer(self):
         """
-        Returns the allocated bitarray - non-intiialized of the size of the base.
+        Returns the allocated bitarray - non-intialized of the size of the base.
         :return:
         """
         return empty_bitarray(len(self.base[0]))
@@ -725,7 +760,22 @@ class TermEval(object):
             res.append(block[idx:idx + self.blocklen] & term)
         return res
 
-    def eval_term_raw_single(self, term, block):
+    def term_bit_to_idx(self, term):
+        return [idx for idx, x in enumerate(term) if x]
+
+    def term_idx_to_bit(self, term):
+        res = empty_bitarray(self.blocklen)
+        for x in term:
+            res[x] = True
+        return res
+
+    def poly_bit_to_idx(self, poly):
+        return [self.term_bit_to_idx(term) for term in poly]
+
+    def poly_idx_to_bit(self, poly):
+        return [self.term_idx_to_bit(term) for term in poly]
+
+    def eval_term_idx_single(self, term, block):
         """
         Evaluates term on the raw input - bit array. Uses [] operator to access bits in block.
         Returns a single number, evaluates polynomial on single block
@@ -740,32 +790,33 @@ class TermEval(object):
                 break
         return cval
 
-    def eval_term_raw(self, term, block):
+    def eval_term_bit_data(self, term, data, res=None):
         """
         Evaluates term on the bitarray input. Uses & on the whole term and the block slices.
         Block has to be a multiple of the term size. term is evaluated by sliding window of size=term.
         In result each bit represents a single term evaluation on the given sub-block
         :param term: bit representation of the term
-        :param block: bit representation of the input, bit array of term evaluations. size = size of block / size of term.
-        :return:
+        :param data: bit representation of the input, bit array of term evaluations. size = size of block / size of term.
+        :param res: res bitarray buffer
+        :return: bitarray with results
         """
-        ln = len(block)
+        ln = len(data)
         lnt = len(term)
+        res = empty_bitarray(ln // lnt) if res is None else res
+
         ctr = 0
-        res_size = ln // lnt
-        res = empty_bitarray(res_size)
         for idx in range(0, ln, lnt):
-            res[ctr] = ((block[idx:idx + self.blocklen] & term) == term)
+            res[ctr] = ((data[idx:idx + self.blocklen] & term) == term)
             ctr += 1
         return res
 
-    def eval_poly_raw_single(self, poly, block):
+    def eval_poly_idx_single(self, poly, block):
         """
         Evaluates polynomial on the raw input - bit array. Uses [] operator to access bits in block.
         Returns a single number, evaluates polynomial on single block
         :param poly: polynomial in the index notation
         :param block: bitarray indexable by []
-        :return:
+        :return: hamming weight of the result.
         """
         res = 0
 
@@ -779,16 +830,102 @@ class TermEval(object):
             res ^= cval
         return res
 
+    def eval_poly_bit_data(self, poly, data, res=None, sres=None):
+        """
+        Evaluates polynomial stored as [bitarray0, bitarray1] on the input block
+        :param poly:
+        :param data:
+        :param res: bitarray buffer for the result (accumulator)
+        :param sres: bitarray buffer for term eval
+        :return: bitarray of results
+        """
+        res = empty_bitarray(len(data) // self.blocklen) if res is None else res
+        sres = empty_bitarray(len(data) // self.blocklen) if sres is None else sres
+        for tidx in range(0, len(poly)):
+            res ^= self.eval_term_bit_data(poly[tidx], data, sres)
+        return res
+
+    def eval_poly_idx_data(self, poly, data):
+        """
+        Evaluates polynomial on the input data, without precomputed base
+        :param poly:
+        :param data: bitarray
+        :return: hamming weight of the result.
+        """
+        res = 0
+        ln = len(data)
+        for idx in range(0, (ln // self.blocklen) * self.blocklen, self.blocklen):
+            res += self.eval_poly_idx_single(poly, data[idx:idx + self.blocklen])
+        return res
+
+    def eval_polys_bit_data(self, polys, data):
+        """
+        Evaluates multiple bit polynomials over data with single pass over the data.
+        Single pass supports generated data.
+        :param polys:
+        :param data:
+        :return:
+        """
+        ln = len(data)
+        res_size = ln // self.blocklen
+        ctr = -1
+
+        res = [empty_bitarray(res_size)] * len(polys)
+        for idx in range(0, (ln // self.blocklen) * self.blocklen, self.blocklen):
+            cdata = data[idx:idx + self.blocklen]
+            ctr += 1
+
+            for pidx, poly in enumerate(polys):
+                vi = 0
+                for term in poly:
+                    vi ^= ((cdata & term) == term)
+                res[pidx][ctr] = vi
+        return res
+
+    def eval_polys_bit_data_basis(self, polys, data):
+        """
+        Similar to eval_polys_bit_data but builds monomial basis first, then evaluates the polynomial
+        over the basis. Is faster if there are large amount of polynomials to evaluate.
+
+        :param polys:
+        :param data:
+        :return:
+        """
+        res = [None] * len(polys)
+        sub_eval = self.load_base_new(data)
+
+        buff_subres = sub_eval.new_buffer()
+        for pidx, poly in enumerate(polys):
+            cres = sub_eval.eval_poly(poly, None, buff_subres)
+            res[pidx] = cres
+        return res
+
+    def eval_polys_idx_data_strategy(self, polys, data, to_bits=None):
+        """
+        Evaluates polynomial collection on the input data, producing hamming weight list, value per polynomial.
+        Picks strategy depending on the number of polynomials and.
+        :param polys:
+        :param data:
+        :param to_bits: manual strategy selection. If true, data is loaded as basis, poly evaluated on basis
+        :return:
+        """
+        if to_bits is None:
+            to_bits = len(polys) * sum(len(x) for x in polys[0]) >= self.blocklen
+
+        if to_bits:  # convert to terms, build base, eval on base
+            polys = [self.poly_idx_to_bit(poly) for poly in polys]
+            return self.eval_polys_bit_data_basis(polys, data)
+
+        else:  # eval individually, with one pass over data - faster, support generators
+            return self.eval_polys_bit_data(polys, data)
+
     def hw(self, block):
         """
         Computes hamming weight of the block
         :param block: bit representation of the input
         :return:
         """
-        if FAST_IMPL:
-            return block.count()
-        else:
-            return block.count(True)
+        return hw(block)
 
     def term_generator(self, deg=None):
         """
@@ -850,6 +987,11 @@ class TermEval(object):
                 self.base[bitpos] = Bits(self.base[bitpos])
 
         self.last_base_size = (self.blocklen, res_size)
+
+    def load_base_new(self, data):
+        sub_eval = TermEval(self.blocklen, self.deg)
+        sub_eval.load(data)
+        return sub_eval
 
     def num_terms(self, deg, include_all_below=False, exact=False):
         """
@@ -930,11 +1072,11 @@ class TermEval(object):
         Some lower orders evaluations are not included in the caching, e.g., for 128, 3 combination, the highest
         term in the ordering is [125, 126, 127] so with caching you cannot get [126, 127] evaluation.
         To fill missing gaps we have a term generator for each lower degree, it runs in parallel with the caching
-        and if there are some missing terms we compute it mannualy - raw AND, without cache.
+        and if there are some missing terms we compute it manualy - raw AND, without cache.
 
         :warning: Works only with fast ph4r05 implementation.
         :param deg:
-        :return:
+        :return: hw, hamming weight of the terms [deg=>[tidx=>hw]]
         """
         if deg is None:
             deg = self.deg
@@ -1052,7 +1194,7 @@ class TermEval(object):
         :param include_all_below:
         :param hws: hamming weight accumulator
         :param res: working bitarray buffer
-        :return:
+        :return: hws, hamming weight accumulator
         """
         if res is None:
             res = self.new_buffer()
@@ -1076,7 +1218,7 @@ class TermEval(object):
         :param poly: polynomial specified as [term, term, term], e.g. [[1,2], [3,4], [5,6]] == x1x2 + x3x4 + x5x6
         :param res: buffer to use to store the result (optimization purposes)
         :param subres: working buffer for temporary computations (optimization purposes)
-        :return:
+        :return: bitarray of results
         """
         ln = len(poly)
         if res is None:

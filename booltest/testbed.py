@@ -475,7 +475,7 @@ class TestbedBenchmark(Booltest):
                             'round: %d, avail: %d' %
                             (degree, blocklen, tvsize, tvsize/1024.0, tvsize/1024.0/1024.0, cur_round, len(bits)))
 
-                hwanalysis.proces_chunk(bits, None)
+                hwanalysis.process_chunk(bits, None)
                 cur_round += 1
             pass
 

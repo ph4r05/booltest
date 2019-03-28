@@ -296,7 +296,7 @@ class BooltestJson(Booltest):
                              cur_round, len(bits)))
 
                 with timer_process:
-                    hwanalysis.proces_chunk(bits, None)
+                    hwanalysis.process_chunk(bits, None)
                 cur_round += 1
 
         data_hash = iobj.sha1.hexdigest()

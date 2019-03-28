@@ -53,8 +53,8 @@ class HWAnalysis(object):
     """
     def __init__(self, *args, **kwargs):
         self.term_map = []
-        self.term_eval = None
-        self.ref_term_eval = None
+        self.term_eval = None  # type: common.TermEval
+        self.ref_term_eval = None  # type: common.TermEval
 
         self.blocklen = None
         self.deg = 3
@@ -148,7 +148,7 @@ class HWAnalysis(object):
                 for var in term:
                     self.input_poly_vars.add(var)
 
-    def proces_chunk(self, bits, ref_bits=None):
+    def process_chunk(self, bits, ref_bits=None):
         """
         Processes input chunk of bits for analysis.
         :param bits:
@@ -198,6 +198,8 @@ class HWAnalysis(object):
 
         # Done.
         self.analyse(num_evals=self.term_eval.cur_evals, hws=hws2, hws_input=hws_input, ref_hws=ref_hws)
+
+    proces_chunk = process_chunk  # compat
 
     def process_ref(self, ref_bits, ln):
         """
@@ -656,7 +658,7 @@ class Booltest(object):
 
         for val in common.pos_generator(dim=vvar, maxelem=1):
             for idx, term in enumerate(common.term_generator(ddeg, vvar - 1)):
-                ones[idx] += term_eval.eval_term_raw_single(term, val)
+                ones[idx] += term_eval.eval_term_idx_single(term, val)
         print('Done')
         print(ones)
         # TODO: test slight bias - in the allowed boundaries...
@@ -942,7 +944,7 @@ class Booltest(object):
                                 'round: %d, avail: %d' %
                                 (deg, self.blocklen, tvsize, tvsize/1024.0, tvsize/1024.0/1024.0, cur_round, len(bits)))
 
-                    hwanalysis.proces_chunk(bits, ref_bits)
+                    hwanalysis.process_chunk(bits, ref_bits)
                     cur_round += 1
                 pass
 
