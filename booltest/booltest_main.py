@@ -491,7 +491,7 @@ class HWAnalysis(object):
 
         self.comb_res = self.term_eval.new_buffer()
         self.comb_subres = self.term_eval.new_buffer()
-        start_deg = self.top_comb if self.do_only_top_comb else 1
+        start_deg = max(1, self.top_comb if self.do_only_top_comb else 1)
         for top_comb_cur in common.range2(start_deg, self.top_comb + 1):
 
             # Combine * store results - XOR

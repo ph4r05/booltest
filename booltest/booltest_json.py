@@ -44,6 +44,14 @@ class BooltestJson(Booltest):
         self.top_k = 128
         self.zscore_thresh = None
         self.all_deg = None
+        self.dump_cpu_info = True
+
+        # In halving setting we "train" the distinguisher on first 1/2 data
+        # and then "test" the best distinguisher on the another 1/2 data, previously unseen.
+        self.halving_testing = False
+
+        # Number of top distinguishers for halving. 1 has clear statistical interpretation, independent.
+        self.halving_tops = 1
 
         self.randomize_tests = True
         self.test_random = random.Random()
@@ -51,7 +59,8 @@ class BooltestJson(Booltest):
 
         self.seed = '1fe40505e131963c'
         self.data_to_gen = 0
-        self.config_js = None
+        self.config_js = None  # generator config
+        self.config_data = None  # configuration dict
         self.cur_data_file = None  # (tmpdir, config, file)
 
     def check_res_file(self, path):
@@ -199,14 +208,16 @@ class BooltestJson(Booltest):
                 fh.write('\n')
         logger.info('All zscore computed')
 
-    def work(self):
+    def work(self, bin_data=None):
         """
         Main entry point - data processing
         :return:
         """
-        config = None
-        with open(self.args.config_file) as fh:
-            config = json.load(fh)
+        config = self.config_data
+
+        if self.args.config_file:
+            with open(self.args.config_file) as fh:
+                config = json.load(fh)
 
         timer_data_read = timer.Timer(start=False)
         timer_data_bins = timer.Timer(start=False)
@@ -216,7 +227,7 @@ class BooltestJson(Booltest):
 
         hw_cfg = config['hwanalysis']
         test_run = config['config']
-        data_file = test_run['spec']['data_file']
+        data_file = common.defvalkeys(config, 'spec.data_file')
         skip_finished = common.defvalkey(config, 'skip_finished', False)
         res_file = common.defvalkey(config, 'res_file')
         backup_dir = common.defvalkey(config, 'backup_dir')
@@ -235,7 +246,6 @@ class BooltestJson(Booltest):
             hwanalysis.all_zscore_comp = True
 
         rounds = common.defvalkey(test_run['spec'], 'data_rounds')
-        size_mb = test_run['spec']['data_size'] / 1024 / 1024
         tvsize = test_run['spec']['data_size']
 
         # Load input polynomials
@@ -249,7 +259,14 @@ class BooltestJson(Booltest):
         hwanalysis.init()
 
         # Process input object
-        iobj = common.FileInputObject(data_file) if data_file else common.StdinInputObject('stdin')
+        iobj = None
+        if data_file:
+            iobj = common.FileInputObject(data_file)
+        elif bin_data:
+            iobj = common.BinaryInputObject(bin_data)
+        else:
+            iobj = common.StdinInputObject('stdin')
+
         size = iobj.size()
         logger.info('Testing input object: %s, size: %d kB' % (iobj, size/1024.0))
 
@@ -283,12 +300,12 @@ class BooltestJson(Booltest):
                                    % (len(data)*8, hwanalysis.blocklen))
                     break
 
-                with timer_data_bins:
-                    bits = common.to_bitarray(data)
-
-                if len(bits) == 0:
+                if len(data) == 0:
                     logger.info('File read completely')
                     break
+
+                with timer_data_bins:
+                    bits = common.to_bitarray(data)
 
                 logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d = %8.2f kB = %8.2f MB, '
                             'round: %d, avail: %d' %
@@ -305,13 +322,19 @@ class BooltestJson(Booltest):
         logger.info('Read data hash %s ' % data_hash)
 
         # All zscore list for statistical processing / theory check
-        if all_zscores:
+        if all_zscores and res_file:
             self.all_zscore_process(res_file, hwanalysis)
             return
 
         # RESULT process...
         total_results = len(hwanalysis.last_res) if hwanalysis.last_res else 0
         best_dists = hwanalysis.last_res[0:min(128, total_results)] if hwanalysis.last_res else None
+
+        # Halving strategy
+        halving_res = None
+        if self.halving_testing:
+            logger.info('Halving strategy testing')
+            halving_res = hwanalysis.eval_combs([x.poly for x in best_dists], None)  # TODO: finish
 
         jsres = collections.OrderedDict()
         if best_dists:
@@ -332,23 +355,25 @@ class BooltestJson(Booltest):
         jsres['data_read'] = iobj.data_read
         jsres['generator'] = self.config_js
         jsres['best_dists'] = best_dists
+        jsres['halving_res'] = halving_res
         jsres['config'] = config
-        jsres['hostname'] = misc.try_get_hostname()
-        jsres['cpu_pcnt_load_before'] = cpu_pcnt_load_before
-        jsres['cpu_load_before'] = cpu_load_before
-        jsres['cpu_pcnt_load_after'] = misc.try_get_cpu_percent()
-        jsres['cpu_load_after'] = misc.try_get_cpu_load()
-        jsres['cpu'] = misc.try_get_cpu_info()
 
-        with open(res_file, 'w+') as fh:
-            fh.write(common.json_dumps(jsres, indent=2))
-        misc.try_chmod_gr(res_file)
+        if self.dump_cpu_info:
+            jsres['hostname'] = misc.try_get_hostname()
+            jsres['cpu_pcnt_load_before'] = cpu_pcnt_load_before
+            jsres['cpu_load_before'] = cpu_load_before
+            jsres['cpu_pcnt_load_after'] = misc.try_get_cpu_percent()
+            jsres['cpu_load_after'] = misc.try_get_cpu_load()
+            jsres['cpu'] = misc.try_get_cpu_info()
+
+        if res_file:
+            with open(res_file, 'w+') as fh:
+                fh.write(common.json_dumps(jsres, indent=2))
+            misc.try_chmod_gr(res_file)
 
         return jsres
 
-    def main(self):
-        logger.debug('App started')
-
+    def arg_parser(self):
         parser = argparse.ArgumentParser(description='Booltest with json in/out')
 
         parser.add_argument('--debug', dest='debug', action='store_const', const=True,
@@ -366,8 +391,16 @@ class BooltestJson(Booltest):
 
         parser.add_argument('--data-dir', dest='data_dir', default=None,
                             help='Directory to load data from (precomputed samples to test)')
+        return parser
 
-        self.args = parser.parse_args()
+    def parse_args(self, args=None):
+        parser = self.arg_parser()
+        self.args = parser.parse_args(args)
+
+    def main(self):
+        logger.debug('App started')
+
+        self.parse_args()
         jsres = self.work()
         return 0 if jsres is None or jsres['data_read'] > 0 else 3
 
