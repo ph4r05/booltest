@@ -25,6 +25,7 @@ from bitstring import Bits, BitArray, BitStream, ConstBitStream
 from repoze.lru import lru_cache, LRUCache
 
 from booltest.crypto_util import aes_ctr, get_zero_vector, aes_ecb, dump_uint
+from booltest import input_obj
 
 # Enables bitarray - with native C extension
 FAST_IMPL = True
@@ -474,228 +475,16 @@ def generate_seed(iteration=0):
     return binascii.hexlify(seed)
 
 
-class InputObject(object):
-    """
-    Input stream object.
-    Can be a file, stream, or something else
-    """
-    def __init__(self, *args, **kwargs):
-        self.sha1 = hashlib.sha1()
-        self.data_read = 0
-
-    def __enter__(self):
-        pass
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-
-    def __repr__(self):
-        return 'InputObject()'
-
-    def check(self):
-        """
-        Checks if stream is readable
-        :return:
-        """
-
-    def size(self):
-        """
-        Returns the size of the data
-        :return:
-        """
-        return -1
-
-    def read(self, size):
-        """
-        Reads size of data
-        :param size:
-        :return:
-        """
-        raise NotImplementedError('Not implemented - base class')
+# Re-exports, compatibility
 
 
-class FileInputObject(InputObject):
-    """
-    File input object - reading from the file
-    """
-    def __init__(self, fname, open_mode='rb', *args, **kwargs):
-        """
-        File reading input object
-        :param fname:
-        :param open_mode:
-        :param args:
-        :param kwargs:
-        """
-        super(FileInputObject, self).__init__(*args, **kwargs)
-        self.fname = fname
-        self.fmode = kwargs.get('fmode', open_mode)
-        self.fh = None
-
-    def __enter__(self):
-        super(FileInputObject, self).__enter__()
-        self.fh = open(self.fname, self.fmode)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        super(FileInputObject, self).__exit__(exc_type, exc_val, exc_tb)
-        try:
-            self.fh.close()
-        except:
-            logger.error('Error when closing file %s descriptor' % self.fname)
-
-    def __repr__(self):
-        return 'FileInputObject(file=%r)' % self.fname
-
-    def __str__(self):
-        return self.fname
-
-    def check(self):
-        if not os.path.exists(self.fname):
-            raise ValueError('File %s was not found' % self.fname)
-
-    def size(self):
-        return os.path.getsize(self.fname)
-
-    def read(self, size):
-        data = self.fh.read(size)
-        self.sha1.update(data)
-        self.data_read += len(data)
-        return data
-
-
-class StdinInputObject(InputObject):
-    """
-    Reads data from the stdin
-    """
-    def __init__(self, desc=None, *args, **kwargs):
-        super(StdinInputObject, self).__init__(*args, **kwargs)
-        self.desc = desc
-
-    def __enter__(self):
-        super(StdinInputObject, self).__enter__()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        super(StdinInputObject, self).__exit__(exc_type, exc_val, exc_tb)
-        sys.stdin.close()
-
-    def __repr__(self):
-        return 'StdinInputObject()'
-
-    def __str__(self):
-        if self.desc is not None:
-            return 'stdin-%s' % self.desc
-        return 'stdin'
-
-    def size(self):
-        return -1
-
-    def read(self, size):
-        data = sys.stdin.read(size) if sys.version_info < (3,) else sys.stdin.buffer.read(size)
-        self.sha1.update(data)
-        self.data_read += len(data)
-        return data
-
-
-class FileLikeInputObject(InputObject):
-    """
-    Reads data from file like objects - e.g., stdout, sockets, ...
-    """
-    def __init__(self, fh=None, desc=None, *args, **kwargs):
-        super(FileLikeInputObject, self).__init__(*args, **kwargs)
-        self.fh = fh
-        self.desc = desc
-
-    def __repr__(self):
-        return 'FileLikeInputObject()'
-
-    def __str__(self):
-        if self.desc is not None:
-            return '%s' % self.desc
-        return 'file-handle'
-
-    def size(self):
-        return -1
-
-    def read(self, size):
-        data = self.fh.read(size)
-        self.sha1.update(data)
-        self.data_read += len(data)
-        return data
-
-
-class CommandStdoutInputObject(InputObject):
-    """
-    Executes command, reads from its stdout - used with generators.
-    """
-    def __init__(self, cmd=None, seed=None, desc=None, *args, **kwargs):
-        super(CommandStdoutInputObject, self).__init__(*args, **kwargs)
-        self.cmd = cmd
-        self.seed = seed
-        self.desc = desc
-        self.proc = None
-        self.subio = None
-
-    def __repr__(self):
-        return 'CommandStdoutInputObject()'
-
-    def __str__(self):
-        if self.desc is not None:
-            return '%s' % self.desc
-        return 'cmd: %s' % self.cmd
-
-    def __enter__(self):
-        super(CommandStdoutInputObject, self).__enter__()
-
-        self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                     bufsize=1024, close_fds=True, shell=True, preexec_fn=os.setsid)
-        self.subio = FileLikeInputObject(fh=self.proc.stdout, desc=self.cmd)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        try:
-            self.proc.stdout.close()
-            self.proc.terminate()
-            self.proc.kill()
-            os.killpg(os.getpgid(self.proc.pid), signal.SIGKILL)
-        except Exception as e:
-            logger.debug('Exception killing process: %s' % e)
-
-        super(CommandStdoutInputObject, self).__exit__(exc_type, exc_val, exc_tb)
-
-    def size(self):
-        return -1
-
-    def read(self, size):
-        data = self.subio.read(size)
-        self.sha1.update(data)
-        self.data_read += len(data)
-        return data
-
-
-class AESInputObject(InputObject):
-    """
-    AES data input generation.
-    """
-    def __init__(self, seed=None, desc=None, *args, **kwargs):
-        super(AESInputObject, self).__init__(*args, **kwargs)
-        self.seed = seed
-        self.desc = desc
-
-    def __repr__(self):
-        return 'AESInputObject(seed=%r)' % self.seed
-
-    def __str__(self):
-        if self.desc is not None:
-            return '%s' % self.desc
-        return 'aes-ctr(sha256(0x%x))' % self.seed
-
-    def size(self):
-        return -1
-
-    def read(self, size):
-        aes = aes_ctr(hashlib.sha256('%x' % self.seed).digest())
-        data = aes.encrypt(get_zero_vector(size))
-        self.sha1.update(data)
-        self.data_read += len(data)
-        return data
+InputObject = input_obj.InputObject
+FileInputObject = input_obj.FileInputObject
+StdinInputObject = input_obj.StdinInputObject
+FileLikeInputObject = input_obj.FileLikeInputObject
+CommandStdoutInputObject = input_obj.CommandStdoutInputObject
+AESInputObject = input_obj.AESInputObject
+BinaryInputObject = input_obj.BinaryInputObject
 
 
 class TermEval(object):
