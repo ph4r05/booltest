@@ -862,7 +862,7 @@ class TermEval(object):
         """
         Evaluates multiple bit polynomials over data with single pass over the data.
         Single pass supports generated data.
-        :param polys:
+        :param polys: array of terms, bitarray notation
         :param data:
         :return:
         """
@@ -870,7 +870,7 @@ class TermEval(object):
         res_size = ln // self.blocklen
         ctr = -1
 
-        res = [empty_bitarray(res_size)] * len(polys)
+        res = [empty_bitarray(res_size) for _ in range(len(polys))]
         for idx in range(0, (ln // self.blocklen) * self.blocklen, self.blocklen):
             cdata = data[idx:idx + self.blocklen]
             ctr += 1

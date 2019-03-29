@@ -79,7 +79,7 @@ class HWAnalysis(object):
         self.total_hws = []
         self.ref_total_hws = []
         self.total_n = 0
-        self.last_res = None
+        self.last_res = None  # type: list[Combined]
 
         self.all_deg_compute = True
         self.input_poly = []
@@ -551,10 +551,12 @@ class HWAnalysis(object):
 
     def comb_base(self, top_comb_cur, top_terms, top_res, num_evals, poly_builder, ref_hws=None):
         """
-        Base skeleton for generating all combinations from top_terms up to degree top_comb_cur
+        Base skeleton for generating all combinations from top_terms up to degree top_comb_cur.
+        Evaluates polynomial, computes expected results, computes zscores.
+
         :param top_comb_cur: current degree of the combination
         :param top_terms: top terms buffer to choose terms out of
-        :param top_res: top results accumulator to put
+        :param top_res: top results accumulator to put, Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
         :param num_evals: number of evaluations in this round - zscore computation
         :param poly_builder: function of (places, top_terms) returns a new polynomial
         :param ref_hws: reference results
@@ -612,6 +614,26 @@ class HWAnalysis(object):
         TODO: implement
         :return:
         """
+
+    def eval_combs(self, polys, data):
+        """
+        Evaluates polynomials on the data, computes zscores
+        :param polys:
+        :param data:
+        :return:
+        """
+        eval_res = self.term_eval.eval_polys_idx_data_strategy(polys, data)
+        num_evals = len(eval_res[0])
+        res = []
+
+        for idx, poly in enumerate(polys):
+            expp = self.term_eval.expp_poly(poly)
+            exp_cnt = num_evals * expp
+            obs_cnt = self.term_eval.hw(eval_res[idx])
+            zscore = common.zscore(obs_cnt, exp_cnt, num_evals) if exp_cnt > 0 else None
+            comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+            res.append(comb)
+        return res
 
     def to_json(self):
         """
