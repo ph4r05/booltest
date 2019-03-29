@@ -310,6 +310,25 @@ def unrank(i, n, k):
     return c
 
 
+def are_disjoint(sets):
+    full_count = sum([len(x) for x in sets])
+    res = set()
+    for x in sets:
+        res |= x
+    return len(res) == full_count
+
+
+def union(sets):
+    res = set()
+    for x in sets:
+        res |= x
+    return res
+
+
+def get_poly_cache_key(poly):
+    return tuple(tuple(term) for term in poly)
+
+
 def get_script_path():
     return os.path.dirname(os.path.realpath(sys.argv[0]))
 
@@ -1174,7 +1193,17 @@ class TermEval(object):
         :return: number of polynomial evaluations to 1
         """
         npoly, idx_map_rev = self.poly_remap(poly)
-        return self.expnum_poly_sim_norm_cached(poly, len(idx_map_rev))
+        return self.expnum_poly_sim_norm_cached(npoly, len(idx_map_rev))
+
+    def expp_poly_sim(self, poly):
+        """
+        Simulates the given polynomial w.r.t. null hypothesis, for all variable values combinations.
+        O(2^n)
+        :param poly:
+        :return: probability the polynomial evals to 1 on random independent data
+        """
+        npoly, idx_map_rev = self.poly_remap(poly)
+        return self.expnum_poly_sim_norm_cached(npoly, len(idx_map_rev)) / float(2**len(idx_map_rev))
 
     def expnum_poly_sim_norm_cached(self, poly, deg):
         """
@@ -1187,7 +1216,7 @@ class TermEval(object):
             return self.expnum_poly_sim_norm(poly, deg)
 
         # LRU cached sim variant
-        key = ','.join(['-'.join([str(y) for y in x]) for x in poly])
+        key = get_poly_cache_key(poly)
         val = self.sim_norm_cache.get(key)
         if val is not None:
             return val
@@ -1294,12 +1323,15 @@ class TermEval(object):
             return self.expp_term(poly[0])
         terms = [set(x) for x in poly]
 
-        # degenerate case = 2 terms
+        # Degenerate - disjoint sets
+        term_lens = [len(x) for x in terms]
+        all_terms_disjoin = len(union(terms)) == sum(term_lens)
+        if all_terms_disjoin:
+            probs = [self.expp_term_deg(term_len) for term_len in term_lens]
+            return reduce(lambda x, y: self.expp_xor_indep(x, y), probs)
+
         if ln == 2:
-            if len(terms[0] & terms[1]) == 0:
-                return self.expp_xor_indep(self.expp_term(poly[0]), self.expp_term(poly[1]))
-            else:
-                return self.expp_poly_dep(poly)
+            return self.expp_poly_dep(poly)
 
         # General case:
         #   Finding independent terms = create a graph from the terms in the polynomial.

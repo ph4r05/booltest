@@ -18,6 +18,31 @@ class TermEvalTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TermEvalTest, self).__init__(*args, **kwargs)
 
+    def get_test_poly(self):
+        return [
+            [[0]],
+            [[0], [0]],
+            [[0], [1]],
+            [[0, 1]],
+            [[0, 1], [0]],
+            [[0, 1], [2]],
+            [[0, 1, 2]],
+            [[0, 1, 2], [0]],
+            [[0, 1, 2], [0, 1]],
+            [[0, 1, 2], [3]],
+            [[0, 1, 2], [0, 1, 3]],
+            [[0, 1, 2], [2, 3, 4]],
+            [[0, 1, 2], [1, 2, 3]],
+            [[0, 1, 2], [3, 4, 5]],
+            [[5, 6, 7], [8, 9, 10]],
+            [[5, 6, 7], [7, 8, 9]],
+            [[1, 2], [2, 3], [1, 3]],
+            [[1, 2], [2, 3], [1, 3], [1, 5], [2, 9]],
+            [[0, 1, 2], [2, 3, 4], [5, 6, 7]],
+            [[0, 1, 2], [2, 3, 4], [1, 2, 3]],
+            [[0, 1, 2], [2, 3, 5], [0, 3, 7, 9]],
+        ]
+
     def test_exp(self):
         te = common.TermEval(16, 2)
         self.assertEqual(te.expp_term_deg(1), 0.5)
@@ -65,6 +90,18 @@ class TermEvalTest(unittest.TestCase):
         self.assertEqual(r1, r2x[1])
         self.assertEqual(r2, r2x[2])
         self.assertEqual(r3, r2x[3])
+
+    def test_exp_poly(self):
+        """
+        Verify expected number eval optimized heuristic with brute-force approach
+        """
+        polys = self.get_test_poly()
+        term_eval = common.TermEval(blocklen=12, deg=3)
+
+        for idx, poly in enumerate(polys):
+            expp = term_eval.expp_poly(poly)
+            expp2 = term_eval.expp_poly_sim(poly)
+            self.assertAlmostEqual(expp, expp2)
 
 
 if __name__ == "__main__":
