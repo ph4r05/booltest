@@ -900,6 +900,35 @@ class TermEval(object):
             res[pidx] = cres
         return res
 
+    def eval_polys_idx_data(self, polys, data):
+        """
+        Evaluates multiple bit polynomials over data with single pass over the data.
+        Single pass supports generated data.
+        :param polys: array of terms, index notation
+        :param data:
+        :return: [pidx => hamming weight]
+        """
+        ln = len(data)
+        ctr = -1
+
+        res = [0] * len(polys)
+        for idx in range(0, (ln // self.blocklen) * self.blocklen, self.blocklen):
+            cdata = data[idx:idx + self.blocklen]
+            ctr += 1
+
+            for pidx, poly in enumerate(polys):
+                vi = 0
+                for term in poly:
+                    cval = 1
+                    for tidx in term:
+                        if cdata[tidx] == 0:
+                            cval = 0
+                            break
+                    vi ^= cval
+                res[pidx] += vi
+
+        return res
+
     def eval_polys_idx_data_strategy(self, polys, data, to_bits=None):
         """
         Evaluates polynomial collection on the input data, producing hamming weight list, value per polynomial.
@@ -912,8 +941,8 @@ class TermEval(object):
         if to_bits is None:
             to_bits = len(polys) * sum(len(x) for x in polys[0]) >= self.blocklen
 
+        polys = [self.poly_idx_to_bit(poly) for poly in polys]
         if to_bits:  # convert to terms, build base, eval on base
-            polys = [self.poly_idx_to_bit(poly) for poly in polys]
             return self.eval_polys_bit_data_basis(polys, data)
 
         else:  # eval individually, with one pass over data - faster, support generators
