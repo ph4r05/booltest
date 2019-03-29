@@ -1243,7 +1243,7 @@ class TermEval(object):
         """
         Computes expected probability of result=1 of the given term under null hypothesis of uniformity.
         O(1) time, O(n lg n) w.r.t. term length (distinct bit positions).
-        :param term:
+        :param term: index list of the variables, e.g. [0,10] ~ x0x10
         :return:
         """
         dislen = len(set(term))
@@ -1454,7 +1454,7 @@ class TermEval(object):
         Computes expected probability of result=1 of the given polynomial under null hypothesis of uniformity.
         Due to non-independence between terms this evaluation can take some time - simulating.
         Independent terms are simulated, i.e. all variable combinations are computed.
-        :param poly:
+        :param poly: list of terms in index notation
         :return: probability of polynomial evaluating to 1 over all possibilities of variables
         """
         # Optimization: find independent terms, move aside, can be evaluated without simulation.

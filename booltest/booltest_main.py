@@ -292,7 +292,10 @@ class HWAnalysis(object):
 
     def best_zscored_base_poly_heap(self, deg, zscores, zscores_ref, num_evals, hws=None, ref_hws=None, exp_count=None):
         """
-        Uses heap to keep X best base distinguishers in the zscores array
+        Uses heap to keep X best base distinguishers in the zscores array.
+        Computes z-score for the best distinguishers as it is not computed by default for all
+        as it is unnecessary overhead (HW is enough for ranking, zscore is floating point, expensive).
+
         :param deg:
         :param zscores:
         :return: (zscore mean, number of zscores above threshold)

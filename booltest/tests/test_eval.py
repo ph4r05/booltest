@@ -18,6 +18,30 @@ class TermEvalTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TermEvalTest, self).__init__(*args, **kwargs)
 
+    def test_exp(self):
+        te = common.TermEval(16, 2)
+        self.assertEqual(te.expp_term_deg(1), 0.5)
+        self.assertEqual(te.expp_term_deg(2), 0.25)
+        self.assertEqual(te.expp_term_deg(4), 0.0625)
+
+        self.assertEqual(te.expp_term([0]), 0.5)
+        self.assertEqual(te.expp_term([10]), 0.5)
+        self.assertEqual(te.expp_term([1, 1]), 0.5)
+        self.assertEqual(te.expp_term([1, 2]), 0.25)
+
+        self.assertEqual(te.expp_poly([[1]]), 0.5)
+        self.assertEqual(te.expp_poly([[1], [1]]), 0)  # always zero
+        self.assertEqual(te.expp_poly([[1], [2]]), 0.5)
+        self.assertEqual(te.expp_poly([[1, 2], [2]]), 0.25)
+        self.assertEqual(te.expp_poly([[1, 2], [3]]), 0.5)
+        self.assertEqual(te.expp_poly([[1, 2, 3, 4, 5], [6]]), 0.5)  # xor randomizes
+        self.assertEqual(te.expp_poly([[1, 2, 3], [2]]), 0.375)
+        self.assertEqual(te.expp_poly([[1, 2, 3], [4], [5]]), 0.5)
+        self.assertEqual(te.expp_poly([[1, 2, 3], [4], [5], [6], [7]]), 0.5)
+        self.assertEqual(te.expp_poly([[1, 2, 3], [4], [5], [6], [7, 8]]), 0.5)
+        self.assertEqual(te.expp_poly([[1, 2, 3], [4], [5], [6], [6, 7]]), 0.5)
+        self.assertEqual(te.expp_poly([[1, 2, 3], [1], [2], [3]]), 0.375)  # deps
+
     def test_eval1(self):
         data = b'\xf0\xf0\xf0\xf0\xf0\xf0\xf0\xf0\xf0\xf0\xf0\xf0'  # 12 x \xf0
         data_bin = common.to_bitarray(data)
