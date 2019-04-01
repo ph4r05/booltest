@@ -18,6 +18,11 @@ import fnmatch
 import scipy.misc
 import scipy.stats
 
+if sys.version_info >= (3, 2):
+    from functools import lru_cache
+else:
+    from repoze.lru import lru_cache
+
 from booltest import egenerator
 from booltest import common, misc
 from booltest.booltest_main import *
@@ -579,7 +584,7 @@ class Testjobs(Booltest):
         # misc.unpack_keys()
         pass
 
-    @functools.lru_cache(maxsize=4096)
+    @lru_cache(maxsize=4096)
     def file_data_size(self, fname):
         st = os.stat(fname)
         return st.st_size

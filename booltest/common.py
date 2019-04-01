@@ -22,7 +22,13 @@ import ufx.uf_hash as ufh
 
 import bitarray
 from bitstring import Bits, BitArray, BitStream, ConstBitStream
-from repoze.lru import lru_cache, LRUCache
+
+if sys.version_info >= (3, 2):
+    from functools import lru_cache
+else:
+    from repoze.lru import lru_cache
+
+from repoze.lru import LRUCache
 
 from booltest.crypto_util import aes_ctr, get_zero_vector, aes_ecb, dump_uint
 from booltest import input_obj
