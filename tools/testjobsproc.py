@@ -248,6 +248,9 @@ def main():
     parser.add_argument('--delim', dest='delim', default=';',
                         help='CSV delimiter')
 
+    parser.add_argument('--tar', dest='tar', default=False, action='store_const', const=True,
+                        help='Rad tar archive instead of the folder')
+
     parser.add_argument('--narrow', dest='narrow', default=False, action='store_const', const=True,
                         help='Process only smaller set of functions')
 
@@ -259,6 +262,9 @@ def main():
 
     parser.add_argument('--static', dest='static', default=False, action='store_const', const=True,
                         help='Process only static test files')
+
+    parser.add_argument('--aes-ref', dest='aes_ref', default=False, action='store_const', const=True,
+                        help='Process only AES reference')
 
     parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
                         help='folder with test matrix resutls - result dir of testbed.py')
@@ -272,12 +278,21 @@ def main():
 
     ctr = -1
     main_dir = args.folder[0]
+    tf = None
 
-    # Read all files in the folder.
-    logger.info('Reading all testfiles list')
-    test_files = [f for f in os.listdir(main_dir) if os.path.isfile(os.path.join(main_dir, f))]
-    total_files = len(test_files)
-    logger.info('Totally %d tests were performed, parsing...' % total_files)
+    if args.tar:
+        import tarfile
+        logger.info('Loading tar file: %s' % main_dir)
+
+        tf = tarfile.open(main_dir, 'r')
+        test_files = [x for x in tf.getmembers() if x.isfile()]
+        logger.info('Totally %d files found in the tar file' % len(test_files))
+
+    else:
+        # Read all files in the folder.
+        logger.info('Reading all testfiles list')
+        test_files = [f for f in os.listdir(main_dir) if os.path.isfile(os.path.join(main_dir, f))]
+        logger.info('Totally %d tests were performed, parsing...' % len(test_files))
 
     # Test matrix definition
     total_functions = set()
@@ -299,42 +314,62 @@ def main():
     invalid_results = []
     invalid_results_num = 0
     for idx, tfile in enumerate(test_files):
-        bname = os.path.basename(tfile)
+        bname = tfile.name if args.tar else os.path.basename(tfile)
 
         if idx % 1000 == 0:
             logger.debug('Progress: %d, cur: %s skipped: %s' % (idx, tfile, skipped))
 
-        if not tfile.endswith('json'):
-            continue
-
-        if args.narrow and not is_narrow(tfile):
-            skipped += 1
-            continue
-
-        if args.narrow2 and not is_narrow(tfile, 1):
-            skipped += 1
-            continue
-
-        if args.benchmark and not is_narrow(tfile, 2):
-            skipped += 1
+        if not bname.endswith('json'):
             continue
 
         if args.static and ('static' not in bname and ref_name not in bname):
             skipped += 1
             continue
 
-        test_file = os.path.join(main_dir, tfile)
-        try:
-            with open(test_file, 'r') as fh:
-                js = json.load(fh)
+        if args.aes_ref and ref_name not in bname:
+            skipped += 1
+            continue
 
-            tr = process_file(js, tfile, args)
+        if args.narrow and not is_narrow(bname):
+            skipped += 1
+            continue
+
+        if args.narrow2 and not is_narrow(bname, 1):
+            skipped += 1
+            continue
+
+        if args.benchmark and not is_narrow(bname, 2):
+            skipped += 1
+            continue
+
+        # File read & parse
+        js = None
+        try:
+            if args.tar:
+                with tf.extractfile(tfile) as fh:
+                    js = json.load(fh)
+
+            else:
+                test_file = os.path.join(main_dir, tfile)
+                with open(test_file, 'r') as fh:
+                    js = json.load(fh)
+
+        except Exception as e:
+            logger.error('Exception during processing %s: %s' % (tfile, e))
+            logger.debug(traceback.format_exc())
+
+        # File process
+        if js is None:
+            continue
+
+        try:
+            tr = process_file(js, bname, args)
             if tr.zscore is None or tr.data == 0:
                 invalid_results_num += 1
-                invalid_results.append(tfile)
+                invalid_results.append(bname)
                 continue
 
-            if ref_name in tfile:
+            if ref_name in bname:
                 tr.ref = True
                 ref_cat = tr.ref_category()
                 ref_cat_unhw = tr.ref_category_unhw()
