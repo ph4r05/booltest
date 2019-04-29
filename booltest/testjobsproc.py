@@ -314,7 +314,7 @@ def main():
     invalid_results = []
     invalid_results_num = 0
     for idx, tfile in enumerate(test_files):
-        bname = tfile.name if args.tar else os.path.basename(tfile)
+        bname = os.path.basename(tfile.name if args.tar else tfile)
 
         if idx % 1000 == 0:
             logger.debug('Progress: %d, cur: %s skipped: %s' % (idx, tfile, skipped))
