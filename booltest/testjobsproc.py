@@ -433,7 +433,7 @@ def main():
             fh_csv.write(csv_line+'\n')
             js_cur = collections.OrderedDict()
             js_cur['method'] = method
-            js_cur['block'] = method
+            js_cur['block'] = block
             js_cur['deg'] = deg
             js_cur['comb_deg'] = comb_deg
             js_cur['data_size'] = data
