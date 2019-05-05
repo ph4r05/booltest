@@ -28,6 +28,12 @@ class Timer(object):
             self.stop()
         return self.time_acc
 
+    def cur(self):
+        res = self.time_acc
+        if self.time_start is not None:
+            res += time.time() - self.time_start
+        return res
+
     def __enter__(self):
         self.start()
         return self
