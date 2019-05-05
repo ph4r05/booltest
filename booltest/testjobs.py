@@ -27,6 +27,7 @@ from booltest import egenerator
 from booltest import common, misc
 from booltest.booltest_main import *
 from booltest import testjobsbase
+from booltest import timer
 
 logger = logging.getLogger(__name__)
 coloredlogs.CHROOT_FILES = []
@@ -139,6 +140,10 @@ class Testjobs(Booltest):
         self.cur_data_file = None  # (tmpdir, config, file)
         self.mbsep = 1000
 
+        self.time_file_check = timer.Timer(start=False)
+        self.time_json_check = timer.Timer(start=False)
+        self.time_gen_total = timer.Timer(start=False)
+
     def init_params(self):
         """
         Parameter processing
@@ -202,16 +207,29 @@ class Testjobs(Booltest):
         :param path:
         :return:
         """
-        if not os.path.exists(path):
-            return False
+        with self.time_file_check:
+            if not os.path.exists(path):
+                return False
+
+        if not self.args.check_json:
+            return True
 
         # noinspection PyBroadException
-        try:
-            with open(path, 'r') as fh:
-                js = json.load(fh)
-                return 'best_dists' in js and 'data_read' in js and js['data_read'] > 0
-        except:
-            return False
+        with self.time_json_check:
+            try:
+                with open(path, 'r') as fh:
+                    js = json.load(fh)
+                    json_valid = 'best_dists' in js and 'data_read' in js and js['data_read'] > 0
+
+                    if not json_valid and self.args.remove_broken_result:
+                        logger.info('Removing broking result: %s' % path)
+                        if not self.args.dry_run:
+                            os.remove(path)
+
+                    return json_valid
+
+            except Exception as e:
+                return False
 
     def find_data_file(self, function, round, size=None):
         """
@@ -868,6 +886,8 @@ class Testjobs(Booltest):
         num_skipped = 0
         num_skipped_existing = 0
         num_skipped_scheduled = 0
+        self.time_gen_total.start()
+
         for fidx, trun in enumerate(test_runs):  # type: tuple(int, TestRun)
             hwanalysis = self.testcase(trun.block_size, trun.degree, trun.comb_deg)
             json_config = collections.OrderedDict()
@@ -888,7 +908,12 @@ class Testjobs(Booltest):
             json_config['all_zscores'] = self.args.all_zscores
 
             if fidx % 1000 == 0:
-                logger.debug('Processing file %s, jobs: %s' % (fidx, len(batcher.job_files)))
+                logger.debug('Processing file %s, jobs: %s, time: %s, timef: %s, timej: %s'
+                             % (fidx, len(batcher.job_files),
+                                self.time_gen_total.cur(),
+                                self.time_file_check.cur(),
+                                self.time_json_check.cur()
+                                ))
 
             if self.args.skip_finished and self.check_res_file(res_file_path):
                 num_skipped += 1
@@ -1181,6 +1206,15 @@ class Testjobs(Booltest):
 
         parser.add_argument('--generator-folder', dest='generator_folder', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='Folders with CryptoStreams config files to run')
+
+        parser.add_argument('--dry-run', dest='dry_run', action='store_const', const=True, default=False,
+                            help='Dry run')
+
+        parser.add_argument('--check-json', dest='check_json', default=1, type=int,
+                            help='Check json file validity. Reads json file, parses and checks for validity')
+
+        parser.add_argument('--remove-broken-json', dest='remove_broken_result', default=0, type=int,
+                            help='Removes invalid json results')
 
         #
         # Testing matrix definition
