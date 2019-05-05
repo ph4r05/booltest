@@ -182,6 +182,9 @@ class Testjobs(Booltest):
         if self.args.only_rounds:
             self.args.only_rounds = [int(x) for x in self.args.only_rounds]
 
+        if self.args.reseed is not None:
+            self.seed = self.args.reseed
+
         # Default params
         if self.args.default_params:
             self.args.topk = 128
@@ -639,6 +642,18 @@ class Testjobs(Booltest):
                     return res
         return None
 
+    def change_seed(self, js):
+        """
+        Changes seed in the generator file if required
+        :param js:
+        :return:
+        """
+        if self.args.reseed is None:
+            return
+
+        js['seed'] = self.args.reseed
+        return js
+
     def read_generator_files(self, acc):
         """
         Recursivelly finds all generator files in the folders and run them
@@ -657,6 +672,8 @@ class Testjobs(Booltest):
                 js = json.load(fh)
 
             js['stdout'] = True
+            self.change_seed(js)
+
             js_stream = self.recursive_algorithm_search(js)
             if js_stream is None:
                 raise ValueError('Could not find generating algorithm in %s' % cfile)
@@ -1206,6 +1223,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--generator-folder', dest='generator_folder', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='Folders with CryptoStreams config files to run')
+
+        parser.add_argument('--reseed', dest='reseed', default=None,
+                            help='Sets seed to the defined value')
 
         parser.add_argument('--dry-run', dest='dry_run', action='store_const', const=True, default=False,
                             help='Dry run')
