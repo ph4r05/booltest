@@ -2,7 +2,7 @@
 
 export HOMEDIR="/storage/brno3-cerit/home/${LOGNAME}"
 export BOOLTEST="${HOMEDIR}/booltest"
-export EACIRC_ESTREAM="${HOMEDIR}/eacirc-streams/build/eacirc-streams"
+export EACIRC_ESTREAM="${HOMEDIR}/crypto-streams-v3.0"
 cd $HOMEDIR
 
 export MPICH_NEMESIS_NETMOD=tcp
@@ -30,8 +30,7 @@ export BACKDIR=$HDIR/bool-back
 export JOBDIR=$HDIR/bool-jobNr14
 export SIGDIR=$HDIR/bool-sig
 
-export JOBDIR=$HDIR/bool-jobNr29
-export JOBDIR=$HDIR/bool-jobNr30
+export JOBDIR=$HDIR/bool-jobNr56
 mkdir -p $JOBDIR
 mkdir -p $BACKDIR
 mkdir -p $SIGDIR
@@ -412,7 +411,8 @@ python ../booltest/booltest/testjobs.py  \
     --top 128 --matrix-size 1 10 100 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 \
     --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
     --topterm-heap-k 256 --skip-finished --no-functions --ignore-existing \
-    --generator-folder ../bool-cfggens-8gb/ --generator-path ../bool-cfggens/crypto-streams_v2.3-13-gff877be
+    --generator-folder ../bool-cfggens-8gb/ --generator-path ../bool-cfggens/crypto-streams_v2.3-13-gff877be \
+    --aggregation-factor 0.1
 
 python ../booltest/booltest/testjobs.py  \
     --generator-path $HDIR/eacirc-streams/build/eacirc-streams \
@@ -429,12 +429,113 @@ python ../booltest/booltest/testjobs.py  \
     --generator-folder ../bool-cfggens/ --generator-path ../bool-cfggens/crypto-streams_v2.3-13-gff877be \
     --enqueue --qsub-ncpu 2
 
-
+########################################################################################################################
+# Reference run, 100 MB, 1000x
 python ../booltest/booltest/testjobs.py  \
-    --generator-path $HDIR/eacirc-streams/build/eacirc-streams \
+    --generator-path $HDIR/crypto-streams-v3.0 \
     --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
     --top 128 --matrix-size 100 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
     --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
     --topterm-heap-k 256 --skip-finished --ref-only --test-rand-runs 1000 --skip-existing --counters-only --no-sac --no-rpcs --no-reinit
 
+
+# Reference run, 10 MB, 1000x
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-size 10 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --skip-finished --ref-only --test-rand-runs 1000 --skip-existing --counters-only --no-sac --no-rpcs --no-reinit
+
+
+# Ref, 1000x 10MB AES
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-size 10 --matrix-comb-deg 1 2 --matrix-deg 1 2 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --skip-finished --ref-only --test-rand-runs 10000 --skip-existing \
+    --counters-only --no-sac --no-rpcs --no-reinit --check-json 0
+
+
+# Ref, 10kx 10MB AES, 3 combinations
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-size 10 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --skip-finished --ref-only --test-rand-runs 10000 --skip-existing \
+    --counters-only --no-sac --no-rpcs --no-reinit --check-json 0
+
+
+# Ref, 1000x 100MB AES
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-size 100 --matrix-comb-deg 1 2 --matrix-deg 1 2 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --skip-finished --ref-only --test-rand-runs 1000 --skip-existing --counters-only --no-sac --no-rpcs --no-reinit
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 --matrix-deg 1 2 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --overwrite-existing --skip-finished --skip-existing
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, recompute due to new binary (overwrite existing) :/
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 --matrix-deg 1 2 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --overwrite-existing --check-json 0
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 --matrix-deg 1 2 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 --matrix-deg 1 2 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed f39e9205e31b36fa
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 --matrix-deg 1 2 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed c2bf37890011dfed
+
+
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0
+
+
+# Processing:
+python tools/testjobsproc.py ../bool-res.tar --aes-ref --tar
 
