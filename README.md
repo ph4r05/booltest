@@ -81,7 +81,7 @@ Booltest can test:
 
 - Map / Reduce. 
   - The `booltest/testjobs.py` creates job files
-  - The `tools/testjobsproc.py` processes result files
+  - The `booltest/testjobsproc.py` processes result files
 - Booltest job is configured via JSON file. Result of a computation is JSON file.
 - The `booltest/testjobsbase.py` performs job aggregation, i.e., more Booltest runs in one shell script as job planning overhead is non-negligible. Useful for fast running jobs.
 - Works with PBSPro, qsub queueing algorithm
@@ -296,7 +296,7 @@ module add cmake-3.6.2
 module add gcc-4.8.2
 ```
 
-## Python 2.7.14
+## Python 2.7.14+
 
 Booltest does not work with lower Python version. Use `pyenv` to install a new Python version.
 It internally downloads Python sources and installs it to `~/.pyenv`.
@@ -310,6 +310,8 @@ exec $SHELL
 pyenv install 2.7.14
 pyenv local 2.7.14
 ```
+
+The recommended version is Python 3.5+
 
 ## GCC 5.2
 
