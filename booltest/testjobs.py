@@ -140,6 +140,7 @@ class Testjobs(Booltest):
         self.cur_data_file = None  # (tmpdir, config, file)
         self.mbsep = 1000
 
+        self.time_start = 0
         self.time_file_check = timer.Timer(start=False)
         self.time_json_check = timer.Timer(start=False)
         self.time_gen_total = timer.Timer(start=False)
@@ -704,6 +705,7 @@ class Testjobs(Booltest):
             return
 
         self.init_params()
+        self.time_start = time.time()
 
         # Init logic, analysis.
         # Define test set.
@@ -982,6 +984,7 @@ class Testjobs(Booltest):
 
         logger.info('Generated job files: %s, tests: %s, skipped: %s, skipped existing: %s, skipped scheduled: %s'
                     % (len(batcher.job_files), batcher.num_units, num_skipped, num_skipped_existing, num_skipped_scheduled))
+        logger.info('Time elapsed: %s s' % (time.time() - self.time_start))
 
         self.finalize_batch(batcher)
 
