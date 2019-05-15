@@ -539,5 +539,6 @@ python ../booltest/booltest/testjobs.py  \
 
 # Processing:
 qsub -l select=1:ncpus=4:mem=32gb:brno=true -l walltime=48:00:00 -I
+python booltest/testjobsproc.py ../bool-res --aes-ref
 python booltest/testjobsproc.py ../bool-res.tar --aes-ref --tar
 
