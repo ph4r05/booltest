@@ -126,7 +126,7 @@ def pvalue_comp(fnc, extremes, dx, bin_tup, by_bins=True):
     cp = 0
     iterc = 0
     results = []
-    print('OK: ', nints, nbins)
+    print('OK: ', nints, nbins, ' size: ', bin_tup[4])
 
     while cp <= 1.0:  # integration step
         iterc += 1
@@ -200,6 +200,7 @@ def tabulate_pvals(val, nbins=200, abs_val=False, target_pvals=[0.0, 0.0001, 0.0
         [maxv, -1]
     ]
 
+    print('%s-%s-%s-%s-%s' % (val['method'], val['block'], val['deg'], val['comb_deg'], val['data_size']))
     pvals = pvalue_comp(lambda x: binned_pmf(x, bin_tup), extremes,
                         dx=1. / (nbins / 10.), bin_tup=bin_tup, by_bins=True)
 
