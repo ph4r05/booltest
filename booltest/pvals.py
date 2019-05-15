@@ -238,145 +238,148 @@ def tabulate_pvals(val, nbins=200, abs_val=False, target_pvals=[0.0, 0.0001, 0.0
     ])
 
 
-js = json.load(open('ref_1554219251.json'))
-csv = open('ref_1554219251.csv').read()
+def main():
+    js = json.load(open('ref_1554219251.json'))
+    csv = open('ref_1554219251.csv').read()
 
-csv_data = []
-for rec in [x.strip() for x in csv.split("\n")]:
-    p = rec.split(';')
-    if len(p) < 6:
-        continue
-    cur = collections.OrderedDict([
-        ('method', p[0]),
-        ('block', int(p[1])),
-        ('deg', int(p[2])),
-        ('comb_deg', int(p[3])),
-        ('data_size', int(p[4])),
-        ('zscores', [float(x.replace(',','.')) for x in p[6:]])
-    ])
-    csv_data.append(cur)
-print(json.dumps(csv_data[0]))
-
-
-data = csv_data
-data_filt = [x for x in data if x and len(x['zscores']) > 1000]
-data_filt.sort(key=lambda x: (x['method'], x['block'], x['deg'], x['comb_deg'], x['data_size']))
-np.random.seed(87655677)
+    csv_data = []
+    for rec in [x.strip() for x in csv.split("\n")]:
+        p = rec.split(';')
+        if len(p) < 6:
+            continue
+        cur = collections.OrderedDict([
+            ('method', p[0]),
+            ('block', int(p[1])),
+            ('deg', int(p[2])),
+            ('comb_deg', int(p[3])),
+            ('data_size', int(p[4])),
+            ('zscores', [float(x.replace(',','.')) for x in p[6:]])
+        ])
+        csv_data.append(cur)
+    print(json.dumps(csv_data[0]))
 
 
-pval_db = []
-for dix, val in enumerate(data_filt):
-    res = tabulate_pvals(val, abs_val=True)
-    pval_db.append(res)
-    print('Dump %s' % dix)
-json.dump(pval_db, open('pval_db.json', 'w+'), indent=2)
-
-nbins = 200
-abs_val = True
-
-for dix, val in enumerate(data_filt):
-    inp_iter = (val['zscores'])
-    if abs_val:
-        inp_iter = [abs(x) for x in inp_iter]
-
-    print('%s[%s:%s:%s:%s]: %s %s'
-          % (val['method'], val['block'], val['deg'], val['comb_deg'],
-             val['data_size'], len(val['zscores']),
-             '',  # dst.ppf([1-0.0001, 1-0.001, 1-0.01, 1-0.05, 1-0.10, 1-0.5, 0, 1, 0.0001, 0.001, 0.1, 0.9])
-             # dst.stats(moments='mvsk')
-             ))
-
-    bin_tup = get_bins(inp_iter, nbins=nbins, full=True)
-    bb = get_distrib_fbins(inp_iter, bin_tup)
-
-    bin_size = bin_tup[1]
-    minv, maxv = bin_tup[2], bin_tup[3]
-    bins = np.array([x[0] for x in bb])
-    dst = stats.rv_discrete(values=([x[0] for x in bb], [x[1] for x in bb]))
-    print(stats.rv_discrete)
-
-    x = np.array([bins[0], bins[1], bins[6]])
-    print(dst.pmf(x))
-    print(dst._pmf(x))
-
-    # Tabulate pvalues
-    build_integrator(bin_tup)
-    extremes = [
-        [minv, 1],
-        [0, -1],
-        [0, +1],
-        [maxv, -1]
-    ] if not abs_val else [
-        [minv, 1],
-        [maxv, -1]
-    ]
-
-    pvals = pvalue_comp(lambda x: binned_pmf(x, bin_tup), extremes,
-                        dx=1. / (nbins / 10.), bin_tup=bin_tup, by_bins=True)
-
-    n_sample = 100
-    rvs = dst.rvs(size=n_sample)
-    f, l = np.histogram(rvs, bins=bins)
-    f = np.append(f, [0])
-    probs = np.array([x[1] for x in bb])
-    # print(bins, len(bins))
-    # print(probs, len(probs))
-    # print(f, len(f))
-    # sfreq = np.vstack([np.array([x[0] for x in bb]), f, probs*n_sample]).T
-    # print(sfreq)
-
-    print('%s[%s:%s:%s:%s]: %s %s'
-          % (val['method'], val['block'], val['deg'], val['comb_deg'],
-             val['data_size'], len(val['zscores']),
-             dst.ppf([1 - 0.0001, 1 - 0.001, 1 - 0.01, 1 - 0.05, 1 - 0.10, 1 - 0.5, 0, 1, 0.0001, 0.001, 0.1, 0.9])
-             # dst.stats(moments='mvsk')
-             ))
-
-    x = np.linspace(min(bins), max(bins), 1000)
-    plt.plot(x, dst.cdf(x))
-    plt.show()
-
-    cdf_dev = derivative(dst.cdf, x, dx=0.5)
-    plt.plot(x, cdf_dev)
-
-    sec_x = pvals[40]  # 49
-    print('Plotting area under: ', sec_x)
-    for ix in range(len(sec_x[1])):
-        section = np.arange(sec_x[1][ix][0], sec_x[1][ix][1], 1 / 20.)
-        plt.fill_between(section, derivative(dst.cdf, section, dx=0.5))
-    plt.show()
-
-    x = np.linspace(0, 100, 10000)
-    plt.plot(x, dst.ppf(x))
-    plt.show()
-
-    x = np.linspace(minv, maxv, 10000)
-    plt.plot(bins, dst._pmf(bins))
-    plt.show()
-
-    x = np.linspace(minv, maxv, 10000)
-    plt.plot(x, [binned_pmf(y, bin_tup) for y in x])
-    for ix in range(len(sec_x[1])):
-        section = np.linspace(sec_x[1][ix][0], sec_x[1][ix][1],
-                              10000)  # np.arange(sec_x[1][ix][0], sec_x[1][ix][1], 1/20.)
-        plt.fill_between(section, [binned_pmf(y, bin_tup) + 0.0005 for y in section])
-    plt.show()
-
-    # Idea: pvalue function = pms of the distribution.
-    # If test returns z-score with p=0 then we reject the hypothesis as we didnt get such zscore
-    # If test returns with p=0.3 we dont reject as we have our alpha set somehow...
-    # Problem: number of bins. If too many, we have small probabilities -> some alphas not reachable.
-    # if dix > 3:
-    break
+    data = csv_data
+    data_filt = [x for x in data if x and len(x['zscores']) > 1000]
+    data_filt.sort(key=lambda x: (x['method'], x['block'], x['deg'], x['comb_deg'], x['data_size']))
+    np.random.seed(87655677)
 
 
-a4_dims = (2*11.7, 8.27)
-fig, ax = pyplot.subplots(figsize=a4_dims)
-zs = data_filt[1]['zscores']
+    pval_db = []
+    for dix, val in enumerate(data_filt):
+        res = tabulate_pvals(val, abs_val=True)
+        pval_db.append(res)
+        print('Dump %s' % dix)
+    json.dump(pval_db, open('pval_db.json', 'w+'), indent=2)
 
-for i in range(1):
-    zs = [x for x in data_filt[i]['zscores']]
-    print(len(zs))
-    sns.distplot(a=zs, ax=ax, hist=True, norm_hist=False, bins='auto')
+    nbins = 200
+    abs_val = True
+
+    for dix, val in enumerate(data_filt):
+        inp_iter = (val['zscores'])
+        if abs_val:
+            inp_iter = [abs(x) for x in inp_iter]
+
+        print('%s[%s:%s:%s:%s]: %s %s'
+              % (val['method'], val['block'], val['deg'], val['comb_deg'],
+                 val['data_size'], len(val['zscores']),
+                 '',  # dst.ppf([1-0.0001, 1-0.001, 1-0.01, 1-0.05, 1-0.10, 1-0.5, 0, 1, 0.0001, 0.001, 0.1, 0.9])
+                 # dst.stats(moments='mvsk')
+                 ))
+
+        bin_tup = get_bins(inp_iter, nbins=nbins, full=True)
+        bb = get_distrib_fbins(inp_iter, bin_tup)
+
+        bin_size = bin_tup[1]
+        minv, maxv = bin_tup[2], bin_tup[3]
+        bins = np.array([x[0] for x in bb])
+        dst = stats.rv_discrete(values=([x[0] for x in bb], [x[1] for x in bb]))
+        print(stats.rv_discrete)
+
+        x = np.array([bins[0], bins[1], bins[6]])
+        print(dst.pmf(x))
+        print(dst._pmf(x))
+
+        # Tabulate pvalues
+        build_integrator(bin_tup)
+        extremes = [
+            [minv, 1],
+            [0, -1],
+            [0, +1],
+            [maxv, -1]
+        ] if not abs_val else [
+            [minv, 1],
+            [maxv, -1]
+        ]
+
+        pvals = pvalue_comp(lambda x: binned_pmf(x, bin_tup), extremes,
+                            dx=1. / (nbins / 10.), bin_tup=bin_tup, by_bins=True)
+
+        n_sample = 100
+        rvs = dst.rvs(size=n_sample)
+        f, l = np.histogram(rvs, bins=bins)
+        f = np.append(f, [0])
+        probs = np.array([x[1] for x in bb])
+        # print(bins, len(bins))
+        # print(probs, len(probs))
+        # print(f, len(f))
+        # sfreq = np.vstack([np.array([x[0] for x in bb]), f, probs*n_sample]).T
+        # print(sfreq)
+
+        print('%s[%s:%s:%s:%s]: %s %s'
+              % (val['method'], val['block'], val['deg'], val['comb_deg'],
+                 val['data_size'], len(val['zscores']),
+                 dst.ppf([1 - 0.0001, 1 - 0.001, 1 - 0.01, 1 - 0.05, 1 - 0.10, 1 - 0.5, 0, 1, 0.0001, 0.001, 0.1, 0.9])
+                 # dst.stats(moments='mvsk')
+                 ))
+
+        x = np.linspace(min(bins), max(bins), 1000)
+        plt.plot(x, dst.cdf(x))
+        plt.show()
+
+        cdf_dev = derivative(dst.cdf, x, dx=0.5)
+        plt.plot(x, cdf_dev)
+
+        sec_x = pvals[40]  # 49
+        print('Plotting area under: ', sec_x)
+        for ix in range(len(sec_x[1])):
+            section = np.arange(sec_x[1][ix][0], sec_x[1][ix][1], 1 / 20.)
+            plt.fill_between(section, derivative(dst.cdf, section, dx=0.5))
+        plt.show()
+
+        x = np.linspace(0, 100, 10000)
+        plt.plot(x, dst.ppf(x))
+        plt.show()
+
+        x = np.linspace(minv, maxv, 10000)
+        plt.plot(bins, dst._pmf(bins))
+        plt.show()
+
+        x = np.linspace(minv, maxv, 10000)
+        plt.plot(x, [binned_pmf(y, bin_tup) for y in x])
+        for ix in range(len(sec_x[1])):
+            section = np.linspace(sec_x[1][ix][0], sec_x[1][ix][1],
+                                  10000)  # np.arange(sec_x[1][ix][0], sec_x[1][ix][1], 1/20.)
+            plt.fill_between(section, [binned_pmf(y, bin_tup) + 0.0005 for y in section])
+        plt.show()
+
+        # Idea: pvalue function = pms of the distribution.
+        # If test returns z-score with p=0 then we reject the hypothesis as we didnt get such zscore
+        # If test returns with p=0.3 we dont reject as we have our alpha set somehow...
+        # Problem: number of bins. If too many, we have small probabilities -> some alphas not reachable.
+        # if dix > 3:
+        break
 
 
+    a4_dims = (2*11.7, 8.27)
+    fig, ax = pyplot.subplots(figsize=a4_dims)
+    zs = data_filt[1]['zscores']
+
+    for i in range(1):
+        zs = [x for x in data_filt[i]['zscores']]
+        print(len(zs))
+        sns.distplot(a=zs, ax=ax, hist=True, norm_hist=False, bins='auto')
+
+
+if __name__ == '__main__':
+    main()
