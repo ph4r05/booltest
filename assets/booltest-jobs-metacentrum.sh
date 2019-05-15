@@ -458,7 +458,7 @@ python ../booltest/booltest/testjobs.py  \
     --counters-only --no-sac --no-rpcs --no-reinit --check-json 0
 
 
-# Ref, 10kx 10MB AES, 3 combinations
+# Ref, 10kx 10MB AES, 3 combinations high orders
 python ../booltest/booltest/testjobs.py  \
     --generator-path ../crypto-streams-v3.0 \
     --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
@@ -484,7 +484,7 @@ python ../booltest/booltest/testjobs.py  \
     --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
     --top 128 --matrix-comb-deg 1 2 --matrix-deg 1 2 --matrix-block 128 256 384 512 \
     --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
-    --topterm-heap-k 256 --no-functions --overwrite-existing --skip-finished --skip-existing
+    --topterm-heap-k 256 --no-functions --overwrite-existing --skip-finished --skip-existing --check-json 0
 
 
 # Security margins experiment 3 for booltest, 10, 100 MB, recompute due to new binary (overwrite existing) :/
@@ -527,6 +527,7 @@ python ../booltest/booltest/testjobs.py  \
     --topterm-heap-k 256 --no-functions --check-json 0 --reseed c2bf37890011dfed
 
 
+# Sec margins configurations, booltest to high orders: 3-3
 python ../booltest/booltest/testjobs.py  \
     --generator-path ../crypto-streams-v3.0 \
     --generator-folder ../bool-cfgs/exp3/ \
@@ -537,5 +538,6 @@ python ../booltest/booltest/testjobs.py  \
 
 
 # Processing:
-python tools/testjobsproc.py ../bool-res.tar --aes-ref --tar
+qsub -l select=1:ncpus=4:mem=32gb:brno=true -l walltime=48:00:00 -I
+python booltest/testjobsproc.py ../bool-res.tar --aes-ref --tar
 
