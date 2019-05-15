@@ -19,7 +19,7 @@ import logging
 import math
 import coloredlogs
 
-from booltest import common, egenerator
+from booltest import common, egenerator, timer
 
 logger = logging.getLogger(__name__)
 coloredlogs.CHROOT_FILES = []
@@ -28,6 +28,29 @@ coloredlogs.install(level=logging.DEBUG, use_chroot=False)
 
 # Method used for generating reference looking data stream
 REFERENCE_METHOD = 'inctr-krnd-ri0'
+
+
+class Checkpoint(object):
+    def __init__(self):
+        self.test_records = []
+        self.total_functions = []
+        self.ref_bins = collections.defaultdict(lambda: [])
+        self.timing_bins = collections.defaultdict(lambda: [])
+        self.skipped = 0
+        self.invalid_results = []
+        self.invalid_results_num = 0
+
+        self.args = None
+        self.time = time.time()
+
+    def to_json(self):
+        dct = dict(self.__dict__)
+        dct['args'] = {x: getattr(self.args, x, None) for x in self.args.__dict__}
+        return dct
+
+    def from_json(self, data):
+        for k in data:
+            setattr(self, k, data[k])
 
 
 class TestRecord(object):
@@ -84,6 +107,13 @@ class TestRecord(object):
 
     def ref_category_generic(self):
         return self.method_generic(), self.block, self.deg, self.comb_deg, self.data
+
+    def to_json(self):
+        return self.__dict__
+
+    def from_json(self, data):
+        for k in data:
+            setattr(self, k, data[k])
 
 
 class PvalDb(object):
@@ -243,403 +273,449 @@ def is_narrow(fname, narrow_type=0):
     return egenerator.is_narrow(fname, narrow_type)
 
 
-def main():
-    """
-    testbed.py results processor
-
-    "best_zscore"
-    "blocklen": 256,
-    "degree": 2,
-    "comb_degree": 2,
-    "top_k": 128,
-    config.config.spec.fnc
-    config.config.spec.c_round
-    config.config.spec.data_size
-    config.config.spec.strategy
-    config.config.spec.gen_cfg.stream.scode
-    config.config.spec.gen_cfg.stream.type
-    config.config.spec.gen_cfg.stream.source.type
-    :return:
-    """
-    parser = argparse.ArgumentParser(description='Process battery of tests')
-
-    parser.add_argument('--json', dest='json', default=False, action='store_const', const=True,
-                        help='JSON output')
-
-    parser.add_argument('--zscore-shape', dest='zscore_shape', default=False, action='store_const', const=True,
-                        help='abs(round(zscore))')
-
-    parser.add_argument('--out-dir', dest='out_dir', default='.',
-                        help='dir for results')
-
-    parser.add_argument('--delim', dest='delim', default=';',
-                        help='CSV delimiter')
-
-    parser.add_argument('--tar', dest='tar', default=False, action='store_const', const=True,
-                        help='Rad tar archive instead of the folder')
-
-    parser.add_argument('--narrow', dest='narrow', default=False, action='store_const', const=True,
-                        help='Process only smaller set of functions')
-
-    parser.add_argument('--narrow2', dest='narrow2', default=False, action='store_const', const=True,
-                        help='Process only smaller set of functions2')
-
-    parser.add_argument('--benchmark', dest='benchmark', default=False, action='store_const', const=True,
-                        help='Process only smaller set of fnc: benchmark')
-
-    parser.add_argument('--static', dest='static', default=False, action='store_const', const=True,
-                        help='Process only static test files')
-
-    parser.add_argument('--aes-ref', dest='aes_ref', default=False, action='store_const', const=True,
-                        help='Process only AES reference')
-
-    parser.add_argument('--pval-data', dest='pval_data', default=None,
-                        help='file with pval tables')
-
-    parser.add_argument('--num-inp', dest='num_inp', default=None, type=int,
-                        help='Max number of inputs, for testing')
-
-    parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
-                        help='folder with test matrix resutls - result dir of testbed.py')
-
-    args = parser.parse_args()
-    tstart = time.time()
-
-    # Process the input
-    if len(args.folder) == 0:
-        print('Error; no input given')
-        sys.exit(1)
-
-    ctr = -1
-    main_dir = args.folder[0]
-    tf = None
-
-    pval_db = PvalDb(args.pval_data)
-    pval_db.load()
-
-    if args.tar:
-        import tarfile
-        logger.info('Loading tar file: %s' % main_dir)
-
-        tf = tarfile.open(main_dir, 'r')
-        test_files = [x for x in tf.getmembers() if x.isfile()]
-        logger.info('Totally %d files found in the tar file' % len(test_files))
-
-    else:
-        # Read all files in the folder.
-        logger.info('Reading all testfiles list')
-        # test_files = [f for f in os.listdir(main_dir) if os.path.isfile(os.path.join(main_dir, f))]
-        test_files = os.scandir(main_dir)
-        # logger.info('Totally %d tests were performed, parsing...' % len(test_files))
-
-    # Test matrix definition
-    total_functions = set()
-    total_block = [128, 256, 384, 512]
-    total_deg = [1, 2, 3]
-    total_comb_deg = [1, 2, 3]
-    total_sizes = [10, 100]
-    total_cases = [total_block, total_deg, total_comb_deg]
-    total_cases_size = total_cases + [total_sizes]
-
-    # ref bins: method, bl, deg, comb, data
-    ref_name = '-aAES-r10-'
-    ref_bins = collections.defaultdict(lambda: [])
-    timing_bins = collections.defaultdict(lambda: [])
-
-    test_records = []
-    skipped = 0
-
-    invalid_results = []
-    invalid_results_num = 0
-    for idx, tfile in enumerate(test_files):
-        bname = os.path.basename(tfile.name)
-        if not args.tar and not tfile.is_file():
-            continue
-
-        if idx % 1000 == 0:
-            logger.debug('Progress: %d, cur: %s skipped: %s, time: %.2f, #rec: %s, #fnc: %s'
-                         % (idx, tfile.name, skipped, time.time() - tstart, len(test_records), len(total_functions)))
-
-        if args.num_inp is not None and args.num_inp < idx:
-            break
-
-        if not bname.endswith('json'):
-            continue
-
-        if args.static and ('static' not in bname and ref_name not in bname):
-            skipped += 1
-            continue
-
-        if args.aes_ref and ref_name not in bname:
-            skipped += 1
-            continue
-
-        if args.narrow and not is_narrow(bname):
-            skipped += 1
-            continue
-
-        if args.narrow2 and not is_narrow(bname, 1):
-            skipped += 1
-            continue
-
-        if args.benchmark and not is_narrow(bname, 2):
-            skipped += 1
-            continue
-
-        # File read & parse
-        js = None
-        try:
-            if args.tar:
-                with tf.extractfile(tfile) as fh:
-                    js = json.load(fh)
-
-            else:
-                with open(tfile.path, 'r') as fh:
-                    js = json.load(fh)
-
-        except Exception as e:
-            logger.error('Exception during processing %s: %s' % (tfile, e))
-            logger.debug(traceback.format_exc())
-
-        # File process
-        if js is None:
-            continue
-
-        try:
-            tr = process_file(js, bname, args)
-            if tr.zscore is None or tr.data == 0:
-                invalid_results_num += 1
-                invalid_results.append(bname)
-                continue
-
-            if ref_name in bname:
-                tr.ref = True
-                ref_cat = tr.ref_category()
-                ref_cat_unhw = tr.ref_category_unhw()
-
-                ref_bins[ref_cat].append(tr)
-                if ref_cat != ref_cat_unhw:
-                    ref_bins[ref_cat_unhw].append(tr)
-
-            test_records.append(tr)
-            total_functions.add(tr.function)
-            if tr.time_process:
-                timing_bins[tr.bool_category()].append(tr.time_process)
-
-        except Exception as e:
-            logger.error('Exception during processing %s: %s' % (tfile, e))
-            logger.debug(traceback.format_exc())
-
-    logger.info('Invalid results: %s' % invalid_results_num)
-    logger.info('Num records: %s' % len(test_records))
-    logger.info('Num functions: %s' % len(total_functions))
-    logger.info('Num ref bins: %s' % len(ref_bins.keys()))
-    logger.info('Post processing')
-
-    test_records.sort(key=lambda x: (x.function, x.round, x.method, x.data, x.block, x.deg, x.comb_deg))
-
-    if not args.json:
-        print(args.delim.join(['function', 'round', 'data'] +
-                              ['%s-%s-%s' % (x[0], x[1], x[2]) for x in itertools.product(*total_cases)]))
-
-    # Reference statistics.
-    ref_avg = {}
-    for mthd in list(ref_bins.keys()):
-        samples = ref_bins[mthd]
-        ref_avg[mthd] = sum([abs(x.zscore) for x in samples]) / float(len(samples))
-
-    # Stats files.
-    fname_narrow = 'nw_' if args.narrow else ''
-    if args.narrow2:
-        fname_narrow = 'nw2_'
-    elif args.benchmark:
-        fname_narrow = 'bench_'
-
-    fname_time = int(time.time())
-    fname_ref_json = os.path.join(args.out_dir, 'ref_%s%s.json' % (fname_narrow, fname_time))
-    fname_ref_csv = os.path.join(args.out_dir, 'ref_%s%s.csv' % (fname_narrow, fname_time))
-    fname_results_json = os.path.join(args.out_dir, 'results_%s%s.json' % (fname_narrow, fname_time))
-    fname_results_csv = os.path.join(args.out_dir, 'results_%s%s.csv' % (fname_narrow, fname_time))
-    fname_results_rf_csv = os.path.join(args.out_dir, 'results_rf_%s%s.csv' % (fname_narrow, fname_time))
-    fname_results_rfd_csv = os.path.join(args.out_dir, 'results_rfd_%s%s.csv' % (fname_narrow, fname_time))
-    fname_results_rfr_csv = os.path.join(args.out_dir, 'results_rfr_%s%s.csv' % (fname_narrow, fname_time))
-    fname_timing_csv = os.path.join(args.out_dir, 'results_time_%s%s.csv' % (fname_narrow, fname_time))
-
-    # Reference bins
-    ref_keys = sorted(list(ref_bins.keys()))
-    with open(fname_ref_csv, 'w+') as fh_csv, open(fname_ref_json, 'w+') as fh_json:
-        fh_json.write('[\n')
-        for rf_key in ref_keys:
-            method, block, deg, comb_deg, data = rf_key
-            ref_cur = ref_bins[rf_key]
-
-            csv_line = args.delim.join([
-                method, fls(block), fls(deg), fls(comb_deg), fls(data), fls(ref_avg[rf_key])
-            ] + [fls(x.zscore) for x in ref_cur])
-
-            fh_csv.write(csv_line+'\n')
-            js_cur = collections.OrderedDict()
-            js_cur['method'] = method
-            js_cur['block'] = block
-            js_cur['deg'] = deg
-            js_cur['comb_deg'] = comb_deg
-            js_cur['data_size'] = data
-            js_cur['zscore_avg'] = ref_avg[rf_key]
-            js_cur['zscores'] = [x.zscore for x in ref_cur]
-            json.dump(js_cur, fh_json, indent=2)
-            fh_json.write(', \n')
-        fh_json.write('\n    null\n]\n')
-
-    # Timing resuls
-    with open(fname_timing_csv, 'w+') as fh:
-        hdr = ['block', 'degree', 'combdeg', 'data', 'num_samples', 'avg', 'stddev', 'data']
-        fh.write(args.delim.join(hdr) + '\n')
-        for case in itertools.product(*total_cases_size):
-            cur_data = list(case)
-            time_arr = timing_bins[case]
-            num_samples = len(time_arr)
-
-            if num_samples == 0:
-                cur_data += [0, None, None, None]
-
-            else:
-                cur_data.append(num_samples)
-                avg = sum(time_arr) / float(num_samples)
-                stddev = math.sqrt(sum([(x-avg)**2 for x in time_arr])/(float(num_samples) - 1)) if num_samples > 1 else None
-                cur_data += [avg, stddev]
-                cur_data += time_arr
-            fh.write(args.delim.join([str(x) for x in cur_data]) + '\n')
-
-    # Result processing
-    fh_json = open(fname_results_json, 'w+')
-    fh_csv = open(fname_results_csv, 'w+')
-    fh_rf_csv = open(fname_results_rf_csv, 'w+')
-    fh_rfd_csv = open(fname_results_rfd_csv, 'w+')
-    fh_rfr_csv = open(fname_results_rfr_csv, 'w+')
-    fh_json.write('[\n')
-
-    # Headers
-    hdr = ['fnc_name', 'fnc_round', 'method', 'data_mb']
-    for cur_key in itertools.product(*total_cases):
-        hdr.append('%s-%s-%s' % (cur_key[0], cur_key[1], cur_key[2]))
-    fh_csv.write(args.delim.join(hdr) + '\n')
-    fh_rf_csv.write(args.delim.join(hdr) + '\n')
-    fh_rfd_csv.write(args.delim.join(hdr) + '\n')
-    fh_rfr_csv.write(args.delim.join(hdr) + '\n')
-
-    # Processing
-    js_out = []
-    ref_added = set()
-    for k, g in itertools.groupby(test_records, key=lambda x: (x.function, x.round, x.method, x.data)):
-        logger.info('Key: %s' % list(k))
-
-        fnc_name = k[0]
-        fnc_round = k[1]
-        method = k[2]
-        data_mb = k[3]
-
-        group_expanded = list(g)
-        results_map = {(x.block, x.deg, x.comb_deg): x for x in group_expanded}
-        prefix_cols = [fnc_name, fls(fnc_round), method, fls(data_mb)]
-
-        # Add line with reference values so one can compare
-        if data_mb not in ref_added:
-            ref_added.add(data_mb)
-            results_list = []
-            for cur_key in itertools.product(*total_cases):
-                results_list.append(get_ref_val_def(ref_avg, *cur_key, data=data_mb))
-
-            csv_line = args.delim.join(['ref-AES', '10', REFERENCE_METHOD, fls(data_mb)]
-                                       + [(fls(x) if x is not None else '-') for x in results_list])
-            fh_csv.write(csv_line + '\n')
-
-        # Grid list for booltest params
-        results_list = []
-        for cur_key in itertools.product(*total_cases):
-            if cur_key in results_map:
-                results_list.append(results_map[cur_key])
-            else:
-                results_list.append(None)
-
-        # CSV result
-        csv_line = args.delim.join(prefix_cols + [(fls(x.zscore) if x is not None else '-') for x in results_list])
-        fh_csv.write(csv_line+'\n')
-
-        # CSV only if above threshold
-        def zscoreref(x, retmode=0):
-            if x is None:
-                return '-'
-
-            is_over = False
-            thr = 0
-            if args.pval_data:
-                is_over = pval_db.eval(x.block, x.deg, x.comb_deg, x.zscore)
-                if is_over is None:
-                    return '?'
-
-            else:
-                thr = get_ref_value(ref_avg, x)
-                if thr is None:
-                    return '?'
-                is_over = is_over_threshold(ref_avg, x)
-
-            if is_over:
-                if retmode == 0:
-                    return fls(x.zscore)
-                elif retmode == 1:
-                    return fls(abs(x.zscore) - abs(thr))
-                elif retmode == 2:
-                    thr = thr if thr != 0 else 1.
-                    return fls(abs(x.zscore) / abs(thr))
-            return '.'
-
-        csv_line_rf = args.delim.join(
-            prefix_cols + [zscoreref(x) for x in results_list])
-        fh_rf_csv.write(csv_line_rf + '\n')
-
-        csv_line_rfd = args.delim.join(
-            prefix_cols + [zscoreref(x, 1) for x in results_list])
-        fh_rfd_csv.write(csv_line_rfd + '\n')
-
-        csv_line_rfr = args.delim.join(
-            prefix_cols + [zscoreref(x, 2) for x in results_list])
-        fh_rfr_csv.write(csv_line_rfr + '\n')
-
-        # JSON result
-        cur_js = collections.OrderedDict()
-        cur_js['function'] = fnc_name
-        cur_js['round'] = fnc_round
-        cur_js['method'] = method
-        cur_js['data_mb'] = data_mb
-        cur_js['tests'] = [[x.block, x.deg, x.comb_deg, x.zscore] for x in group_expanded]
-        json.dump(cur_js, fh_json, indent=2)
-        fh_json.write(',\n')
-
-        if not args.json:
-            print(csv_line)
+class Processor(object):
+    def __init__(self):
+        self.args = None
+        self.checkpoint = Checkpoint()
+        self.time_checkpoint = timer.Timer(start=False)
+
+    def get_parser(self):
+        parser = argparse.ArgumentParser(description='Process battery of tests')
+
+        parser.add_argument('--json', dest='json', default=False, action='store_const', const=True,
+                            help='JSON output')
+
+        parser.add_argument('--zscore-shape', dest='zscore_shape', default=False, action='store_const', const=True,
+                            help='abs(round(zscore))')
+
+        parser.add_argument('--out-dir', dest='out_dir', default='.',
+                            help='dir for results')
+
+        parser.add_argument('--delim', dest='delim', default=';',
+                            help='CSV delimiter')
+
+        parser.add_argument('--tar', dest='tar', default=False, action='store_const', const=True,
+                            help='Rad tar archive instead of the folder')
+
+        parser.add_argument('--narrow', dest='narrow', default=False, action='store_const', const=True,
+                            help='Process only smaller set of functions')
+
+        parser.add_argument('--narrow2', dest='narrow2', default=False, action='store_const', const=True,
+                            help='Process only smaller set of functions2')
+
+        parser.add_argument('--benchmark', dest='benchmark', default=False, action='store_const', const=True,
+                            help='Process only smaller set of fnc: benchmark')
+
+        parser.add_argument('--static', dest='static', default=False, action='store_const', const=True,
+                            help='Process only static test files')
+
+        parser.add_argument('--aes-ref', dest='aes_ref', default=False, action='store_const', const=True,
+                            help='Process only AES reference')
+
+        parser.add_argument('--pval-data', dest='pval_data', default=None,
+                            help='file with pval tables')
+
+        parser.add_argument('--num-inp', dest='num_inp', default=None, type=int,
+                            help='Max number of inputs, for testing')
+
+        parser.add_argument('--checkpoint', dest='checkpoint', default=False, action='store_const', const=True,
+                            help='Dump checkpoints')
+
+        parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
+                            help='folder with test matrix resutls - result dir of testbed.py')
+        return parser
+
+    def save_checkpoint(self):
+        with self.time_checkpoint:
+            try:
+                logger.info('Creating checkpoint...')
+                self.checkpoint.ref_bins = {json.dumps(x): self.checkpoint.ref_bins[x] for x in self.checkpoint.ref_bins}
+                self.checkpoint.timing_bins = {json.dumps(x): self.checkpoint.timing_bins[x] for x in self.checkpoint.timing_bins}
+                self.checkpoint.total_functions = list(self.checkpoint.total_functions)
+                json.dump(self.checkpoint, open('booltest_proc_checkpoint.json', 'w+'), cls=common.AutoJSONEncoder, indent=2)
+                logger.info('Checkpoint saved')
+
+            except Exception as e:
+                logger.exception('Could not create a checkpoint', exc_info=e)
+
+    def main(self):
+        """
+        testbed.py results processor
+
+        "best_zscore"
+        "blocklen": 256,
+        "degree": 2,
+        "comb_degree": 2,
+        "top_k": 128,
+        config.config.spec.fnc
+        config.config.spec.c_round
+        config.config.spec.data_size
+        config.config.spec.strategy
+        config.config.spec.gen_cfg.stream.scode
+        config.config.spec.gen_cfg.stream.type
+        config.config.spec.gen_cfg.stream.source.type
+        :return:
+        """
+        parser = self.get_parser()
+        args = parser.parse_args()
+        self.args = args
+
+        tstart = time.time()
+
+        # Process the input
+        if len(args.folder) == 0:
+            print('Error; no input given')
+            sys.exit(1)
+
+        ctr = -1
+        main_dir = args.folder[0]
+        tf = None
+
+        self.checkpoint = Checkpoint()
+        self.checkpoint.args = args
+
+        pval_db = PvalDb(args.pval_data)
+        pval_db.load()
+
+        if args.tar:
+            import tarfile
+            logger.info('Loading tar file: %s' % main_dir)
+
+            tf = tarfile.open(main_dir, 'r')
+            test_files = [x for x in tf.getmembers() if x.isfile()]
+            logger.info('Totally %d files found in the tar file' % len(test_files))
 
         else:
-            js_out.append(cur_js)
+            # Read all files in the folder.
+            logger.info('Reading all testfiles list')
+            # test_files = [f for f in os.listdir(main_dir) if os.path.isfile(os.path.join(main_dir, f))]
+            test_files = os.scandir(main_dir)
+            # logger.info('Totally %d tests were performed, parsing...' % len(test_files))
 
-    fh_json.write(',\nNone\n]\n')
-    if args.json:
-        print(json.dumps(js_out, indent=2))
+        # Test matrix definition
+        total_functions = set()
+        total_block = [128, 256, 384, 512]
+        total_deg = [1, 2, 3]
+        total_comb_deg = [1, 2, 3]
+        total_sizes = [10, 100]
+        total_cases = [total_block, total_deg, total_comb_deg]
+        total_cases_size = total_cases + [total_sizes]
 
-    fh_json.close()
-    fh_csv.close()
-    fh_rf_csv.close()
-    fh_rfd_csv.close()
-    fh_rfr_csv.close()
+        # ref bins: method, bl, deg, comb, data
+        ref_name = '-aAES-r10-'
+        ref_bins = collections.defaultdict(lambda: [])
+        timing_bins = collections.defaultdict(lambda: [])
 
-    logger.info(fname_ref_json)
-    logger.info(fname_ref_csv)
-    logger.info(fname_results_json)
-    logger.info(fname_results_csv)
-    logger.info(fname_results_rf_csv)
-    logger.info(fname_results_rfd_csv)
-    logger.info(fname_results_rfr_csv)
-    logger.info(fname_timing_csv)
-    logger.info('Processing finished in %s s' % (time.time() - tstart))
+        test_records = []
+
+        skipped = 0
+
+        invalid_results = []
+        invalid_results_num = 0
+        for idx, tfile in enumerate(test_files):
+            bname = os.path.basename(tfile.name)
+            if not args.tar and not tfile.is_file():
+                continue
+
+            if idx % 1000 == 0:
+                logger.debug('Progress: %d, cur: %s skipped: %s, time: %.2f, #rec: %s, #fnc: %s'
+                             % (idx, tfile.name, skipped, time.time() - tstart, len(test_records), len(total_functions)))
+
+            if args.checkpoint and idx % 10000 == 0:
+                self.checkpoint.test_records = test_records
+                self.checkpoint.total_functions = total_functions
+                self.checkpoint.timing_bins = timing_bins
+                self.checkpoint.invalid_results = invalid_results
+                self.checkpoint.invalid_results_num = invalid_results_num
+                self.checkpoint.skipped = skipped
+                self.checkpoint.ref_bins = ref_bins
+                self.save_checkpoint()
+
+            if args.num_inp is not None and args.num_inp < idx:
+                break
+
+            if not bname.endswith('json'):
+                continue
+
+            if args.static and ('static' not in bname and ref_name not in bname):
+                skipped += 1
+                continue
+
+            if args.aes_ref and ref_name not in bname:
+                skipped += 1
+                continue
+
+            if args.narrow and not is_narrow(bname):
+                skipped += 1
+                continue
+
+            if args.narrow2 and not is_narrow(bname, 1):
+                skipped += 1
+                continue
+
+            if args.benchmark and not is_narrow(bname, 2):
+                skipped += 1
+                continue
+
+            # File read & parse
+            js = None
+            try:
+                if args.tar:
+                    with tf.extractfile(tfile) as fh:
+                        js = json.load(fh)
+
+                else:
+                    with open(tfile.path, 'r') as fh:
+                        js = json.load(fh)
+
+            except Exception as e:
+                logger.error('Exception during processing %s: %s' % (tfile, e))
+                logger.debug(traceback.format_exc())
+
+            # File process
+            if js is None:
+                continue
+
+            try:
+                tr = process_file(js, bname, args)
+                if tr.zscore is None or tr.data == 0:
+                    invalid_results_num += 1
+                    invalid_results.append(bname)
+                    continue
+
+                if ref_name in bname:
+                    tr.ref = True
+                    ref_cat = tr.ref_category()
+                    ref_cat_unhw = tr.ref_category_unhw()
+
+                    ref_bins[ref_cat].append(tr)
+                    if ref_cat != ref_cat_unhw:
+                        ref_bins[ref_cat_unhw].append(tr)
+
+                test_records.append(tr)
+                total_functions.add(tr.function)
+                if tr.time_process:
+                    timing_bins[tr.bool_category()].append(tr.time_process)
+
+            except Exception as e:
+                logger.error('Exception during processing %s: %s' % (tfile, e))
+                logger.debug(traceback.format_exc())
+
+        logger.info('Invalid results: %s' % invalid_results_num)
+        logger.info('Num records: %s' % len(test_records))
+        logger.info('Num functions: %s' % len(total_functions))
+        logger.info('Num ref bins: %s' % len(ref_bins.keys()))
+        logger.info('Post processing')
+
+        test_records.sort(key=lambda x: (x.function, x.round, x.method, x.data, x.block, x.deg, x.comb_deg))
+
+        if not args.json:
+            print(args.delim.join(['function', 'round', 'data'] +
+                                  ['%s-%s-%s' % (x[0], x[1], x[2]) for x in itertools.product(*total_cases)]))
+
+        # Reference statistics.
+        ref_avg = {}
+        for mthd in list(ref_bins.keys()):
+            samples = ref_bins[mthd]
+            ref_avg[mthd] = sum([abs(x.zscore) for x in samples]) / float(len(samples))
+
+        # Stats files.
+        fname_narrow = 'nw_' if args.narrow else ''
+        if args.narrow2:
+            fname_narrow = 'nw2_'
+        elif args.benchmark:
+            fname_narrow = 'bench_'
+
+        fname_time = int(time.time())
+        fname_ref_json = os.path.join(args.out_dir, 'ref_%s%s.json' % (fname_narrow, fname_time))
+        fname_ref_csv = os.path.join(args.out_dir, 'ref_%s%s.csv' % (fname_narrow, fname_time))
+        fname_results_json = os.path.join(args.out_dir, 'results_%s%s.json' % (fname_narrow, fname_time))
+        fname_results_csv = os.path.join(args.out_dir, 'results_%s%s.csv' % (fname_narrow, fname_time))
+        fname_results_rf_csv = os.path.join(args.out_dir, 'results_rf_%s%s.csv' % (fname_narrow, fname_time))
+        fname_results_rfd_csv = os.path.join(args.out_dir, 'results_rfd_%s%s.csv' % (fname_narrow, fname_time))
+        fname_results_rfr_csv = os.path.join(args.out_dir, 'results_rfr_%s%s.csv' % (fname_narrow, fname_time))
+        fname_timing_csv = os.path.join(args.out_dir, 'results_time_%s%s.csv' % (fname_narrow, fname_time))
+
+        # Reference bins
+        ref_keys = sorted(list(ref_bins.keys()))
+        with open(fname_ref_csv, 'w+') as fh_csv, open(fname_ref_json, 'w+') as fh_json:
+            fh_json.write('[\n')
+            for rf_key in ref_keys:
+                method, block, deg, comb_deg, data = rf_key
+                ref_cur = ref_bins[rf_key]
+
+                csv_line = args.delim.join([
+                    method, fls(block), fls(deg), fls(comb_deg), fls(data), fls(ref_avg[rf_key])
+                ] + [fls(x.zscore) for x in ref_cur])
+
+                fh_csv.write(csv_line+'\n')
+                js_cur = collections.OrderedDict()
+                js_cur['method'] = method
+                js_cur['block'] = block
+                js_cur['deg'] = deg
+                js_cur['comb_deg'] = comb_deg
+                js_cur['data_size'] = data
+                js_cur['zscore_avg'] = ref_avg[rf_key]
+                js_cur['zscores'] = [x.zscore for x in ref_cur]
+                json.dump(js_cur, fh_json, indent=2)
+                fh_json.write(', \n')
+            fh_json.write('\n    null\n]\n')
+
+        # Timing resuls
+        with open(fname_timing_csv, 'w+') as fh:
+            hdr = ['block', 'degree', 'combdeg', 'data', 'num_samples', 'avg', 'stddev', 'data']
+            fh.write(args.delim.join(hdr) + '\n')
+            for case in itertools.product(*total_cases_size):
+                cur_data = list(case)
+                time_arr = timing_bins[case]
+                num_samples = len(time_arr)
+
+                if num_samples == 0:
+                    cur_data += [0, None, None, None]
+
+                else:
+                    cur_data.append(num_samples)
+                    avg = sum(time_arr) / float(num_samples)
+                    stddev = math.sqrt(sum([(x-avg)**2 for x in time_arr])/(float(num_samples) - 1)) if num_samples > 1 else None
+                    cur_data += [avg, stddev]
+                    cur_data += time_arr
+                fh.write(args.delim.join([str(x) for x in cur_data]) + '\n')
+
+        # Result processing
+        fh_json = open(fname_results_json, 'w+')
+        fh_csv = open(fname_results_csv, 'w+')
+        fh_rf_csv = open(fname_results_rf_csv, 'w+')
+        fh_rfd_csv = open(fname_results_rfd_csv, 'w+')
+        fh_rfr_csv = open(fname_results_rfr_csv, 'w+')
+        fh_json.write('[\n')
+
+        # Headers
+        hdr = ['fnc_name', 'fnc_round', 'method', 'data_mb']
+        for cur_key in itertools.product(*total_cases):
+            hdr.append('%s-%s-%s' % (cur_key[0], cur_key[1], cur_key[2]))
+        fh_csv.write(args.delim.join(hdr) + '\n')
+        fh_rf_csv.write(args.delim.join(hdr) + '\n')
+        fh_rfd_csv.write(args.delim.join(hdr) + '\n')
+        fh_rfr_csv.write(args.delim.join(hdr) + '\n')
+
+        # Processing
+        js_out = []
+        ref_added = set()
+        for k, g in itertools.groupby(test_records, key=lambda x: (x.function, x.round, x.method, x.data)):
+            logger.info('Key: %s' % list(k))
+
+            fnc_name = k[0]
+            fnc_round = k[1]
+            method = k[2]
+            data_mb = k[3]
+
+            group_expanded = list(g)
+            results_map = {(x.block, x.deg, x.comb_deg): x for x in group_expanded}
+            prefix_cols = [fnc_name, fls(fnc_round), method, fls(data_mb)]
+
+            # Add line with reference values so one can compare
+            if data_mb not in ref_added:
+                ref_added.add(data_mb)
+                results_list = []
+                for cur_key in itertools.product(*total_cases):
+                    results_list.append(get_ref_val_def(ref_avg, *cur_key, data=data_mb))
+
+                csv_line = args.delim.join(['ref-AES', '10', REFERENCE_METHOD, fls(data_mb)]
+                                           + [(fls(x) if x is not None else '-') for x in results_list])
+                fh_csv.write(csv_line + '\n')
+
+            # Grid list for booltest params
+            results_list = []
+            for cur_key in itertools.product(*total_cases):
+                if cur_key in results_map:
+                    results_list.append(results_map[cur_key])
+                else:
+                    results_list.append(None)
+
+            # CSV result
+            csv_line = args.delim.join(prefix_cols + [(fls(x.zscore) if x is not None else '-') for x in results_list])
+            fh_csv.write(csv_line+'\n')
+
+            # CSV only if above threshold
+            def zscoreref(x, retmode=0):
+                if x is None:
+                    return '-'
+
+                is_over = False
+                thr = 0
+                if args.pval_data:
+                    is_over = pval_db.eval(x.block, x.deg, x.comb_deg, x.zscore)
+                    if is_over is None:
+                        return '?'
+
+                else:
+                    thr = get_ref_value(ref_avg, x)
+                    if thr is None:
+                        return '?'
+                    is_over = is_over_threshold(ref_avg, x)
+
+                if is_over:
+                    if retmode == 0:
+                        return fls(x.zscore)
+                    elif retmode == 1:
+                        return fls(abs(x.zscore) - abs(thr))
+                    elif retmode == 2:
+                        thr = thr if thr != 0 else 1.
+                        return fls(abs(x.zscore) / abs(thr))
+                return '.'
+
+            csv_line_rf = args.delim.join(
+                prefix_cols + [zscoreref(x) for x in results_list])
+            fh_rf_csv.write(csv_line_rf + '\n')
+
+            csv_line_rfd = args.delim.join(
+                prefix_cols + [zscoreref(x, 1) for x in results_list])
+            fh_rfd_csv.write(csv_line_rfd + '\n')
+
+            csv_line_rfr = args.delim.join(
+                prefix_cols + [zscoreref(x, 2) for x in results_list])
+            fh_rfr_csv.write(csv_line_rfr + '\n')
+
+            # JSON result
+            cur_js = collections.OrderedDict()
+            cur_js['function'] = fnc_name
+            cur_js['round'] = fnc_round
+            cur_js['method'] = method
+            cur_js['data_mb'] = data_mb
+            cur_js['tests'] = [[x.block, x.deg, x.comb_deg, x.zscore] for x in group_expanded]
+            json.dump(cur_js, fh_json, indent=2)
+            fh_json.write(',\n')
+
+            if not args.json:
+                print(csv_line)
+
+            else:
+                js_out.append(cur_js)
+
+        fh_json.write(',\nNone\n]\n')
+        if args.json:
+            print(json.dumps(js_out, indent=2))
+
+        fh_json.close()
+        fh_csv.close()
+        fh_rf_csv.close()
+        fh_rfd_csv.close()
+        fh_rfr_csv.close()
+
+        logger.info(fname_ref_json)
+        logger.info(fname_ref_csv)
+        logger.info(fname_results_json)
+        logger.info(fname_results_csv)
+        logger.info(fname_results_rf_csv)
+        logger.info(fname_results_rfd_csv)
+        logger.info(fname_results_rfr_csv)
+        logger.info(fname_timing_csv)
+        logger.info('Processing finished in %s s' % (time.time() - tstart))
+
+
+def main():
+    p = Processor()
+    p.main()
 
 
 if __name__ == '__main__':
