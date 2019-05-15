@@ -86,6 +86,33 @@ class TestRecord(object):
         return self.method_generic(), self.block, self.deg, self.comb_deg, self.data
 
 
+class PvalDb(object):
+    def __init__(self, fname=None):
+        self.fname = fname
+        self.data = None
+        self.map = collections.defaultdict(
+            lambda: collections.defaultdict(
+                lambda: collections.defaultdict(
+                    lambda: None
+                )
+            ))
+
+    def load(self):
+        if self.fname is None:
+            return
+        self.data = json.load(open(self.fname))
+        for rec in self.data:
+            # pvalrec = rec['pvals'][0]
+            self.map[rec['block']][rec['deg']][rec['comb_deg']] = rec['extremes']
+
+    def eval(self, block, deg, cdeg, zscore):
+        if self.map[block][deg][cdeg] is None:
+            return None
+
+        minv, maxv = self.map[block][deg][cdeg][0][0], self.map[block][deg][cdeg][1][0]
+        return zscore < minv or zscore > maxv
+
+
 def get_method(strategy):
     """
     Parses method from the strategy
@@ -266,10 +293,17 @@ def main():
     parser.add_argument('--aes-ref', dest='aes_ref', default=False, action='store_const', const=True,
                         help='Process only AES reference')
 
+    parser.add_argument('--pval-data', dest='pval_data', default=None,
+                        help='file with pval tables')
+
+    parser.add_argument('--num-inp', dest='num_inp', default=None, type=int,
+                        help='Max number of inputs, for testing')
+
     parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
                         help='folder with test matrix resutls - result dir of testbed.py')
 
     args = parser.parse_args()
+    tstart = time.time()
 
     # Process the input
     if len(args.folder) == 0:
@@ -279,6 +313,9 @@ def main():
     ctr = -1
     main_dir = args.folder[0]
     tf = None
+
+    pval_db = PvalDb(args.pval_data)
+    pval_db.load()
 
     if args.tar:
         import tarfile
@@ -291,8 +328,9 @@ def main():
     else:
         # Read all files in the folder.
         logger.info('Reading all testfiles list')
-        test_files = [f for f in os.listdir(main_dir) if os.path.isfile(os.path.join(main_dir, f))]
-        logger.info('Totally %d tests were performed, parsing...' % len(test_files))
+        # test_files = [f for f in os.listdir(main_dir) if os.path.isfile(os.path.join(main_dir, f))]
+        test_files = os.scandir(main_dir)
+        # logger.info('Totally %d tests were performed, parsing...' % len(test_files))
 
     # Test matrix definition
     total_functions = set()
@@ -314,10 +352,16 @@ def main():
     invalid_results = []
     invalid_results_num = 0
     for idx, tfile in enumerate(test_files):
-        bname = os.path.basename(tfile.name if args.tar else tfile)
+        bname = os.path.basename(tfile.name)
+        if not args.tar and not tfile.is_file():
+            continue
 
         if idx % 1000 == 0:
-            logger.debug('Progress: %d, cur: %s skipped: %s' % (idx, tfile, skipped))
+            logger.debug('Progress: %d, cur: %s skipped: %s, time: %.2f, #rec: %s, #fnc: %s'
+                         % (idx, tfile.name, skipped, time.time() - tstart, len(test_records), len(total_functions)))
+
+        if args.num_inp is not None and args.num_inp < idx:
+            break
 
         if not bname.endswith('json'):
             continue
@@ -350,8 +394,7 @@ def main():
                     js = json.load(fh)
 
             else:
-                test_file = os.path.join(main_dir, tfile)
-                with open(test_file, 'r') as fh:
+                with open(tfile.path, 'r') as fh:
                     js = json.load(fh)
 
         except Exception as e:
@@ -388,6 +431,9 @@ def main():
             logger.debug(traceback.format_exc())
 
     logger.info('Invalid results: %s' % invalid_results_num)
+    logger.info('Num records: %s' % len(test_records))
+    logger.info('Num functions: %s' % len(total_functions))
+    logger.info('Num ref bins: %s' % len(ref_bins.keys()))
     logger.info('Post processing')
 
     test_records.sort(key=lambda x: (x.function, x.round, x.method, x.data, x.block, x.deg, x.comb_deg))
@@ -419,6 +465,7 @@ def main():
     fname_results_rfr_csv = os.path.join(args.out_dir, 'results_rfr_%s%s.csv' % (fname_narrow, fname_time))
     fname_timing_csv = os.path.join(args.out_dir, 'results_time_%s%s.csv' % (fname_narrow, fname_time))
 
+    # Reference bins
     ref_keys = sorted(list(ref_bins.keys()))
     with open(fname_ref_csv, 'w+') as fh_csv, open(fname_ref_json, 'w+') as fh_json:
         fh_json.write('[\n')
@@ -522,15 +569,27 @@ def main():
         def zscoreref(x, retmode=0):
             if x is None:
                 return '-'
-            thr = get_ref_value(ref_avg, x)
-            if thr is None:
-                return '?'
-            if is_over_threshold(ref_avg, x):
+
+            is_over = False
+            thr = 0
+            if args.pval_data:
+                is_over = pval_db.eval(x.block, x.deg, x.comb_deg, x.zscore)
+                if is_over is None:
+                    return '?'
+
+            else:
+                thr = get_ref_value(ref_avg, x)
+                if thr is None:
+                    return '?'
+                is_over = is_over_threshold(ref_avg, x)
+
+            if is_over:
                 if retmode == 0:
                     return fls(x.zscore)
                 elif retmode == 1:
                     return fls(abs(x.zscore) - abs(thr))
                 elif retmode == 2:
+                    thr = thr if thr != 0 else 1.
                     return fls(abs(x.zscore) / abs(thr))
             return '.'
 
@@ -571,6 +630,16 @@ def main():
     fh_rf_csv.close()
     fh_rfd_csv.close()
     fh_rfr_csv.close()
+
+    logger.info(fname_ref_json)
+    logger.info(fname_ref_csv)
+    logger.info(fname_results_json)
+    logger.info(fname_results_csv)
+    logger.info(fname_results_rf_csv)
+    logger.info(fname_results_rfd_csv)
+    logger.info(fname_results_rfr_csv)
+    logger.info(fname_timing_csv)
+    logger.info('Processing finished in %s s' % (time.time() - tstart))
 
 
 if __name__ == '__main__':
