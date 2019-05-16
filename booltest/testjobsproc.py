@@ -11,6 +11,8 @@ import json
 import time
 import re
 import os
+import copy
+import shutil
 import sys
 import collections
 import itertools
@@ -85,6 +87,7 @@ class TestRecord(object):
         self.ref = False
         self.time_process = None
         self.bname = None
+        self.mtime = None
 
         self.zscore = None
         self.best_poly = None
@@ -299,7 +302,13 @@ def is_narrow(fname, narrow_type=0):
     return egenerator.is_narrow(fname, narrow_type)
 
 
+def average(it):
+    return sum(it)/float(len(it))
+
+
 class Processor(object):
+    CHECKPOINT_NAME = 'booltest_proc_checkpoint.json'
+
     def __init__(self):
         self.args = None
         self.checkpoint = Checkpoint()
@@ -348,6 +357,12 @@ class Processor(object):
         parser.add_argument('--checkpoint', dest='checkpoint', default=False, action='store_const', const=True,
                             help='Dump checkpoints')
 
+        parser.add_argument('--checkpoint-period', dest='checkpoint_period', default=50000, type=int,
+                            help='Checkpoint period (create after X reads)')
+
+        parser.add_argument('--checkpoint-file', dest='checkpoint_file', default=self.CHECKPOINT_NAME,
+                            help='Checkpoint file name')
+
         parser.add_argument('--delete-invalid', dest='delete_invalid', default=False, action='store_const', const=True,
                             help='Delete invalid results')
 
@@ -358,25 +373,27 @@ class Processor(object):
     def save_checkpoint(self):
         with self.time_checkpoint:
             try:
-                logger.info('Creating checkpoint...')
-                json.dump(self.checkpoint.to_json(), open('booltest_proc_checkpoint.json', 'w+'), cls=common.AutoJSONEncoder, indent=2)
-                logger.info('Checkpoint saved')
+                logger.info('Creating checkpoint %s ...' % self.args.checkpoint_file)
+                shutil.copyfile(self.args.checkpoint_file, '%s.backup' % self.args.checkpoint_file)
+                json.dump(self.checkpoint.to_json(), open(self.args.checkpoint_file, 'w+'), cls=common.AutoJSONEncoder, indent=2)
+                logger.info('Checkpoint saved %s' % self.args.checkpoint_file)
 
             except Exception as e:
-                logger.exception('Could not create a checkpoint', exc_info=e)
+                logger.exception('Could not create a checkpoint %s' % self.args.checkpoint_file, exc_info=e)
 
     def load_checkpoint(self):
         try:
-            if not os.path.exists('booltest_proc_checkpoint.json'):
+            logger.info('Loading checkpoint %s ...' % self.args.checkpoint_file)
+            if not os.path.exists(self.args.checkpoint_file):
                 return False
 
-            js = json.load(open('booltest_proc_checkpoint.json'))
+            js = json.load(open(self.args.checkpoint_file))
             self.checkpoint = Checkpoint()
             self.checkpoint.from_json(js)
             self.checkpointed_files = set([x.bname for x in self.checkpoint.test_records])
             return True
         except Exception as e:
-            logger.exception('Could not load a checkpoint', exc_info=e)
+            logger.exception('Could not load a checkpoint %s' % self.args.checkpoint_file, exc_info=e)
 
         return False
 
@@ -484,7 +501,7 @@ class Processor(object):
             if bname in self.checkpointed_files:
                 continue
 
-            if args.checkpoint and idx % 50000 == 0 and idx > 0:
+            if args.checkpoint and idx % args.checkpoint_period == 0 and idx > 0:
                 self.checkpoint.test_records = test_records
                 self.checkpoint.total_functions = total_functions
                 self.checkpoint.timing_bins = timing_bins
@@ -640,11 +657,15 @@ class Processor(object):
 
                 else:
                     cur_data.append(num_samples)
-                    avg = sum(time_arr) / float(num_samples)
-                    stddev = math.sqrt(sum([(x-avg)**2 for x in time_arr])/(float(num_samples) - 1)) if num_samples > 1 else None
-                    cur_data += [avg, stddev]
+                    avg_ = sum(time_arr) / float(num_samples)
+                    stddev = math.sqrt(sum([(x-avg_)**2 for x in time_arr])/(float(num_samples) - 1)) if num_samples > 1 else None
+                    cur_data += [avg_, stddev]
                     cur_data += time_arr
                 fh.write(args.delim.join([str(x) for x in cur_data]) + '\n')
+
+        # Close old
+        fh_json.close()
+        fh_csv.close()
 
         # Result processing
         fh_json = open(fname_results_json, 'w+')
@@ -663,7 +684,7 @@ class Processor(object):
         fh_rfd_csv.write(args.delim.join(hdr) + '\n')
         fh_rfr_csv.write(args.delim.join(hdr) + '\n')
 
-        # Processing
+        # Processing, one per group
         js_out = []
         ref_added = set()
         for k, g in itertools.groupby(test_records, key=lambda x: (x.function, x.round, x.method, x.data)):
@@ -673,10 +694,20 @@ class Processor(object):
             fnc_round = k[1]
             method = k[2]
             data_mb = k[3]
-
-            group_expanded = list(g)
-            results_map = {(x.block, x.deg, x.comb_deg): x for x in group_expanded}
             prefix_cols = [fnc_name, fls(fnc_round), method, fls(data_mb)]
+
+            # CSV grouping, avg all results
+            csv_grouper = lambda x: (x.block, x.deg, x.comb_deg)
+            group_expanded = sorted(list(g), key=csv_grouper)
+            results_map = {}
+            for ssk, ssg in itertools.groupby(group_expanded, key=csv_grouper):
+                ssg = list(ssg)
+                if len(ssg) > 1:
+                    cp = copy.deepcopy(ssg[0])
+                    cp.zscore = average([x.zscore for x in ssg])
+                else:
+                    cp = ssg[0]
+                results_map[ssk] = cp
 
             # Add line with reference values so one can compare
             if data_mb not in ref_added:
