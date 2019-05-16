@@ -31,7 +31,7 @@ REFERENCE_METHOD = 'inctr-krnd-ri0'
 
 
 class Checkpoint(object):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.test_records = []
         self.total_functions = []
         self.ref_bins = collections.defaultdict(lambda: [])
@@ -43,14 +43,28 @@ class Checkpoint(object):
         self.args = None
         self.time = time.time()
 
+        for kw in kwargs:
+            setattr(self, kw, kwargs[kw])
+
     def to_json(self):
         dct = dict(self.__dict__)
-        dct['args'] = {x: getattr(self.args, x, None) for x in self.args.__dict__}
+        dct['args'] = args_to_dict(self.args) if not isinstance(self.args, dict) else self.args
+        dct['ref_bins'] = {json.dumps(x): self.ref_bins[x] for x in self.ref_bins}
+        dct['timing_bins'] = {json.dumps(x): self.timing_bins[x] for x in self.timing_bins}
+        dct['total_functions'] = list(self.total_functions)
         return dct
 
     def from_json(self, data):
         for k in data:
             setattr(self, k, data[k])
+        self.total_functions = set(self.total_functions)
+        self.test_records = [TestRecord.new_from_json(x) for x in self.test_records]
+
+        ref_data = {tuple(json.loads(x)): [TestRecord.new_from_json(y) for y in self.ref_bins[x]] for x in self.ref_bins}
+        self.ref_bins = collections.defaultdict(lambda: [], ref_data)
+
+        timing_data = {tuple(json.loads(x)): self.timing_bins[x] for x in self.timing_bins}
+        self.timing_bins = collections.defaultdict(lambda: [], timing_data)
 
 
 class TestRecord(object):
@@ -70,6 +84,7 @@ class TestRecord(object):
         self.method = None
         self.ref = False
         self.time_process = None
+        self.bname = None
 
         self.zscore = None
         self.best_poly = None
@@ -115,6 +130,12 @@ class TestRecord(object):
         for k in data:
             setattr(self, k, data[k])
 
+    @classmethod
+    def new_from_json(cls, data):
+        r = cls()
+        r.from_json(data)
+        return r
+
 
 class PvalDb(object):
     def __init__(self, fname=None):
@@ -141,6 +162,10 @@ class PvalDb(object):
 
         minv, maxv = self.map[block][deg][cdeg][0][0], self.map[block][deg][cdeg][1][0]
         return zscore < minv or zscore > maxv
+
+
+def args_to_dict(args):
+    return {x: getattr(args, x, None) for x in args.__dict__} if args else None
 
 
 def get_method(strategy):
@@ -192,6 +217,7 @@ def process_file(js, fname, args=None):
     if tr.data:
         tr.data = int(math.ceil(math.ceil(tr.data/1024.0)/1024.0))
 
+    tr.bname = fname
     mtch = re.search(r'-(\d+)\.json$', fname)
     if mtch:
         tr.iteration = int(mtch.group(1))
@@ -278,6 +304,7 @@ class Processor(object):
         self.args = None
         self.checkpoint = Checkpoint()
         self.time_checkpoint = timer.Timer(start=False)
+        self.checkpointed_files = set()
 
     def get_parser(self):
         parser = argparse.ArgumentParser(description='Process battery of tests')
@@ -321,6 +348,9 @@ class Processor(object):
         parser.add_argument('--checkpoint', dest='checkpoint', default=False, action='store_const', const=True,
                             help='Dump checkpoints')
 
+        parser.add_argument('--delete-invalid', dest='delete_invalid', default=False, action='store_const', const=True,
+                            help='Delete invalid results')
+
         parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='folder with test matrix resutls - result dir of testbed.py')
         return parser
@@ -329,14 +359,34 @@ class Processor(object):
         with self.time_checkpoint:
             try:
                 logger.info('Creating checkpoint...')
-                self.checkpoint.ref_bins = {json.dumps(x): self.checkpoint.ref_bins[x] for x in self.checkpoint.ref_bins}
-                self.checkpoint.timing_bins = {json.dumps(x): self.checkpoint.timing_bins[x] for x in self.checkpoint.timing_bins}
-                self.checkpoint.total_functions = list(self.checkpoint.total_functions)
-                json.dump(self.checkpoint, open('booltest_proc_checkpoint.json', 'w+'), cls=common.AutoJSONEncoder, indent=2)
+                json.dump(self.checkpoint.to_json(), open('booltest_proc_checkpoint.json', 'w+'), cls=common.AutoJSONEncoder, indent=2)
                 logger.info('Checkpoint saved')
 
             except Exception as e:
                 logger.exception('Could not create a checkpoint', exc_info=e)
+
+    def load_checkpoint(self):
+        try:
+            if not os.path.exists('booltest_proc_checkpoint.json'):
+                return False
+
+            js = json.load(open('booltest_proc_checkpoint.json'))
+            self.checkpoint = Checkpoint()
+            self.checkpoint.from_json(js)
+            self.checkpointed_files = set([x.bname for x in self.checkpoint.test_records])
+            return True
+        except Exception as e:
+            logger.exception('Could not load a checkpoint', exc_info=e)
+
+        return False
+
+    def move_invalid(self, fname=None):
+        if fname is None or self.args.tar or not self.args.delete_invalid:
+            return
+        try:
+            os.rename(fname, '%s.invalid' % fname)
+        except Exception as e:
+            logger.exception('Could not move invalid file', exc_info=e)
 
     def main(self):
         """
@@ -403,15 +453,25 @@ class Processor(object):
 
         # ref bins: method, bl, deg, comb, data
         ref_name = '-aAES-r10-'
-        ref_bins = collections.defaultdict(lambda: [])
-        timing_bins = collections.defaultdict(lambda: [])
-
-        test_records = []
 
         skipped = 0
-
+        ref_bins = collections.defaultdict(lambda: [])
+        timing_bins = collections.defaultdict(lambda: [])
+        test_records = []
         invalid_results = []
         invalid_results_num = 0
+
+        # Load checkpoint, restore state
+        if args.checkpoint and self.load_checkpoint():
+            test_records = self.checkpoint.test_records
+            total_functions = self.checkpoint.total_functions
+            timing_bins = self.checkpoint.timing_bins
+            invalid_results = self.checkpoint.invalid_results
+            invalid_results_num = self.checkpoint.invalid_results_num
+            skipped = self.checkpoint.skipped
+            ref_bins = self.checkpoint.ref_bins
+            logger.info('Checkpoint loaded, files read: %s' % len(self.checkpointed_files))
+
         for idx, tfile in enumerate(test_files):
             bname = os.path.basename(tfile.name)
             if not args.tar and not tfile.is_file():
@@ -421,7 +481,10 @@ class Processor(object):
                 logger.debug('Progress: %d, cur: %s skipped: %s, time: %.2f, #rec: %s, #fnc: %s'
                              % (idx, tfile.name, skipped, time.time() - tstart, len(test_records), len(total_functions)))
 
-            if args.checkpoint and idx % 10000 == 0:
+            if bname in self.checkpointed_files:
+                continue
+
+            if args.checkpoint and idx % 50000 == 0 and idx > 0:
                 self.checkpoint.test_records = test_records
                 self.checkpoint.total_functions = total_functions
                 self.checkpoint.timing_bins = timing_bins
@@ -474,6 +537,7 @@ class Processor(object):
 
             # File process
             if js is None:
+                self.move_invalid(tfile.path if not args.tar else None)
                 continue
 
             try:
@@ -481,6 +545,7 @@ class Processor(object):
                 if tr.zscore is None or tr.data == 0:
                     invalid_results_num += 1
                     invalid_results.append(bname)
+                    self.move_invalid(tfile.path if not args.tar else None)
                     continue
 
                 if ref_name in bname:
