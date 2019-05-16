@@ -216,6 +216,13 @@ def try_get_cpu_load():
         return None
 
 
+def file_exists(path):
+    try:
+        return os.stat(path)
+    except OSError:
+        return None
+
+
 def normalize_card_name(name):
     name = name.replace(' - ', '_')
     name = name.replace('+', '')
