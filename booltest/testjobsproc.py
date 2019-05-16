@@ -431,7 +431,7 @@ class Processor(object):
 
                 logger.info('Creating checkpoint %s ...' % self.args.checkpoint_file)
                 shutil.copyfile(self.args.checkpoint_file, '%s.backup' % self.args.checkpoint_file)
-                json.dump(self.checkpoint.to_json(), open(self.args.checkpoint_file + '.test', 'w+'), cls=common.AutoJSONEncoder, indent=2)
+                json.dump(self.checkpoint.to_json(), open(self.args.checkpoint_file, 'w+'), cls=common.AutoJSONEncoder, indent=2)
                 logger.info('Checkpoint saved %s' % self.args.checkpoint_file)
 
             except Exception as e:
