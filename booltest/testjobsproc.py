@@ -34,6 +34,11 @@ REFERENCE_METHOD = 'inctr-krnd-ri0'
 
 class Checkpoint(object):
     def __init__(self, **kwargs):
+        self.all_records = {}  # primary caching DB
+        self.args = None
+        self.time = time.time()
+
+        # Secondary data for re-cache, not checkpointed as it is recreated from all_records
         self.test_records = []
         self.total_functions = []
         self.ref_bins = collections.defaultdict(lambda: [])
@@ -42,11 +47,23 @@ class Checkpoint(object):
         self.invalid_results = []
         self.invalid_results_num = 0
 
-        self.args = None
-        self.time = time.time()
-
         for kw in kwargs:
             setattr(self, kw, kwargs[kw])
+
+    def get_cached(self, bname):
+        return self.all_records[bname] if bname in self.all_records else None
+
+    def get_cached_keys(self):
+        return set(self.all_records.keys())
+
+    def add_record(self, tr):
+        if tr is None or tr.bname in self.all_records:
+            return
+        self.all_records[tr.bname] = tr
+
+    def recache(self):
+        for tr in self.test_records:
+            self.add_record(tr)
 
     def to_json(self):
         dct = dict(self.__dict__)
@@ -54,11 +71,20 @@ class Checkpoint(object):
         dct['ref_bins'] = {json.dumps(x): self.ref_bins[x] for x in self.ref_bins}
         dct['timing_bins'] = {json.dumps(x): self.timing_bins[x] for x in self.timing_bins}
         dct['total_functions'] = list(self.total_functions)
+        dct['test_records'] = []
         return dct
 
     def from_json(self, data):
         for k in data:
             setattr(self, k, data[k])
+
+        # Migration
+        if len(self.all_records) == 0:
+            self.all_records = {x['bname']: x for x in self.test_records}
+            logger.info('Checkpoint migrated')
+
+        self.all_records = {x: TestRecord.new_from_json(self.all_records[x]) for x in self.all_records}
+
         self.total_functions = set(self.total_functions)
         self.test_records = [TestRecord.new_from_json(x) for x in self.test_records]
 
@@ -308,12 +334,33 @@ def average(it):
 
 class Processor(object):
     CHECKPOINT_NAME = 'booltest_proc_checkpoint.json'
+    REF_NAME = '-aAES-r10-'
 
     def __init__(self):
         self.args = None
         self.checkpoint = Checkpoint()
         self.time_checkpoint = timer.Timer(start=False)
         self.checkpointed_files = set()
+        self.tf = None  # tarfile
+
+        # ref bins: method, bl, deg, comb, data
+        self.skipped = None
+        self.total_functions = None
+        self.ref_bins = None
+        self.timing_bins = None
+        self.test_records = None
+        self.invalid_results = None
+        self.invalid_results_num = None
+        self.reset_state()
+
+    def reset_state(self):
+        self.skipped = 0
+        self.total_functions = set()
+        self.ref_bins = collections.defaultdict(lambda: [])
+        self.timing_bins = collections.defaultdict(lambda: [])
+        self.test_records = []
+        self.invalid_results = []
+        self.invalid_results_num = 0
 
     def get_parser(self):
         parser = argparse.ArgumentParser(description='Process battery of tests')
@@ -373,9 +420,18 @@ class Processor(object):
     def save_checkpoint(self):
         with self.time_checkpoint:
             try:
+                self.checkpoint.test_records = self.test_records
+                self.checkpoint.total_functions = self.total_functions
+                self.checkpoint.timing_bins = self.timing_bins
+                self.checkpoint.invalid_results = self.invalid_results
+                self.checkpoint.invalid_results_num = self.invalid_results_num
+                self.checkpoint.skipped = self.skipped
+                self.checkpoint.ref_bins = self.ref_bins
+                self.checkpoint.recache()
+
                 logger.info('Creating checkpoint %s ...' % self.args.checkpoint_file)
                 shutil.copyfile(self.args.checkpoint_file, '%s.backup' % self.args.checkpoint_file)
-                json.dump(self.checkpoint.to_json(), open(self.args.checkpoint_file, 'w+'), cls=common.AutoJSONEncoder, indent=2)
+                json.dump(self.checkpoint.to_json(), open(self.args.checkpoint_file + '.test', 'w+'), cls=common.AutoJSONEncoder, indent=2)
                 logger.info('Checkpoint saved %s' % self.args.checkpoint_file)
 
             except Exception as e:
@@ -390,7 +446,7 @@ class Processor(object):
             js = json.load(open(self.args.checkpoint_file))
             self.checkpoint = Checkpoint()
             self.checkpoint.from_json(js)
-            self.checkpointed_files = set([x.bname for x in self.checkpoint.test_records])
+            self.checkpointed_files = self.checkpoint.get_cached_keys()
             return True
         except Exception as e:
             logger.exception('Could not load a checkpoint %s' % self.args.checkpoint_file, exc_info=e)
@@ -404,6 +460,79 @@ class Processor(object):
             os.rename(fname, '%s.invalid' % fname)
         except Exception as e:
             logger.exception('Could not move invalid file', exc_info=e)
+
+    def accepting_file(self, tfile, bname):
+        if self.args.static and ('static' not in bname and self.REF_NAME not in bname):
+            return False
+
+        if self.args.aes_ref and self.REF_NAME not in bname:
+            return False
+
+        if self.args.narrow and not is_narrow(bname):
+            return False
+
+        if self.args.narrow2 and not is_narrow(bname, 1):
+            return False
+
+        if self.args.benchmark and not is_narrow(bname, 2):
+            return False
+
+        return True
+
+    def read_file(self, tfile, bname):
+        js = None
+        try:
+            if self.args.tar:
+                with self.tf.extractfile(tfile) as fh:
+                    js = json.load(fh)
+
+            else:
+                with open(tfile.path, 'r') as fh:
+                    js = json.load(fh)
+
+        except Exception as e:
+            logger.error('Exception during processing %s: %s' % (tfile, e))
+            logger.debug(traceback.format_exc())
+
+        return js
+
+    def process_tr(self, tr, tfile, bname):
+        if tr.zscore is None or tr.data == 0:
+            self.invalid_results_num += 1
+            self.invalid_results.append(bname)
+            self.move_invalid(tfile.path if not self.args.tar else None)
+            return False
+
+        if self.REF_NAME in bname:
+            tr.ref = True
+            ref_cat = tr.ref_category()
+            ref_cat_unhw = tr.ref_category_unhw()
+
+            self.ref_bins[ref_cat].append(tr)
+            if ref_cat != ref_cat_unhw:
+                self.ref_bins[ref_cat_unhw].append(tr)
+
+        self.test_records.append(tr)
+        self.total_functions.add(tr.function)
+        if tr.time_process:
+            self.timing_bins[tr.bool_category()].append(tr.time_process)
+        return True
+
+    def read_file_tr(self, tfile, bname):
+        # File read & parse
+        js = self.read_file(tfile, bname)
+
+        # File process
+        if js is None:
+            self.move_invalid(tfile.path if not self.args.tar else None)
+            return False
+
+        try:
+            return process_file(js, bname, self.args)
+        except Exception as e:
+            logger.exception('Could not process file', exc_info=e)
+
+        return None
 
     def main(self):
         """
@@ -436,7 +565,7 @@ class Processor(object):
 
         ctr = -1
         main_dir = args.folder[0]
-        tf = None
+        self.tf = None
 
         self.checkpoint = Checkpoint()
         self.checkpoint.args = args
@@ -448,8 +577,8 @@ class Processor(object):
             import tarfile
             logger.info('Loading tar file: %s' % main_dir)
 
-            tf = tarfile.open(main_dir, 'r')
-            test_files = [x for x in tf.getmembers() if x.isfile()]
+            self.tf = tarfile.open(main_dir, 'r')
+            test_files = [x for x in self.tf.getmembers() if x.isfile()]
             logger.info('Totally %d files found in the tar file' % len(test_files))
 
         else:
@@ -460,7 +589,6 @@ class Processor(object):
             # logger.info('Totally %d tests were performed, parsing...' % len(test_files))
 
         # Test matrix definition
-        total_functions = set()
         total_block = [128, 256, 384, 512]
         total_deg = [1, 2, 3]
         total_comb_deg = [1, 2, 3]
@@ -468,25 +596,8 @@ class Processor(object):
         total_cases = [total_block, total_deg, total_comb_deg]
         total_cases_size = total_cases + [total_sizes]
 
-        # ref bins: method, bl, deg, comb, data
-        ref_name = '-aAES-r10-'
-
-        skipped = 0
-        ref_bins = collections.defaultdict(lambda: [])
-        timing_bins = collections.defaultdict(lambda: [])
-        test_records = []
-        invalid_results = []
-        invalid_results_num = 0
-
         # Load checkpoint, restore state
         if args.checkpoint and self.load_checkpoint():
-            test_records = self.checkpoint.test_records
-            total_functions = self.checkpoint.total_functions
-            timing_bins = self.checkpoint.timing_bins
-            invalid_results = self.checkpoint.invalid_results
-            invalid_results_num = self.checkpoint.invalid_results_num
-            skipped = self.checkpoint.skipped
-            ref_bins = self.checkpoint.ref_bins
             logger.info('Checkpoint loaded, files read: %s' % len(self.checkpointed_files))
 
         for idx, tfile in enumerate(test_files):
@@ -496,19 +607,12 @@ class Processor(object):
 
             if idx % 1000 == 0:
                 logger.debug('Progress: %d, cur: %s skipped: %s, time: %.2f, #rec: %s, #fnc: %s'
-                             % (idx, tfile.name, skipped, time.time() - tstart, len(test_records), len(total_functions)))
+                             % (idx, tfile.name, self.skipped, time.time() - tstart,
+                                len(self.test_records), len(self.total_functions)))
 
-            if bname in self.checkpointed_files:
-                continue
+            is_file_checkpointed = bname in self.checkpointed_files
 
-            if args.checkpoint and idx % args.checkpoint_period == 0 and idx > 0:
-                self.checkpoint.test_records = test_records
-                self.checkpoint.total_functions = total_functions
-                self.checkpoint.timing_bins = timing_bins
-                self.checkpoint.invalid_results = invalid_results
-                self.checkpoint.invalid_results_num = invalid_results_num
-                self.checkpoint.skipped = skipped
-                self.checkpoint.ref_bins = ref_bins
+            if args.checkpoint and not is_file_checkpointed and idx % args.checkpoint_period == 0 and idx > 0:
                 self.save_checkpoint()
 
             if args.num_inp is not None and args.num_inp < idx:
@@ -517,79 +621,30 @@ class Processor(object):
             if not bname.endswith('json'):
                 continue
 
-            if args.static and ('static' not in bname and ref_name not in bname):
-                skipped += 1
+            if not self.accepting_file(tfile, bname):
+                self.skipped += 1
                 continue
 
-            if args.aes_ref and ref_name not in bname:
-                skipped += 1
-                continue
-
-            if args.narrow and not is_narrow(bname):
-                skipped += 1
-                continue
-
-            if args.narrow2 and not is_narrow(bname, 1):
-                skipped += 1
-                continue
-
-            if args.benchmark and not is_narrow(bname, 2):
-                skipped += 1
-                continue
-
-            # File read & parse
-            js = None
-            try:
-                if args.tar:
-                    with tf.extractfile(tfile) as fh:
-                        js = json.load(fh)
-
-                else:
-                    with open(tfile.path, 'r') as fh:
-                        js = json.load(fh)
-
-            except Exception as e:
-                logger.error('Exception during processing %s: %s' % (tfile, e))
-                logger.debug(traceback.format_exc())
-
-            # File process
-            if js is None:
+            tr = self.read_file_tr(tfile, bname) if not is_file_checkpointed else self.checkpoint.get_cached(bname)
+            if tr is None:
                 self.move_invalid(tfile.path if not args.tar else None)
                 continue
 
             try:
-                tr = process_file(js, bname, args)
-                if tr.zscore is None or tr.data == 0:
-                    invalid_results_num += 1
-                    invalid_results.append(bname)
-                    self.move_invalid(tfile.path if not args.tar else None)
+                if not self.process_tr(tr, tfile, bname):
                     continue
-
-                if ref_name in bname:
-                    tr.ref = True
-                    ref_cat = tr.ref_category()
-                    ref_cat_unhw = tr.ref_category_unhw()
-
-                    ref_bins[ref_cat].append(tr)
-                    if ref_cat != ref_cat_unhw:
-                        ref_bins[ref_cat_unhw].append(tr)
-
-                test_records.append(tr)
-                total_functions.add(tr.function)
-                if tr.time_process:
-                    timing_bins[tr.bool_category()].append(tr.time_process)
 
             except Exception as e:
                 logger.error('Exception during processing %s: %s' % (tfile, e))
                 logger.debug(traceback.format_exc())
 
-        logger.info('Invalid results: %s' % invalid_results_num)
-        logger.info('Num records: %s' % len(test_records))
-        logger.info('Num functions: %s' % len(total_functions))
-        logger.info('Num ref bins: %s' % len(ref_bins.keys()))
+        logger.info('Invalid results: %s' % self.invalid_results_num)
+        logger.info('Num records: %s' % len(self.test_records))
+        logger.info('Num functions: %s' % len(self.total_functions))
+        logger.info('Num ref bins: %s' % len(self.ref_bins.keys()))
         logger.info('Post processing')
 
-        test_records.sort(key=lambda x: (x.function, x.round, x.method, x.data, x.block, x.deg, x.comb_deg))
+        self.test_records.sort(key=lambda x: (x.function, x.round, x.method, x.data, x.block, x.deg, x.comb_deg))
 
         if not args.json:
             print(args.delim.join(['function', 'round', 'data'] +
@@ -597,8 +652,8 @@ class Processor(object):
 
         # Reference statistics.
         ref_avg = {}
-        for mthd in list(ref_bins.keys()):
-            samples = ref_bins[mthd]
+        for mthd in list(self.ref_bins.keys()):
+            samples = self.ref_bins[mthd]
             ref_avg[mthd] = sum([abs(x.zscore) for x in samples]) / float(len(samples))
 
         # Stats files.
@@ -619,12 +674,12 @@ class Processor(object):
         fname_timing_csv = os.path.join(args.out_dir, 'results_time_%s%s.csv' % (fname_narrow, fname_time))
 
         # Reference bins
-        ref_keys = sorted(list(ref_bins.keys()))
+        ref_keys = sorted(list(self.ref_bins.keys()))
         with open(fname_ref_csv, 'w+') as fh_csv, open(fname_ref_json, 'w+') as fh_json:
             fh_json.write('[\n')
             for rf_key in ref_keys:
                 method, block, deg, comb_deg, data = rf_key
-                ref_cur = ref_bins[rf_key]
+                ref_cur = self.ref_bins[rf_key]
 
                 csv_line = args.delim.join([
                     method, fls(block), fls(deg), fls(comb_deg), fls(data), fls(ref_avg[rf_key])
@@ -649,7 +704,7 @@ class Processor(object):
             fh.write(args.delim.join(hdr) + '\n')
             for case in itertools.product(*total_cases_size):
                 cur_data = list(case)
-                time_arr = timing_bins[case]
+                time_arr = self.timing_bins[case]
                 num_samples = len(time_arr)
 
                 if num_samples == 0:
@@ -687,7 +742,7 @@ class Processor(object):
         # Processing, one per group
         js_out = []
         ref_added = set()
-        for k, g in itertools.groupby(test_records, key=lambda x: (x.function, x.round, x.method, x.data)):
+        for k, g in itertools.groupby(self.test_records, key=lambda x: (x.function, x.round, x.method, x.data)):
             logger.info('Key: %s' % list(k))
 
             fnc_name = k[0]
