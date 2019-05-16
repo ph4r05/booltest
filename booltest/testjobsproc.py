@@ -341,6 +341,7 @@ class Processor(object):
         self.checkpoint = Checkpoint()
         self.time_checkpoint = timer.Timer(start=False)
         self.checkpointed_files = set()
+        self.last_checkpoint = 0
         self.tf = None  # tarfile
 
         # ref bins: method, bl, deg, comb, data
@@ -417,6 +418,9 @@ class Processor(object):
                             help='folder with test matrix resutls - result dir of testbed.py')
         return parser
 
+    def should_checkpoint(self, idx):
+        return (idx > 0 and idx % self.args.checkpoint_period == 0) or (time.time() - self.last_checkpoint > 10*60)
+
     def save_checkpoint(self):
         with self.time_checkpoint:
             try:
@@ -433,6 +437,7 @@ class Processor(object):
                 shutil.copyfile(self.args.checkpoint_file, '%s.backup' % self.args.checkpoint_file)
                 json.dump(self.checkpoint.to_json(), open(self.args.checkpoint_file, 'w+'), cls=common.AutoJSONEncoder, indent=2)
                 logger.info('Checkpoint saved %s' % self.args.checkpoint_file)
+                self.last_checkpoint = time.time()
 
             except Exception as e:
                 logger.exception('Could not create a checkpoint %s' % self.args.checkpoint_file, exc_info=e)
@@ -614,7 +619,7 @@ class Processor(object):
             is_file_checkpointed = bname in self.checkpointed_files
             num_cached += 1 if is_file_checkpointed else 0
 
-            if args.checkpoint and num_cached > len(self.test_records) and idx % args.checkpoint_period == 0 and idx > 0:
+            if args.checkpoint and self.should_checkpoint(idx) and num_cached > len(self.test_records):
                 self.save_checkpoint()
 
             if args.num_inp is not None and args.num_inp < idx:
