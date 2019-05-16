@@ -120,6 +120,7 @@ class BatchGenerator(object):
         self.job_file_path = None
         self.aggregation_factor = 1.0
         self.retry = True
+        self.max_hour_job = 24
 
     def aggregate(self, jobs, fact, min_jobs=1):
         return max(min_jobs, int(jobs * fact))
@@ -160,15 +161,16 @@ class BatchGenerator(object):
         self.job_file_path = os.path.join(self.job_dir, 'job-' + unit.res_file + '.sh')
 
         flush_batch = False
+        under4 = self.max_hour_job <= 4
         if self.cur_batch_def is None:
             self.cur_batch_def = unit
 
             # 1100 MB data and more
             self.job_batch_max_size = self.aggregate(2, self.aggregation_factor)
             if self.batch_max_deg <= 2 and self.batch_max_comb_deg <= 2:
-                self.job_batch_max_size = self.aggregate(5, self.aggregation_factor)
+                self.job_batch_max_size = self.aggregate(3 if under4 else 5, self.aggregation_factor)
             if self.batch_max_deg <= 1 and self.batch_max_comb_deg <= 2:
-                self.job_batch_max_size = self.aggregate(10, self.aggregation_factor)
+                self.job_batch_max_size = self.aggregate(4 if under4 else 10, self.aggregation_factor)
 
             if unit.size_mb < 1100:
                 self.job_batch_max_size = self.aggregate(5, self.aggregation_factor)
@@ -219,8 +221,8 @@ class BatchGenerator(object):
         if unit.size_mb >= 7000:
             ram = '32gb'
 
-        job_time = '24:00:00'
-        if unit.size_mb < 11:
+        job_time = '%s:00:00' % self.max_hour_job
+        if unit.size_mb < 110:
             job_time = '4:00:00'
         self.job_files.append((self.job_file_path, ram, job_time))
 

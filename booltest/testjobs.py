@@ -443,16 +443,20 @@ class Testjobs(Booltest):
         """
         return egenerator.is_narrow(fname, narrow_type)
 
+    def create_batcher(self):
+        batcher = testjobsbase.BatchGenerator()
+        batcher.job_dir = self.job_dir
+        batcher.aggregation_factor = self.args.aggregation_factor
+        batcher.max_hour_job = self.args.max_hr_job
+        return batcher
+
     def rescan_job_files(self):
         """
         Rescans existing jobs, expires them and resubmits for processing if result file is not found.
         :return:
         """
         logger.info('Scanning existing job files dir')
-
-        batcher = testjobsbase.BatchGenerator()
-        batcher.job_dir = self.job_dir
-        batcher.aggregation_factor = self.args.aggregation_factor
+        batcher = self.create_batcher()
 
         num_gen_file_missing = 0
         num_res_ok = 0
@@ -547,9 +551,7 @@ class Testjobs(Booltest):
         :param jobs: can be generator / iterator
         :return:
         """
-        batcher = testjobsbase.BatchGenerator()
-        batcher.job_dir = self.job_dir
-        batcher.aggregation_factor = self.args.aggregation_factor
+        batcher = self.create_batcher()
         for unit in jobs:
             batcher.add_unit(unit)
         batcher.flush()
@@ -898,10 +900,7 @@ class Testjobs(Booltest):
             logger.info('Jobs scheduled: %s' % len(jobs_scheduled))
 
         # Generate job files
-        batcher = testjobsbase.BatchGenerator()
-        batcher.job_dir = self.job_dir
-        batcher.aggregation_factor = self.args.aggregation_factor
-
+        batcher = self.create_batcher()
         num_skipped = 0
         num_skipped_existing = 0
         num_skipped_scheduled = 0
@@ -1208,6 +1207,9 @@ class Testjobs(Booltest):
 
         parser.add_argument('--aggregation-factor', dest='aggregation_factor', default=1.0, type=float,
                             help='Job aggregation factor, changes number of tests in one job file')
+
+        parser.add_argument('--max-hr-job', dest='max_hr_job', default=24, type=int,
+                            help='The biggest job to allocate on the cluster in hours')
 
         parser.add_argument('--enqueue', dest='enqueue', action='store_const', const=True, default=False,
                             help='Enqueues the generated batch via qsub after job finishes')
