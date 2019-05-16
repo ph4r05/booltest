@@ -68,8 +68,8 @@ class Checkpoint(object):
     def to_json(self):
         dct = dict(self.__dict__)
         dct['args'] = args_to_dict(self.args) if not isinstance(self.args, dict) else self.args
-        dct['ref_bins'] = {json.dumps(x): self.ref_bins[x] for x in self.ref_bins}
-        dct['timing_bins'] = {json.dumps(x): self.timing_bins[x] for x in self.timing_bins}
+        dct['ref_bins'] = {}  # {json.dumps(x): self.ref_bins[x] for x in self.ref_bins}
+        dct['timing_bins'] = {}  # {json.dumps(x): self.timing_bins[x] for x in self.timing_bins}
         dct['total_functions'] = list(self.total_functions)
         dct['test_records'] = []
         return dct
