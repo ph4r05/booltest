@@ -13,6 +13,7 @@ import re
 import os
 import copy
 import shutil
+import hashlib
 import sys
 import collections
 import itertools
@@ -113,6 +114,7 @@ class TestRecord(object):
         self.ref = False
         self.time_process = None
         self.bname = None
+        self.fhash = None
         self.mtime = None
 
         self.zscore = None
@@ -341,7 +343,7 @@ class Processor(object):
         self.checkpoint = Checkpoint()
         self.time_checkpoint = timer.Timer(start=False)
         self.checkpointed_files = set()
-        self.last_checkpoint = 0
+        self.last_checkpoint = time.time()  # do not re-create checkpoint right from the start
         self.tf = None  # tarfile
 
         # ref bins: method, bl, deg, comb, data
@@ -486,20 +488,29 @@ class Processor(object):
 
     def read_file(self, tfile, bname):
         js = None
+        data = None
+        stats = None
         try:
             if self.args.tar:
                 with self.tf.extractfile(tfile) as fh:
-                    js = json.load(fh)
+                    data = fh.read()
+                    js = json.loads(data)
 
             else:
-                with open(tfile.path, 'r') as fh:
-                    js = json.load(fh)
+                fd = os.open(tfile.path, os.O_RDONLY)
+                try:
+                    fh = os.fdopen(fd, 'r')
+                    stats = os.fstat(fd)
+                    data = fh.read()
+                    js = json.loads(data)
+                finally:
+                    os.close(fd)
 
         except Exception as e:
             logger.error('Exception during processing %s: %s' % (tfile, e))
             logger.debug(traceback.format_exc())
 
-        return js
+        return js, data, stats
 
     def process_tr(self, tr, tfile, bname):
         if tr.zscore is None or tr.data == 0:
@@ -525,7 +536,7 @@ class Processor(object):
 
     def read_file_tr(self, tfile, bname):
         # File read & parse
-        js = self.read_file(tfile, bname)
+        js, data, stats = self.read_file(tfile, bname)
 
         # File process
         if js is None:
@@ -533,7 +544,17 @@ class Processor(object):
             return False
 
         try:
-            return process_file(js, bname, self.args)
+            hasher = hashlib.sha1()
+            if isinstance(data, str):
+                hasher.update(data.encode())
+            else:
+                hasher.update(data)
+
+            tr = process_file(js, bname, self.args)
+            tr.fhash = hasher.hexdigest()
+            tr.mtime = stats.st_mtime if stats else None
+
+            return tr
         except Exception as e:
             logger.exception('Could not process file', exc_info=e)
 
