@@ -619,7 +619,7 @@ class Processor(object):
             is_file_checkpointed = bname in self.checkpointed_files
             num_cached += 1 if is_file_checkpointed else 0
 
-            if args.checkpoint and self.should_checkpoint(idx) and num_cached > len(self.test_records):
+            if args.checkpoint and self.should_checkpoint(idx) and num_cached < len(self.test_records):
                 self.save_checkpoint()
 
             if args.num_inp is not None and args.num_inp < idx:
