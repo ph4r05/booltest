@@ -600,19 +600,21 @@ class Processor(object):
         if args.checkpoint and self.load_checkpoint():
             logger.info('Checkpoint loaded, files read: %s' % len(self.checkpointed_files))
 
+        num_cached = 0
         for idx, tfile in enumerate(test_files):
             bname = os.path.basename(tfile.name)
             if not args.tar and not tfile.is_file():
                 continue
 
             if idx % 1000 == 0:
-                logger.debug('Progress: %d, cur: %s skipped: %s, time: %.2f, #rec: %s, #fnc: %s'
+                logger.debug('Progress: %d, cur: %s skipped: %s, time: %.2f, #rec: %s, #fnc: %s, #cachedr: %s'
                              % (idx, tfile.name, self.skipped, time.time() - tstart,
-                                len(self.test_records), len(self.total_functions)))
+                                len(self.test_records), len(self.total_functions), num_cached))
 
             is_file_checkpointed = bname in self.checkpointed_files
+            num_cached += 1 if is_file_checkpointed else 0
 
-            if args.checkpoint and not is_file_checkpointed and idx % args.checkpoint_period == 0 and idx > 0:
+            if args.checkpoint and num_cached > len(self.test_records) and idx % args.checkpoint_period == 0 and idx > 0:
                 self.save_checkpoint()
 
             if args.num_inp is not None and args.num_inp < idx:
