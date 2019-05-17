@@ -344,6 +344,8 @@ class Processor(object):
         self.time_checkpoint = timer.Timer(start=False)
         self.checkpointed_files = set()
         self.last_checkpoint = time.time()  # do not re-create checkpoint right from the start
+        self.last_checkpoint_new_rec = 0
+        self.last_checkpoint_cached_rec = 0
         self.tf = None  # tarfile
 
         # ref bins: method, bl, deg, comb, data
@@ -447,6 +449,8 @@ class Processor(object):
 
                 logger.info('Checkpoint saved %s' % self.args.checkpoint_file)
                 self.last_checkpoint = time.time()
+                self.last_checkpoint_new_rec = 0
+                self.last_checkpoint_cached_rec = 0
 
             except Exception as e:
                 logger.exception('Could not create a checkpoint %s' % self.args.checkpoint_file, exc_info=e)
@@ -640,14 +644,15 @@ class Processor(object):
                 continue
 
             if idx % 1000 == 0:
-                logger.debug('Progress: %d, cur: %s skipped: %s, time: %.2f, #rec: %s, #fnc: %s, #cachedr: %s'
+                logger.debug('Progress: %d, cur: %s skipped: %s, time: %.2f, #rec: %s, #fnc: %s, #cachedr: %s, #lcc: %s, lcr: %s'
                              % (idx, tfile.name, self.skipped, time.time() - tstart,
-                                len(self.test_records), len(self.total_functions), num_cached))
+                                len(self.test_records), len(self.total_functions), num_cached,
+                                self.last_checkpoint_cached_rec, self.last_checkpoint_new_rec))
 
             is_file_checkpointed = bname in self.checkpointed_files
             num_cached += 1 if is_file_checkpointed else 0
 
-            if args.checkpoint and self.should_checkpoint(idx) and num_cached < len(self.test_records):
+            if args.checkpoint and self.should_checkpoint(idx) and self.last_checkpoint_cached_rec < self.last_checkpoint_new_rec:
                 self.save_checkpoint()
 
             if args.num_inp is not None and args.num_inp < idx:
@@ -668,6 +673,9 @@ class Processor(object):
             try:
                 if not self.process_tr(tr, tfile, bname):
                     continue
+
+                self.last_checkpoint_cached_rec += 1 if is_file_checkpointed else 0
+                self.last_checkpoint_new_rec += 1
 
             except Exception as e:
                 logger.error('Exception during processing %s: %s' % (tfile, e))
