@@ -435,9 +435,16 @@ class Processor(object):
                 self.checkpoint.ref_bins = self.ref_bins
                 self.checkpoint.recache()
 
+                tmpfile1 = self.args.checkpoint_file + '.backup1'
+                tmpfile2 = self.args.checkpoint_file + '.backup2'
+
                 logger.info('Creating checkpoint %s ...' % self.args.checkpoint_file)
-                shutil.copyfile(self.args.checkpoint_file, '%s.backup' % self.args.checkpoint_file)
-                json.dump(self.checkpoint.to_json(), open(self.args.checkpoint_file, 'w+'), cls=common.AutoJSONEncoder, indent=2)
+                shutil.copyfile(self.args.checkpoint_file, tmpfile1)
+                json.dump(self.checkpoint.to_json(), open(tmpfile2, 'w+'), cls=common.AutoJSONEncoder, indent=2)
+
+                shutil.copyfile(tmpfile2, self.args.checkpoint_file)
+                os.remove(tmpfile2)
+
                 logger.info('Checkpoint saved %s' % self.args.checkpoint_file)
                 self.last_checkpoint = time.time()
 
