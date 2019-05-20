@@ -901,6 +901,9 @@ class Testjobs(Booltest):
 
         # Generate job files
         batcher = self.create_batcher()
+        logger.info('Batching info: agg fact: %s, max hour job: %s, job dir: %s'
+                    % (batcher.aggregation_factor, batcher.max_hour_job, batcher.job_dir))
+        
         num_skipped = 0
         num_skipped_existing = 0
         num_skipped_scheduled = 0
