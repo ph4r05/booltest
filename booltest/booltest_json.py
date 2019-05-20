@@ -252,7 +252,7 @@ class BooltestJson(Booltest):
         # self.load_input_poly()
 
         logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s' % (hwanalysis.deg, hwanalysis.blocklen, tvsize))
-        total_terms = int(scipy.misc.comb(hwanalysis.blocklen, hwanalysis.deg, True))
+        total_terms = int(common.comb(hwanalysis.blocklen, hwanalysis.deg, True))
 
         logger.info('Initializing test')
         time_test_start = time.time()

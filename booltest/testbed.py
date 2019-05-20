@@ -410,7 +410,7 @@ class TestbedBenchmark(Booltest):
 
         logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s' % (degree, blocklen, tvsize))
 
-        total_terms = int(scipy.misc.comb(blocklen, degree, True))
+        total_terms = int(common.comb(blocklen, degree, True))
         hwanalysis = HWAnalysis()
         hwanalysis.deg = degree
         hwanalysis.blocklen = blocklen

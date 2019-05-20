@@ -33,6 +33,13 @@ from repoze.lru import LRUCache
 from booltest.crypto_util import aes_ctr, get_zero_vector, aes_ecb, dump_uint
 from booltest import input_obj
 
+if hasattr(scipy.misc, 'comb'):
+    scipy_comb = scipy.misc.comb
+else:
+    import scipy.special
+    scipy_comb = scipy.special.comb
+
+
 # Enables bitarray - with native C extension
 FAST_IMPL = True
 
@@ -121,7 +128,7 @@ def term_generator(deg, maxelem, prob_choose=1.0):
 
 @lru_cache(maxsize=1024)
 def comb(n, k, exact=False):
-    return scipy.misc.comb(n, k, exact=exact)
+    return scipy_comb(n, k, exact=exact)
 
 
 def zscore(observed, expected, N):

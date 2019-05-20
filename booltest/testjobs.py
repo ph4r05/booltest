@@ -729,7 +729,7 @@ class Testjobs(Booltest):
         for bl in list(set(test_block_sizes + [self.args.topk])):
             combinations[bl] = {}
             for ii in list(set(test_degree + test_comb_k)):
-                combinations[bl][ii] = int(scipy.misc.comb(bl, ii, True))
+                combinations[bl][ii] = int(common.comb(bl, ii, True))
         full_combination = combinations[max(test_block_sizes)][max(max(test_degree), max(test_comb_k))]
 
         if self.args.rescan_jobs:

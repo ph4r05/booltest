@@ -61,7 +61,7 @@ class RandVerif(Booltest):
         logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s, rounds: %s'
                     % (deg, self.blocklen, tvsize_orig, rounds))
 
-        total_terms = int(scipy.misc.comb(self.blocklen, deg, True))
+        total_terms = int(common.comb(self.blocklen, deg, True))
         hwanalysis = HWAnalysis()
         hwanalysis.deg = deg
         hwanalysis.blocklen = self.blocklen

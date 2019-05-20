@@ -937,7 +937,7 @@ class Booltest(object):
             logger.info('Initializing test')
             hwanalysis.init()
 
-            total_terms = int(scipy.misc.comb(self.blocklen, deg, True))
+            total_terms = int(common.comb(self.blocklen, deg, True))
             logger.info('BlockLength: %d, deg: %d, terms: %d' % (self.blocklen, deg, total_terms))
 
             # Reference data stream reading
