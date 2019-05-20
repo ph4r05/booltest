@@ -486,7 +486,7 @@ class HWAnalysis(object):
         # Combine & store the results - XOR, AND combination
         top_res = []
         logger.info('Combining %d terms in %d degree, total = %s evals, keep best limit: %s'
-                    % (len(top_terms), self.top_comb, scipy.misc.comb(len(top_terms), self.top_comb, True),
+                    % (len(top_terms), self.top_comb, common.comb(len(top_terms), self.top_comb, True),
                        self.best_x_combinations))
 
         self.comb_res = self.term_eval.new_buffer()
