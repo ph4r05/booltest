@@ -309,7 +309,9 @@ def unrank(i, n, k):
         cs = j+1
 
         while True:
-            decr = comb_cached(n-cs, k-s)
+            if n - cs < 0:
+                raise ValueError('Invalid index')
+            decr = comb(n - cs, k - s)
             if r > 0 and decr == 0:
                 raise ValueError('Invalid index')
             if r - decr >= 0:
