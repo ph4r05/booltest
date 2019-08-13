@@ -438,6 +438,26 @@ def json_dumps(obj, **kwargs):
     return json.dumps(obj, cls=AutoJSONEncoder, **kwargs)
 
 
+def try_json_dumps(obj, **kwargs):
+    """
+    Json dump with the encoder
+    :param obj:
+    :param kwargs:
+    :return:
+    """
+    try:
+        return json_dumps(obj, **kwargs)
+    except:
+        pass
+
+
+def try_json_load(data):
+    try:
+        return json.loads(data)
+    except:
+        return None
+
+
 def defval(val, default=None):
     """
     Returns val if is not None, default instead

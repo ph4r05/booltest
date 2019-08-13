@@ -686,14 +686,14 @@ class Testjobs(Booltest):
                 raise ValueError('Generator %s has no algorithm' % cfile)
 
             round = common.defvalkey(js_stream, 'round', 1)
-            cfg_hash = hashlib.sha1(json.dumps(js['stream']).encode('utf8')).hexdigest()[12:]
+            cfg_hash = hashlib.sha1(common.json_dumps(js).encode('utf8')).hexdigest()[12:]
             gen_size = js['tv_size'] * js['tv_count']
             gen_size_mb = self.to_mbs(gen_size, ceiling=True)
             res_name = '%s-r%s-e%s-cfg%s' % (fnc, round, exp_name, cfg_hash)
-            logger.debug('Generator found, fnc %s, round %s, cfile %s, res_name %s, gen_size %s MB, exp_name %s'
-                         % (fnc, round, cfile, res_name, gen_size_mb, exp_name))
+            logger.debug('Generator found, fnc %s, round %s, cfile %s, res_name %s, gen_size %s MB (%s B), exp_name %s'
+                         % (fnc, round, cfile, res_name, gen_size_mb, gen_size, exp_name))
             acc.append(TestedObject(fnc=fnc, rounds=[round], is_fnc=False, gen_file=cfile, res_name=res_name,
-                                    gen_data=js, gen_size=gen_size_mb))
+                                    gen_data=js, gen_size=gen_size))
         pass
 
     # noinspection PyBroadException
@@ -712,6 +712,7 @@ class Testjobs(Booltest):
         # Init logic, analysis.
         # Define test set.
         test_sizes_mb = self.args.matrix_size
+        test_sizes_bytes = [self.from_mbs(float(size_mb)) for size_mb in test_sizes_mb]
         test_block_sizes = self.args.matrix_block
         test_degree = self.args.matrix_deg
         test_comb_k = self.args.matrix_comb_deg
@@ -775,15 +776,15 @@ class Testjobs(Booltest):
                 tce.stream_type = egenerator.function_to_stream_type(fnc)
                 tce.is_egen = True
 
-            test_sizes_cur = test_sizes_mb
+            test_sizes_cur = test_sizes_bytes
             if tested_obj.gen_size:  # fixed generator size
                 test_sizes_cur = [tested_obj.gen_size]
 
             iterator = itertools.product(rounds, test_sizes_cur)
-            for cur_round, size_mb in iterator:
+            for cur_round, size_bytes in iterator:
                 tce_c = copy.deepcopy(tce)
                 tce_c.c_round = cur_round
-                tce_c.data_size = self.from_mbs(size_mb)
+                tce_c.data_size = size_bytes
 
                 if tested_obj.gen_file:
                     tce_c.gen_cfg = tested_obj.gen_data
@@ -879,7 +880,7 @@ class Testjobs(Booltest):
                     gen_file = 'gen-%s-%04dMB-%s.json' % (test_spec.strategy, data_size, trt)
                     gen_file = gen_file.replace(' ', '')
 
-                    if data_size == test_sizes_mb[0]:
+                    if test_spec.data_size == test_sizes_bytes[0]:
                         generator_files.add(os.path.join(self.job_dir, gen_file))
 
                 trun = TestRun(test_spec, block_size, degree, comb_deg, total_test_idx, test_desc, res_file, gen_file)
@@ -960,6 +961,8 @@ class Testjobs(Booltest):
 
                 elif not job_expired and not self.args.ignore_existing:
                     logger.warning('Conflicting config: %s' % common.json_dumps(json_config, indent=2))
+                    logger.debug('Conflicting file: %s ' % common.try_json_dumps(
+                        common.try_json_load(open(cfg_file_path, 'r').read())))
                     raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
 
             if gen_file_path and (not os.path.exists(gen_file_path) or self.args.overwrite_existing):
