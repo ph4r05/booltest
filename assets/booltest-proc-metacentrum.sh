@@ -18,10 +18,12 @@ module add gmp-6.1.2
 module add mpfr-3.1.4
 
 eval "$(pyenv init -)"
-sleep 3
+sleep 1
 
 pyenv local 3.6.4
-sleep 3
+sleep 1
 
 cd booltest
-exec stdbuf -eL python tools/testjobsproc.py --out-dir ../bool-procs ../bool-res
+
+#exec stdbuf -eL python booltest/testjobsproc.py --out-dir ../bool-procs --narrow2 ../bool-res
+exec stdbuf -eL python booltest/testjobsproc.py --out-dir ../bool-procs --pval-data=pval_db.json  ../bool-res-sec
