@@ -107,6 +107,7 @@ class TestRecord(object):
         self.deg = None
         self.comb_deg = None
         self.data = None
+        self.data_bytes = None
         self.elapsed = None
         self.iteration = 0
         self.strategy = None
@@ -116,6 +117,7 @@ class TestRecord(object):
         self.bname = None
         self.fhash = None
         self.mtime = None
+        self.cfg_file_name = None
 
         self.zscore = None
         self.best_poly = None
@@ -244,6 +246,8 @@ def process_file(js, fname, args=None):
     tr.strategy = common.defvalkeys(js, 'config.config.spec.strategy')
     tr.method = get_method(tr.strategy)
     tr.time_process = common.defvalkeys(js, 'time_process')
+    tr.cfg_file_name = common.defvalkeys(js, 'config.config.spec.gen_cfg.file_name')
+    tr.data_bytes = common.defvalkeys(js, 'data_read')
 
     if tr.data:
         tr.data = int(math.ceil(math.ceil(tr.data/1024.0)/1024.0))
@@ -710,6 +714,7 @@ class Processor(object):
         fname_ref_json = os.path.join(args.out_dir, 'ref_%s%s.json' % (fname_narrow, fname_time))
         fname_ref_csv = os.path.join(args.out_dir, 'ref_%s%s.csv' % (fname_narrow, fname_time))
         fname_results_json = os.path.join(args.out_dir, 'results_%s%s.json' % (fname_narrow, fname_time))
+        fname_results_bat_json = os.path.join(args.out_dir, 'results_bat_%s%s.json' % (fname_narrow, fname_time))
         fname_results_csv = os.path.join(args.out_dir, 'results_%s%s.csv' % (fname_narrow, fname_time))
         fname_results_rf_csv = os.path.join(args.out_dir, 'results_rf_%s%s.csv' % (fname_narrow, fname_time))
         fname_results_rfd_csv = os.path.join(args.out_dir, 'results_rfd_%s%s.csv' % (fname_narrow, fname_time))
@@ -767,11 +772,13 @@ class Processor(object):
 
         # Result processing
         fh_json = open(fname_results_json, 'w+')
+        fh_bat_json = open(fname_results_bat_json, 'w+')
         fh_csv = open(fname_results_csv, 'w+')
         fh_rf_csv = open(fname_results_rf_csv, 'w+')
         fh_rfd_csv = open(fname_results_rfd_csv, 'w+')
         fh_rfr_csv = open(fname_results_rfr_csv, 'w+')
         fh_json.write('[\n')
+        fh_bat_json.write('[\n')
 
         # Headers
         hdr = ['fnc_name', 'fnc_round', 'method', 'data_mb']
@@ -796,7 +803,7 @@ class Processor(object):
 
             # CSV grouping, avg all results
             csv_grouper = lambda x: (x.block, x.deg, x.comb_deg)
-            group_expanded = sorted(list(g), key=csv_grouper)
+            group_expanded = sorted(list(g), key=csv_grouper)  # type: list[TestRecord]
             results_map = {}
             for ssk, ssg in itertools.groupby(group_expanded, key=csv_grouper):
                 ssg = list(ssg)
@@ -880,6 +887,23 @@ class Processor(object):
             json.dump(cur_js, fh_json, indent=2)
             fh_json.write(',\n')
 
+            # JSON battery format result
+            for cur_res in group_expanded:
+                cur_js = collections.OrderedDict()
+                cur_js['battery'] = 'booltest'
+                cur_js['function'] = fnc_name
+                cur_js['round'] = fnc_round
+                cur_js['method'] = method
+                cur_js['data_bytes'] = cur_res.data_bytes
+                cur_js['deg'] = cur_res.deg
+                cur_js['k'] = cur_res.comb_deg
+                cur_js['m'] = cur_res.block
+                cur_js['data_file'] = cur_res.cfg_file_name
+                cur_js['zscore'] = cur_res.zscore
+                cur_js['pval0_rej'] = pval_db.eval(cur_res.block, cur_res.deg, cur_res.comb_deg, cur_res.zscore) if args.pval_data else None
+                json.dump(cur_js, fh_bat_json, indent=2)
+                fh_bat_json.write(',\n')
+
             if not args.json:
                 print(csv_line)
 
@@ -887,10 +911,12 @@ class Processor(object):
                 js_out.append(cur_js)
 
         fh_json.write(',\nNone\n]\n')
+        fh_bat_json.write(',\nNone\n]\n')
         if args.json:
             print(json.dumps(js_out, indent=2))
 
         fh_json.close()
+        fh_bat_json.close()
         fh_csv.close()
         fh_rf_csv.close()
         fh_rfd_csv.close()
@@ -899,6 +925,7 @@ class Processor(object):
         logger.info(fname_ref_json)
         logger.info(fname_ref_csv)
         logger.info(fname_results_json)
+        logger.info(fname_results_bat_json)
         logger.info(fname_results_csv)
         logger.info(fname_results_rf_csv)
         logger.info(fname_results_rfd_csv)
