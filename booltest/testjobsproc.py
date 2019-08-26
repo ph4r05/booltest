@@ -910,8 +910,8 @@ class Processor(object):
             else:
                 js_out.append(cur_js)
 
-        fh_json.write(',\nNone\n]\n')
-        fh_bat_json.write(',\nNone\n]\n')
+        fh_json.write('\nnull\n]\n')
+        fh_bat_json.write('\nnull\n]\n')
         if args.json:
             print(json.dumps(js_out, indent=2))
 
