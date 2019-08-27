@@ -194,7 +194,7 @@ class PvalDb(object):
             return None
 
         minv, maxv = self.map[block][deg][cdeg][0][0], self.map[block][deg][cdeg][1][0]
-        return zscore < minv or zscore > maxv
+        return abs(zscore) < minv or abs(zscore) > maxv
 
 
 def args_to_dict(args):
