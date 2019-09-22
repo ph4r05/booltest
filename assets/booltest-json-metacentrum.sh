@@ -24,7 +24,7 @@ fi
 
 sleep 3
 
-pyenv local 3.6.4
+pyenv local 3.7.1
 if [ $? -eq 2 ]; then
     exit 2
 fi

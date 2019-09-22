@@ -20,7 +20,7 @@ module add mpfr-3.1.4
 eval "$(pyenv init -)"
 sleep 1
 
-pyenv local 3.6.4
+pyenv local 3.7.1
 sleep 1
 
 cd booltest

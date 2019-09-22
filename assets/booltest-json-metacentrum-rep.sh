@@ -39,7 +39,7 @@ while (( $C_ITER < 6 && ($RETCODE == 2 || $RETCODE == 1) )); do
 
     sleep 1
 
-    pyenv local 3.6.4
+    pyenv local 3.7.1
     RETCODE=$?
     if (( $RETCODE == 2 || $RETCODE == 1 )); then
         continue

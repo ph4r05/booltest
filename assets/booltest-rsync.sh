@@ -24,6 +24,6 @@ for CCENTRE in ${CENTRES[@]}; do
 
     echo "===================================="
     echo "Centre: $CCENTRE, pyenv: ${PYENV_CUR}"
-    rsync -av --delete --exclude __pycache__  "${BOOLTEST}/booltest/" "${PYENV_CUR}/versions/3.6.4/lib/python3.6/site-packages/booltest/"
+    rsync -av --delete --exclude __pycache__  "${BOOLTEST}/booltest/" "${PYENV_CUR}/versions/3.7.1/lib/python3.7/site-packages/booltest/"
 done
 

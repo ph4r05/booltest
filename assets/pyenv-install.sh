@@ -29,7 +29,7 @@ for CCENTRE in ${CENTRES[@]}; do
 
     eval "$(pyenv init -)"
     pyenv install 2.7.14
-    pyenv install 3.6.4
+    pyenv install 3.7.1
 done
 
 
