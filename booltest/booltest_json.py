@@ -282,6 +282,7 @@ class BooltestJson(Booltest):
             tvsize -= rem//8
             logger.info('Updating TV to %d' % tvsize)
 
+        tvsize = int(tvsize)
         hwanalysis.reset()
         logger.info('BlockLength: %d, deg: %d, terms: %d' % (hwanalysis.blocklen, hwanalysis.deg, total_terms))
         with iobj:
