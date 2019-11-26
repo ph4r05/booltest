@@ -3,18 +3,19 @@ import sys
 from setuptools import setup
 from setuptools import find_packages
 
-version = '0.2.0'
+version = '0.2.1'
 
 # Please update tox.ini when modifying dependency version requirements
 install_requires = [
-    'pycrypto>=2.6.1',
+    # 'pycrypto>=2.6.1',
+    'pycryptodome',      # pycrypto alternative, working also on Win
+
     'requests',
     'setuptools>=1.0',
     'six',
     'cmd2>=0.6.9',
     'psutil',
     'pid>=2.0.1',
-    'blessed>=1.14.1',
     'future',
     'coloredlogs',
     'scipy',
