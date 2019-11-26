@@ -16,7 +16,7 @@ data and compares this to the evaluation on the data being tested.
 Booltest is available via `pip`:
 
 ```
-pip install booltest
+pip3 install booltest
 ```
 
 ## Local installation
@@ -24,7 +24,7 @@ pip install booltest
 From the local dir:
 
 ```
-pip install --upgrade --find-links=. .
+pip3 install --upgrade --find-links=. .
 ```
 
 ## The engine
