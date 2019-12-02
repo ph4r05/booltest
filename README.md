@@ -59,6 +59,20 @@ We usually use Booltest with the following testing parameters:
 
 The same can be done with the `--default-params`
 
+## Output and p-values
+
+Booltest returns zscores of the best distinguishers.
+
+In order to obtain a p-value from the Z-score you need to compute a reference experiments, i.e., compute N Booltest experiments on a random data and observe the z-score distribution.
+Z-score is data-size invariant but it depends on the Booltest parameters `(n,deg,k)`.
+
+The most straightforward evaluation is to check whether z-score obtained from the real experiment has been observed in the reference runs. 
+If not, we can conclude the Booltest rejects the null hypothesis with pvalue `1/N`.
+
+To obtain lower alpha you need to perform more reference experiments, 
+to obtain higher alpha integrate the z-score histogram from tails to mean to obtain desired percentage of the area under z-score histogram.
+
+The file [pval_db.json](https://github.com/ph4r05/polynomial-distinguishers/blob/master/pval_db.json) contains reference z-score -> pvalue mapping for N=20 000 reference runs.
 
 ## Java random
 
