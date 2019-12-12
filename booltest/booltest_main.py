@@ -543,15 +543,9 @@ class HWAnalysis(object):
 
         for i in range(min(len(top_res), 30)):
             comb = top_res[i]
-            rejdata = ''
-            if self.ref_samples is not None:
-                alph = 1./self.ref_samples
-                rejc = abs(comb.zscore) < self.ref_minmax[0] or abs(comb.zscore) > self.ref_minmax[1]
-                rejdata = ' %s at alpha %7.5f, ' % ('Rej' if rejc else 'OK ', alph)
-
-            self.tprint(' - best poly zscore %9.5f, expp: %.4f, exp: %7d, obs: %7d, diff: %10.7f %%,%s poly: %s'
+            self.tprint(' - best poly zscore %9.5f, expp: %.4f, exp: %7d, obs: %7d, diff: %10.7f %%, poly: %s'
                         % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
-                           100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, rejdata, sorted(comb.poly)))
+                           100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, sorted(comb.poly)))
 
         self.last_res = top_res
         return top_res
@@ -1034,6 +1028,17 @@ class Booltest(object):
 
                     r = hwanalysis.process_chunk(bits, ref_bits)
                     jsres = [comb2dict(x) for x in r[:min(len(r), self.args.json_top)]]
+
+                    if hwanalysis.ref_samples and jsres:
+                        best_zsc = abs(jsres[0]['zscore'])
+                        jscres['ref_samples'] = hwanalysis.ref_samples
+                        jscres['ref_alpha'] = 1. / hwanalysis.ref_samples
+                        jscres['ref_minmax'] = hwanalysis.ref_minmax
+                        jscres['rejects'] = best_zsc < hwanalysis.ref_minmax[0] or best_zsc > hwanalysis.ref_minmax[1]
+                        logger.info('Ref samples: %s, min-zscrore: %s, max-zscore: %s, best observed: %s, rejected: %s, alpha: %s'
+                                    % (hwanalysis.ref_samples, hwanalysis.ref_minmax[0], hwanalysis.ref_minmax[1],
+                                       best_zsc, jscres['rejects'], 1./hwanalysis.ref_samples))
+
                     jscres['res'].append(jsres)
                     cur_round += 1
                 pass
