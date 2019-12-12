@@ -12,6 +12,7 @@ import time
 import logging
 import random
 import re
+import os
 from functools import reduce
 
 import argparse
@@ -83,6 +84,9 @@ class HWAnalysis(object):
         self.use_zscore_heap = False
         self.sort_best_zscores = -1
         self.best_x_combinations = None  # if a number is here, best combinations are done by heap
+        self.ref_db_path = None
+        self.ref_samples = None
+        self.ref_minmax = None
 
         self.total_rounds = 0
         self.total_hws = []
@@ -127,6 +131,26 @@ class HWAnalysis(object):
         self.precompute_input_poly()
         if self.best_x_combinations is not None and self.best_x_combinations <= 0:
             self.best_x_combinations = None
+
+        self.try_read_db()
+
+    def try_read_db(self):
+        if not self.ref_db_path or not os.path.exists(self.ref_db_path):
+            return
+
+        try:
+            refjs = json.loads(open(self.ref_db_path, 'r').read())
+            recs = [x for x in refjs if x['block'] == self.blocklen and x['deg'] == self.deg and x['comb_deg'] == self.top_comb]
+            if len(recs) == 0:
+                return
+
+            recs = sorted(recs, key=lambda x: -x['nsamples'])
+            self.ref_samples = recs[0]['nsamples']
+            self.ref_minmax = (recs[0]['minv'], recs[0]['maxv'])
+            logger.info('Pval db loaded, samples: %s, min: %s, max: %s' % (self.ref_samples, self.ref_minmax[0], self.ref_minmax[1]))
+
+        except Exception as e:
+            logger.error("Could not read the db", exc_info=e)
 
     def reset(self):
         """
@@ -519,9 +543,15 @@ class HWAnalysis(object):
 
         for i in range(min(len(top_res), 30)):
             comb = top_res[i]
-            self.tprint(' - best poly zscore %9.5f, expp: %.4f, exp: %7d, obs: %7d, diff: %9.7f %%, poly: %s'
+            rejdata = ''
+            if self.ref_samples is not None:
+                alph = 1./self.ref_samples
+                rejc = abs(comb.zscore) < self.ref_minmax[0] or abs(comb.zscore) > self.ref_minmax[1]
+                rejdata = ' %s at alpha %7.5f, ' % ('Rej' if rejc else 'OK ', alph)
+
+            self.tprint(' - best poly zscore %9.5f, expp: %.4f, exp: %7d, obs: %7d, diff: %10.7f %%,%s poly: %s'
                         % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
-                           100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, sorted(comb.poly)))
+                           100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, rejdata, sorted(comb.poly)))
 
         self.last_res = top_res
         return top_res
@@ -957,6 +987,7 @@ class Booltest(object):
             hwanalysis.use_zscore_heap = self.args.topterm_heap
             hwanalysis.sort_best_zscores = max(common.replace_none([self.args.topterm_heap_k, top_k, 100]))
             hwanalysis.best_x_combinations = self.args.best_x_combinations
+            hwanalysis.ref_db_path = self.args.ref_db
 
             # compute classical analysis only if there are no input polynomials
             hwanalysis.all_deg_compute = len(self.input_poly) == 0
@@ -1041,6 +1072,9 @@ class Booltest(object):
 
         parser.add_argument('--ref', dest='reffile',
                             help='reference file with random data')
+
+        parser.add_argument('--ref-db', dest='ref_db',
+                            help='Reference JSON database file')
 
         parser.add_argument('--block', dest='blocklen',
                             help='block size in bits, number of bit variables to construct terms from')
