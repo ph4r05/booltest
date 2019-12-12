@@ -16,11 +16,9 @@ from functools import reduce
 
 import argparse
 import coloredlogs
-import scipy
-import scipy.misc
-import scipy.stats
 
 from booltest import common
+
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
@@ -45,6 +43,17 @@ def bar_chart(sources=None, values=None, res=None, error=None, xlabel=None, titl
     plt.xlabel(xlabel)
     plt.title(title)
     plt.show()
+
+
+def comb2dict(comb):
+    return collections.OrderedDict([
+        ('expp', comb.expp),
+        ('exp_cnt', comb.exp_cnt),
+        ('obs_cnt', comb.obs_cnt),
+        ('diff', (100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt) if comb.exp_cnt else None),
+        ('zscore', comb.zscore),
+        ('poly', comb.poly)
+    ])
 
 
 class HWAnalysis(object):
@@ -197,7 +206,8 @@ class HWAnalysis(object):
         ref_hws = self.process_ref(ref_bits, ln)
 
         # Done.
-        self.analyse(num_evals=self.term_eval.cur_evals, hws=hws2, hws_input=hws_input, ref_hws=ref_hws)
+        r = self.analyse(num_evals=self.term_eval.cur_evals, hws=hws2, hws_input=hws_input, ref_hws=ref_hws)
+        return r
 
     proces_chunk = process_chunk  # compat
 
@@ -509,7 +519,7 @@ class HWAnalysis(object):
 
         for i in range(min(len(top_res), 30)):
             comb = top_res[i]
-            self.tprint(' - best poly zscore %9.5f, expp: %.4f, exp: %4d, obs: %s, diff: %f %%, poly: %s'
+            self.tprint(' - best poly zscore %9.5f, expp: %.4f, exp: %7d, obs: %7d, diff: %9.7f %%, poly: %s'
                         % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
                            100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, sorted(comb.poly)))
 
@@ -873,7 +883,7 @@ class Booltest(object):
         self.init_params()
 
         deg = int(self.defset(self.args.degree, 3))
-        tvsize_orig = int(self.defset(self.process_size(self.args.tvsize), 1024*256))
+        tvsize_orig = self.defset(self.process_size(self.args.tvsize), None)
         zscore_thresh = float(self.args.conf)
         rounds = int(self.args.rounds) if self.args.rounds is not None else None
         top_k = int(self.args.topk) if self.args.topk is not None else None
@@ -885,12 +895,23 @@ class Booltest(object):
         self.load_input_poly()
         self.load_input_objects()
 
-        logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s, rounds: %s'
-                    % (deg, self.blocklen, tvsize_orig, rounds))
+        logger.info('Basic settings, deg: %s, blocklen: %s, comb deg: %s, TV size: %s, rounds: %s'
+                    % (deg, self.blocklen, top_comb, tvsize_orig, rounds))
 
         # specific polynomial testing
         logger.info('Initialising')
         time_test_start = time.time()
+
+        jscres = collections.OrderedDict()
+        jsres_acc = [jscres]
+        jsout = collections.OrderedDict([
+            ('blocklen', self.blocklen),
+            ('deg', deg),
+            ('top_k', top_k),
+            ('top_comb', top_comb),
+            ('input_poly', self.input_poly),
+            ('results', jsres_acc)
+        ])
 
         # read file by file
         for iobj in self.input_objects:
@@ -899,6 +920,11 @@ class Booltest(object):
             iobj.check()
             size = iobj.size()
             logger.info('Testing input object: %s, size: %d kB' % (iobj, size/1024.0))
+            jscres['iobj'] = str(iobj)
+            jscres['size'] = size
+
+            if tvsize is None:
+                tvsize = size
 
             # size smaller than TV? Adapt tv then
             if size >= 0 and size < tvsize:
@@ -940,6 +966,11 @@ class Booltest(object):
             total_terms = int(common.comb(self.blocklen, deg, True))
             logger.info('BlockLength: %d, deg: %d, terms: %d' % (self.blocklen, deg, total_terms))
 
+            jscres['tvsize'] = tvsize
+            jscres['blocks'] = int((tvsize * 8) // self.blocklen)
+            jscres['sha1'] = ''
+            jscres['res'] = []
+
             # Reference data stream reading
             # Read the file until there is no data.
             fref = None
@@ -966,10 +997,13 @@ class Booltest(object):
                         ref_bits = common.to_bitarray(ref_data)
 
                     logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d = %8.2f kB = %8.2f MB, '
-                                'round: %d, avail: %d' %
-                                (deg, self.blocklen, tvsize, tvsize/1024.0, tvsize/1024.0/1024.0, cur_round, len(bits)))
+                                'num-blocks: %d, round: %d, process: %d bits' %
+                                (deg, self.blocklen, tvsize, tvsize/1024.0, tvsize/1024.0/1024.0,
+                                 (tvsize * 8) // self.blocklen, cur_round, len(bits)))
 
-                    hwanalysis.process_chunk(bits, ref_bits)
+                    r = hwanalysis.process_chunk(bits, ref_bits)
+                    jsres = [comb2dict(x) for x in r[:min(len(r), self.args.json_top)]]
+                    jscres['res'].append(jsres)
                     cur_round += 1
                 pass
 
@@ -979,7 +1013,20 @@ class Booltest(object):
 
             if fref is not None:
                 fref.close()
+
+            jscres['sha1'] = iobj.sha1.hexdigest()
+            jscres = collections.OrderedDict()
+            jsres_acc.append(jscres)
+
+        jsres_acc.pop()  # remove the last empty record
         logger.info('Processing finished')
+        kwargs = {'indent': 2} if self.args.json_nice else {}
+        if self.args.json_out:
+            print(json.dumps(jsout, **kwargs))
+
+        if self.args.json_out_file:
+            with open(self.args.json_out_file, 'w+') as fh:
+                json.dump(jsout, fh, **kwargs)
 
     def main(self):
         logger.debug('App started')
@@ -1015,7 +1062,8 @@ class Booltest(object):
                             help='number of terms to add randomly to the combination set')
 
         parser.add_argument('--combine-deg', dest='combdeg', default=2, type=int,
-                            help='Degree of combinations in the second phase. Number of terms to combine to one distinguisher.')
+                            help='Degree of combinations in the second phase (Combining terms by XOR). '
+                                 'Number of terms to combine to one distinguisher.')
 
         parser.add_argument('--conf', dest='conf', type=float, default=1.96,
                             help='Zscore failing threshold')
@@ -1074,6 +1122,18 @@ class Booltest(object):
 
         parser.add_argument('--stdin-desc', dest='stdin_desc', default=None,
                             help='Stdin descriptor')
+
+        parser.add_argument('--json-out', dest='json_out', action='store_const', const=True, default=False,
+                            help='Produce json result')
+
+        parser.add_argument('--json-out-file', dest='json_out_file', default=None,
+                            help='Produce json result to a file')
+
+        parser.add_argument('--json-nice', dest='json_nice', action='store_const', const=True, default=False,
+                            help='Nicely formatted json output')
+
+        parser.add_argument('--json-top', dest='json_top', type=int, default=30,
+                            help='Number of the best results to store to the output json')
 
         self.args = parser.parse_args()
         self.work()
