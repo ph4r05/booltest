@@ -45,9 +45,18 @@ Both are tested, the difference between files should be evident.
 dd if=/dev/urandom of=random-file.bin bs=1024 count=$((1024*10))
 dd if=/dev/zero of=zero-file.bin bs=1024 count=$((1024*10))
 
-booltest --degree 2 --block 256 --top 128 --tv $((1024*1024*10)) --rounds 0 random-file.bin
-booltest --degree 2 --block 256 --top 128 --tv $((1024*1024*10)) --rounds 0 zero-file.bin
+booltest --degree 2 --block 256 --combine-deg 2 --top 128 --tv $((1024*1024*10)) --rounds 0 random-file.bin
+booltest --degree 2 --block 256 --combine-deg 2 --top 128 --tv $((1024*1024*10)) --rounds 0 zero-file.bin
 ```
+
+- The BoolTest with the given parameters constructs all polynomials of degree 2 
+from monomials {x_0, ..., x_{255}}
+- Evaluates all polynomials on the input data (windowing), computes zscore from the 
+computed vs reference data 
+- Selects 128 best polynomials (abs(zscore))
+- Phase 2: Take the best 128 polynomials and combine them by XOR 
+to the `--combine-deg` number of terms. 
+- The resulting polynomials are evaluated again and results printed out.
 
 ## Common testing parameters
 
@@ -79,7 +88,7 @@ The file [pval_db.json](https://github.com/ph4r05/polynomial-distinguishers/blob
 Analyze output of the `java.util.Random`, use only polynomials in the specified file. Analyze 100 MB of data:
 
 ```
-booltest --degree 2 --block 512 --top 128 --tv $((1024*1024*100)) --rounds 0 \
+booltest --degree 2 --block 512 --combine-deg 2 --top 128 --tv $((1024*1024*100)) --rounds 0 \
   --poly-file data/polynomials/polynomials-randjava_seed0.txt \
   randjava_seed0.bin
 ```
