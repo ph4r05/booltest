@@ -134,6 +134,11 @@ class HWAnalysis(object):
 
         self.try_read_db()
 
+    def set_input_poly(self, poly):
+        # compute classical analysis only if there are no input polynomials
+        self.input_poly = poly if poly else []
+        self.all_deg_compute = len(self.input_poly) == 0
+
     def try_read_db(self):
         if not self.ref_db_path or not os.path.exists(self.ref_db_path):
             return
@@ -299,7 +304,7 @@ class HWAnalysis(object):
             exp_cnt = num_evals * expp
             obs_cnt = hws_input[idx]
             zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
-            results[idx] = CombinedIdx(None, expp, exp_cnt, obs_cnt, zscore, idx)
+            results[idx] = CombinedIdx(poly, expp, exp_cnt, obs_cnt, zscore, idx)
 
         # Sort by the zscore
         results.sort(key=lambda x: abs(x.zscore), reverse=True)
@@ -453,11 +458,11 @@ class HWAnalysis(object):
         """
 
         # Input polynomials
-        self.analyse_input(num_evals=num_evals, hws_input=hws_input)
+        r = self.analyse_input(num_evals=num_evals, hws_input=hws_input)
 
         # All degrees polynomials + combinations
         if not self.all_deg_compute:
-            return
+            return r
 
         probab = [self.term_eval.expp_term_deg(deg) for deg in range(0, self.deg + 1)]
         exp_count = [num_evals * x for x in probab]
@@ -994,6 +999,7 @@ class Booltest(object):
             ('comb_degree', top_comb),
             ('input_poly', self.input_poly),
             ('offset', offset),
+            ('halving', self.args.halving),
             ('inputs', jsres_acc)
         ])
 
@@ -1023,11 +1029,12 @@ class Booltest(object):
             if tvsize < 0:
                 raise ValueError('Negative TV size: %s' % tvsize)
 
-            if tvsize*8 % self.blocklen != 0:
-                rem = tvsize*8 % self.blocklen
+            coef = 8 if not self.args.halving else 4
+            if (tvsize * coef) % self.blocklen != 0:
+                rem = (tvsize * coef) % self.blocklen
                 logger.warning('Input data size not aligned to the block size. '
                                'Input bytes: %d, block bits: %d, rem: %d' % (tvsize, self.blocklen, rem))
-                tvsize -= rem//8
+                tvsize -= rem//coef
                 logger.info('Updating TV to %d' % tvsize)
 
             hwanalysis = self.setup_hwanalysis(deg, top_comb, top_k, all_deg, zscore_thresh, reffile)
@@ -1059,8 +1066,11 @@ class Booltest(object):
                     iobj.read(coffset)
                     size -= coffset
 
+                if self.args.halving:
+                    tvsize = tvsize // 2
+
                 while size < 0 or data_read < size:
-                    if rounds is not None and rounds >= 0 and cur_round > rounds:
+                    if rounds is not None and rounds > 0 and cur_round > rounds:
                         break
 
                     data = iobj.read(tvsize)
@@ -1080,20 +1090,48 @@ class Booltest(object):
                                  (tvsize * 8) // self.blocklen, cur_round, len(bits)))
 
                     r = hwanalysis.process_chunk(bits, ref_bits)
-                    jsres = [comb2dict(x) for x in r[:min(len(r), self.args.json_top)]]
+                    jsres = collections.OrderedDict([('round', cur_round)])
+                    jsres_dists = [comb2dict(x) for x in r[:min(len(r), self.args.json_top)]]
+                    jsres['dists'] = jsres_dists
 
-                    if hwanalysis.ref_samples and jsres:
-                        best_zsc = abs(jsres[0]['zscore'])
-                        jscres['ref_samples'] = hwanalysis.ref_samples
-                        jscres['ref_alpha'] = 1. / hwanalysis.ref_samples
-                        jscres['ref_minmax'] = hwanalysis.ref_minmax
-                        jscres['rejects'] = best_zsc < hwanalysis.ref_minmax[0] or best_zsc > hwanalysis.ref_minmax[1]
+                    if hwanalysis.ref_samples and jsres_dists and (not self.args.halving or cur_round & 1 == 0):
+                        best_zsc = abs(jsres_dists[0]['zscore'])
+                        jsres['ref_samples'] = hwanalysis.ref_samples
+                        jsres['ref_alpha'] = 1. / hwanalysis.ref_samples
+                        jsres['ref_minmax'] = hwanalysis.ref_minmax
+                        jsres['rejects'] = best_zsc < hwanalysis.ref_minmax[0] or best_zsc > hwanalysis.ref_minmax[1]
                         logger.info('Ref samples: %s, min-zscrore: %s, max-zscore: %s, best observed: %s, rejected: %s, alpha: %s'
                                     % (hwanalysis.ref_samples, hwanalysis.ref_minmax[0], hwanalysis.ref_minmax[1],
-                                       best_zsc, jscres['rejects'], 1./hwanalysis.ref_samples))
+                                       best_zsc, jsres['rejects'], 1./hwanalysis.ref_samples))
+
+                    if self.args.halving and cur_round & 1:
+                        from scipy import stats
+
+                        jsres['halvings'] = []
+                        for ix, cr in enumerate(r):
+                            ntrials = (tvsize * 8) // self.blocklen
+                            pval = stats.binom_test(cr.obs_cnt, n=ntrials, p=cr.expp, alternative='two-sided')
+
+                            jsresc = collections.OrderedDict()
+                            jsresc['nsamples'] = ntrials
+                            jsresc['nsucc'] = cr.obs_cnt
+                            jsresc['pval'] = pval
+                            jsres['halvings'].append(jsresc)
+
+                            logger.info(
+                                'Binomial dist [%d], two-sided pval: %s, pst: %s, ntrials: %s, succ: %s'
+                                % (ix, pval, cr.expp, ntrials, cr.obs_cnt))
 
                     jscres['res'].append(jsres)
                     cur_round += 1
+
+                    if self.args.halving:
+                        hwanalysis = self.setup_hwanalysis(deg, top_comb, top_k, all_deg, zscore_thresh, reffile)
+                        if cur_round & 1:  # custom poly = best dist
+                            selected_poly = [jsres_dists[ix]['poly'] for ix in range(min(self.args.halving_top, len(jsres_dists)))]
+                            logger.info("Halving, setting the best poly: %s" % selected_poly)
+                            hwanalysis.set_input_poly(selected_poly)
+                        hwanalysis.init()
                 pass
 
             logger.info('Finished processing %s ' % iobj)
@@ -1229,6 +1267,12 @@ class Booltest(object):
 
         parser.add_argument('--offset', dest='offset',
                             help='Offset to start file reading')
+
+        parser.add_argument('--halving', dest='halving', action='store_const', const=True, default=False,
+                            help='Pick the best distinguisher on the first half, evaluate on the second half')
+
+        parser.add_argument('--halving-top', dest='halving_top', type=int, default=1,
+                            help='Number of top distinguishers to select to the halving phase')
 
         self.args = parser.parse_args()
         self.work()
