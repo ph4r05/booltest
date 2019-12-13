@@ -886,6 +886,31 @@ class Booltest(object):
             expp = term_eval.expp_poly(poly)
             print('  Expected probability: %s' % expp)
 
+    def try_find_refdb(self):
+        if self.args.ref_db:
+            return self.args.ref_db
+
+        fname = 'pval_db.json'
+        pths = []
+        try:
+            pths.append(os.path.join(os.path.dirname(__file__), 'assets'))
+        except:
+            pass
+
+        pths += os.getenv('PATH', '').split(os.pathsep)
+        for p in pths:
+            c = os.path.join(p, fname)
+            try:
+                if not os.path.exists(c):
+                    continue
+                js = json.load(open(c, 'r'))
+                if js:
+                    return c
+            except:
+                pass
+
+        return None
+
     def init_params(self):
         self.blocklen = int(self.defset(self.args.blocklen, 128))
 
@@ -981,7 +1006,9 @@ class Booltest(object):
             hwanalysis.use_zscore_heap = self.args.topterm_heap
             hwanalysis.sort_best_zscores = max(common.replace_none([self.args.topterm_heap_k, top_k, 100]))
             hwanalysis.best_x_combinations = self.args.best_x_combinations
-            hwanalysis.ref_db_path = self.args.ref_db
+            hwanalysis.ref_db_path = self.try_find_refdb()
+            if hwanalysis.ref_db_path:
+                logger.info('Using reference data file %s' % hwanalysis.ref_db_path)
 
             # compute classical analysis only if there are no input polynomials
             hwanalysis.all_deg_compute = len(self.input_poly) == 0
