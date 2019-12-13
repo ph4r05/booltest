@@ -924,6 +924,32 @@ class Booltest(object):
             self.args.topterm_heap = True
             self.args.topterm_heap_k = 256
 
+    def setup_hwanalysis(self, deg, top_comb, top_k, all_deg, zscore_thresh, reffile):
+        hwanalysis = HWAnalysis()
+        hwanalysis.deg = deg
+        hwanalysis.blocklen = self.blocklen
+        hwanalysis.top_comb = top_comb
+        hwanalysis.comb_random = self.args.comb_random
+        hwanalysis.top_k = top_k
+        hwanalysis.combine_all_deg = all_deg
+        hwanalysis.zscore_thresh = zscore_thresh
+        hwanalysis.do_ref = reffile is not None
+        hwanalysis.input_poly = self.input_poly
+        hwanalysis.no_comb_and = self.args.no_comb_and
+        hwanalysis.no_comb_xor = self.args.no_comb_xor
+        hwanalysis.prob_comb = self.args.prob_comb
+        hwanalysis.do_only_top_comb = self.args.only_top_comb
+        hwanalysis.do_only_top_deg = self.args.only_top_deg
+        hwanalysis.no_term_map = self.args.no_term_map
+        hwanalysis.use_zscore_heap = self.args.topterm_heap
+        hwanalysis.sort_best_zscores = max(common.replace_none([self.args.topterm_heap_k, top_k, 100]))
+        hwanalysis.best_x_combinations = self.args.best_x_combinations
+        hwanalysis.ref_db_path = self.try_find_refdb()
+
+        # compute classical analysis only if there are no input polynomials
+        hwanalysis.all_deg_compute = len(self.input_poly) == 0
+        return hwanalysis
+
     def work(self):
         """
         Main entry point - data processing
@@ -939,6 +965,14 @@ class Booltest(object):
         top_comb = int(self.defset(self.args.combdeg, 2))
         reffile = self.defset(self.args.reffile)
         all_deg = self.args.alldeg
+        offset = self.args.offset
+
+        if offset is not None and '.' in offset:
+            offset = float(offset)
+        elif offset is not None:
+            offset = int(offset)
+        else:
+            offset = 0
 
         # Load input polynomials
         self.load_input_poly()
@@ -955,16 +989,18 @@ class Booltest(object):
         jsres_acc = [jscres]
         jsout = collections.OrderedDict([
             ('blocklen', self.blocklen),
-            ('deg', deg),
+            ('degree', deg),
             ('top_k', top_k),
-            ('top_comb', top_comb),
+            ('comb_degree', top_comb),
             ('input_poly', self.input_poly),
-            ('results', jsres_acc)
+            ('offset', offset),
+            ('inputs', jsres_acc)
         ])
 
         # read file by file
         for iobj in self.input_objects:
             tvsize = tvsize_orig
+            coffset = offset
 
             iobj.check()
             size = iobj.size()
@@ -972,13 +1008,20 @@ class Booltest(object):
             jscres['iobj'] = str(iobj)
             jscres['size'] = size
 
+            if isinstance(coffset, float):
+                coffset = int(coffset * size)
+            jscres['offset'] = coffset
+
             if tvsize is None:
-                tvsize = size
+                tvsize = size - coffset
 
             # size smaller than TV? Adapt tv then
             if size >= 0 and size < tvsize:
                 logger.info('File size is smaller than TV, updating TV to %d' % size)
-                tvsize = size
+                tvsize = size - coffset
+
+            if tvsize < 0:
+                raise ValueError('Negative TV size: %s' % tvsize)
 
             if tvsize*8 % self.blocklen != 0:
                 rem = tvsize*8 % self.blocklen
@@ -987,31 +1030,10 @@ class Booltest(object):
                 tvsize -= rem//8
                 logger.info('Updating TV to %d' % tvsize)
 
-            hwanalysis = HWAnalysis()
-            hwanalysis.deg = deg
-            hwanalysis.blocklen = self.blocklen
-            hwanalysis.top_comb = top_comb
-            hwanalysis.comb_random = self.args.comb_random
-            hwanalysis.top_k = top_k
-            hwanalysis.combine_all_deg = all_deg
-            hwanalysis.zscore_thresh = zscore_thresh
-            hwanalysis.do_ref = reffile is not None
-            hwanalysis.input_poly = self.input_poly
-            hwanalysis.no_comb_and = self.args.no_comb_and
-            hwanalysis.no_comb_xor = self.args.no_comb_xor
-            hwanalysis.prob_comb = self.args.prob_comb
-            hwanalysis.do_only_top_comb = self.args.only_top_comb
-            hwanalysis.do_only_top_deg = self.args.only_top_deg
-            hwanalysis.no_term_map = self.args.no_term_map
-            hwanalysis.use_zscore_heap = self.args.topterm_heap
-            hwanalysis.sort_best_zscores = max(common.replace_none([self.args.topterm_heap_k, top_k, 100]))
-            hwanalysis.best_x_combinations = self.args.best_x_combinations
-            hwanalysis.ref_db_path = self.try_find_refdb()
+            hwanalysis = self.setup_hwanalysis(deg, top_comb, top_k, all_deg, zscore_thresh, reffile)
             if hwanalysis.ref_db_path:
                 logger.info('Using reference data file %s' % hwanalysis.ref_db_path)
 
-            # compute classical analysis only if there are no input polynomials
-            hwanalysis.all_deg_compute = len(self.input_poly) == 0
             logger.info('Initializing test')
             hwanalysis.init()
 
@@ -1033,8 +1055,12 @@ class Booltest(object):
                 data_read = 0
                 cur_round = 0
 
+                if coffset > 0:
+                    iobj.read(coffset)
+                    size -= coffset
+
                 while size < 0 or data_read < size:
-                    if rounds is not None and cur_round > rounds:
+                    if rounds is not None and rounds >= 0 and cur_round > rounds:
                         break
 
                     data = iobj.read(tvsize)
@@ -1118,7 +1144,7 @@ class Booltest(object):
                             help='Size of one test vector, in this interpretation = number of bytes to read from file. '
                                  'Has to be aligned on block size')
 
-        parser.add_argument('-r', '--rounds', dest='rounds',
+        parser.add_argument('-r', '--rounds', dest='rounds', type=int, default=0,
                             help='Maximal number of test rounds')
 
         parser.add_argument('--top', dest='topk', default=30, type=int,
@@ -1200,6 +1226,9 @@ class Booltest(object):
 
         parser.add_argument('--json-top', dest='json_top', type=int, default=30,
                             help='Number of the best results to store to the output json')
+
+        parser.add_argument('--offset', dest='offset',
+                            help='Offset to start file reading')
 
         self.args = parser.parse_args()
         self.work()
