@@ -73,15 +73,54 @@ The same can be done with the `--default-params`
 Booltest returns zscores of the best distinguishers.
 
 In order to obtain a p-value from the Z-score you need to compute a reference experiments, i.e., compute N Booltest experiments on a random data and observe the z-score distribution.
-Z-score is data-size invariant but it depends on the Booltest parameters `(n,deg,k)`.
+Z-score is data-size invariant but it depends on the Booltest parameters `(n, deg, k)`.
 
 The most straightforward evaluation is to check whether z-score obtained from the real experiment has been observed in the reference runs. 
-If not, we can conclude the Booltest rejects the null hypothesis with pvalue `1/N`.
+If not, we can conclude the BoolTest rejects the null hypothesis with pvalue `1/N`.
 
 To obtain lower alpha you need to perform more reference experiments, 
 to obtain higher alpha integrate the z-score histogram from tails to mean to obtain desired percentage of the area under z-score histogram.
 
 The file [pval_db.json](https://github.com/ph4r05/polynomial-distinguishers/blob/master/pval_db.json) contains reference z-score -> pvalue mapping for N=20 000 reference runs.
+
+BoolTest now supports adding pvalue database as a parameter `--ref-db path-to-db.json`
+If the database is not given, BoolTest tries to locate the default `pval_db.json` in the Booltest installation directory and on the path.
+
+If the database is found, BoolTest shows also OK/reject result for the best distinguisher, given the reference database contains the 
+data for given `(n, deg, k)` parameters.
+
+Example:
+```
+ - best poly zscore  -5.37867, expp: 0.0625, exp:   10240, obs:    9713, diff:  5.1464844 %, poly: [[64, 245, 207, 242]]
+2019-12-13 20:25:17 PHX booltest.booltest_main[51363] INFO Ref samples: 40005, min-zscrore: 4.838657, max-zscore: 7.835336, best observed: 5.3786712268614005, rejected: False, alpha: 2.4996875390576178e-05
+```
+
+## Halving method
+
+We have implemented another evaluation method called halving, enabled with commandline option `--halving`.
+It needs twice more data than the default method, because of how it works:
+
+- The input file is divided to two halves
+- BoolTest runs as before on the first half, picks the best distinguisher
+- BoolTest runs the best distinguisher on the second half
+- As the best distinguisher selected to the second half "never seen" 
+the second half and there is only one polynomial the p-value can be directly computed due to independence.
+
+The best distinguisher results are essentially following Binomial distribution:
+`Bi(number_of_blocks, probability_of_dist_eval_to_1)`.
+
+To compute the p-value we run the Binomial test:
+```scipy.stats.binom_test(observed_ones, n=ntrials, p=dist_probab, alternative='two-sided')``` 
+ 
+This method eliminates a need to have a `pval_db.json` database computed with the reference data for given parameters.
+The benefit is the halving method gives directly a p-value, without a need to run reference computations.
+The downside is the method needs twice more data and can give weaker results than the original BoolTest evaluation.
+
+Example:
+```
+ - zscore[idx00]: -0.40825, observed: 00010200, expected: 00010240   idx:      0, poly: [[64, 245, 207, 242]]
+2019-12-13 20:25:17 PHX booltest.booltest_main[51363] INFO Binomial dist, two-sided pval: 0.6868421673496484, pst: 0.0625, ntrials: 163840, succ: 10200
+```
 
 ## Java random
 
