@@ -21,6 +21,8 @@ import coloredlogs
 from booltest import common
 from booltest import misc
 from booltest import timer
+from booltest.jsonenc import NoIndent
+from booltest.jsonenc import unwrap_rec as jsunwrap
 
 
 logger = logging.getLogger(__name__)
@@ -48,14 +50,15 @@ def bar_chart(sources=None, values=None, res=None, error=None, xlabel=None, titl
     plt.show()
 
 
-def comb2dict(comb):
+def comb2dict(comb, indent_fix=False):
+    poly = immutable_poly(comb.poly)
     return collections.OrderedDict([
         ('expp', comb.expp),
         ('exp_cnt', comb.exp_cnt),
         ('obs_cnt', comb.obs_cnt),
         ('diff', (100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt) if comb.exp_cnt else None),
         ('zscore', comb.zscore),
-        ('poly', immutable_poly(comb.poly))
+        ('poly', NoIndent(poly) if indent_fix else poly)
     ])
 
 
@@ -980,6 +983,9 @@ class Booltest(object):
         sorder = collections.defaultdict(lambda: 2**40, list(zip(impoly, range(len(hwanalysis.input_poly)))))
         return sorted(res, key=lambda x: sorder[immutable_poly(x.poly)])
 
+    def noindent(self, val):
+        return NoIndent(val) if self.args.json_nice else val
+
     def work(self):
         """
         Main entry point - data processing
@@ -1081,9 +1087,10 @@ class Booltest(object):
             total_terms = int(common.comb(self.blocklen, deg, True))
             logger.info('BlockLength: %d, deg: %d, terms: %d' % (self.blocklen, deg, total_terms))
 
+            jscres['sha1'] = ''
+            jscres['sha256'] = ''
             jscres['tvsize'] = tvsize
             jscres['blocks'] = int((tvsize * 8) // self.blocklen)
-            jscres['sha1'] = ''
             jscres['res'] = []
 
             # Reference data stream reading
@@ -1128,7 +1135,7 @@ class Booltest(object):
                         ref_data = fref.read(tvsize)
                         ref_bits = common.to_bitarray(ref_data)
 
-                    logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d = %8.2f kB = %8.2f MB, '
+                    logger.info('Pre-computing with TV, deg: %d, blocklen: %4d, tvsize: %8d = %8.2f kB = %8.2f MB, '
                                 'num-blocks: %d, round: %d, process: %d bits' %
                                 (deg, self.blocklen, tvsize, tvsize/1024.0, tvsize/1024.0/1024.0,
                                  (tvsize * 8) // self.blocklen, cur_round, len(bits)))
@@ -1137,7 +1144,7 @@ class Booltest(object):
                         r = self.hwanalysis.process_chunk(bits, ref_bits)
 
                     jsres = collections.OrderedDict([('round', cur_round)])
-                    jsres_dists = [comb2dict(x) for x in r[:min(len(r), self.args.json_top)]]
+                    jsres_dists = [comb2dict(x, self.args.json_nice) for x in r[:min(len(r), self.args.json_top)]]
                     jsres['dists'] = jsres_dists
 
                     if self.hwanalysis.ref_samples and jsres_dists and (not self.args.halving or cur_round & 1 == 0):
@@ -1159,14 +1166,14 @@ class Booltest(object):
                             pval = stats.binom_test(cr.obs_cnt, n=ntrials, p=cr.expp, alternative='two-sided')
 
                             jsresc = collections.OrderedDict()
-                            jsresc['poly'] = immutable_poly(cr.poly)
+                            jsresc['poly'] = self.noindent(immutable_poly(cr.poly))
                             jsresc['nsamples'] = ntrials
                             jsresc['nsucc'] = cr.obs_cnt
                             jsresc['pval'] = pval
                             jsres['halvings'].append(jsresc)
 
                             logger.info(
-                                'Binomial dist [%d], two-sided pval: %s, poly pst: %s, ntrials: %s, succ: %s, poly: %s'
+                                'Binomial dist [%d], two-sided pval: %11.9f, poly pst: %s, ntrials: %s, succ: %s, poly: %s'
                                 % (ix, pval, cr.expp, ntrials, cr.obs_cnt, cr.poly))
 
                     jscres['res'].append(jsres)
@@ -1175,45 +1182,52 @@ class Booltest(object):
                     if self.args.halving:
                         self.hwanalysis = self.setup_hwanalysis(deg, top_comb, top_k, all_deg, zscore_thresh, reffile)
                         if cur_round & 1:  # custom poly = best dist
-                            selected_poly = [jsres_dists[ix]['poly'] for ix in range(min(self.args.halving_top, len(jsres_dists)))]
+                            selected_poly = [jsunwrap(jsres_dists[ix]['poly']) for ix in range(min(self.args.halving_top, len(jsres_dists)))]
                             logger.info("Halving, setting the best poly: %s" % selected_poly)
                             self.hwanalysis.set_input_poly(selected_poly)
                         self.hwanalysis.init()
                 pass
 
-            logger.info('Finished processing %s ' % iobj)
-            logger.info('Data read %s ' % iobj.data_read)
-            logger.info('Read data hash %s ' % iobj.sha1.hexdigest())
+            logger.info('Finished processing: %s ' % iobj)
+            logger.info('Data read: %s B' % iobj.data_read)
+            logger.info('Read data SHA1:   %s ' % iobj.sha1.hexdigest())
+            logger.info('Read data SHA256: %s ' % iobj.sha256.hexdigest())
 
             if fref is not None:
                 fref.close()
 
             jscres['sha1'] = iobj.sha1.hexdigest()
+            jscres['sha256'] = iobj.sha256.hexdigest()
             jscres = collections.OrderedDict()
             jsres_acc.append(jscres)
 
         jsres_acc.pop()  # remove the last empty record
-        logger.info('Processing finished')
+        logger.info('Processing finished in %s sec' % (time.time() - time_test_start,))
 
         jsout['time_elapsed'] = time.time() - time_test_start
         jsout['time_data_read'] = timer_data_read.total()
         jsout['time_data_bins'] = timer_data_bins.total()
         jsout['time_process'] = timer_process.total()
+
         if self.dump_cpu_info:
             jsout['hostname'] = misc.try_get_hostname()
             jsout['cpu_pcnt_load_before'] = cpu_pcnt_load_before
-            jsout['cpu_load_before'] = cpu_load_before
+            jsout['cpu_load_before'] = self.noindent(cpu_load_before)
             jsout['cpu_pcnt_load_after'] = misc.try_get_cpu_percent()
-            jsout['cpu_load_after'] = misc.try_get_cpu_load()
+            jsout['cpu_load_after'] = self.noindent(misc.try_get_cpu_load())
             jsout['cpu'] = misc.try_get_cpu_info()
+            if 'flags' in jsout['cpu']:
+                jsout['cpu']['flags'] = self.noindent(jsout['cpu']['flags'])
 
         kwargs = {'indent': 2} if self.args.json_nice else {}
         if self.args.json_out:
-            print(json.dumps(jsout, **kwargs))
+            print(common.json_dumps(jsout, **kwargs))
 
         if self.args.json_out_file:
             with open(self.args.json_out_file, 'w+') as fh:
-                json.dump(jsout, fh, **kwargs)
+                common.json_dump(jsout, fh, **kwargs)
+
+        return jsunwrap(jsout)
 
     def main(self):
         logger.debug('App started')
