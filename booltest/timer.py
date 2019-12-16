@@ -34,6 +34,10 @@ class Timer(object):
             res += time.time() - self.time_start
         return res
 
+    def reset(self):
+        self.time_start = None
+        self.time_acc = 0
+
     def __enter__(self):
         self.start()
         return self

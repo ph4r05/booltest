@@ -218,9 +218,9 @@ class BooltestJson(Booltest):
             with open(self.args.config_file) as fh:
                 config = json.load(fh)
 
-        timer_data_read = timer.Timer(start=False)
-        timer_data_bins = timer.Timer(start=False)
-        timer_process = timer.Timer(start=False)
+        self.timer_data_read.reset()
+        self.timer_data_bins.reset()
+        self.timer_process.reset()
         cpu_pcnt_load_before = misc.try_get_cpu_percent()
         cpu_load_before = misc.try_get_cpu_load()
 
@@ -292,7 +292,7 @@ class BooltestJson(Booltest):
                 if rounds is not None and cur_round >= rounds:
                     break
 
-                with timer_data_read:
+                with self.timer_data_read:
                     data = iobj.read(tvsize)
 
                 if (len(data)*8 % hwanalysis.blocklen) != 0:
@@ -304,7 +304,7 @@ class BooltestJson(Booltest):
                     logger.info('File read completely')
                     break
 
-                with timer_data_bins:
+                with self.timer_data_bins:
                     bits = common.to_bitarray(data)
 
                 logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d = %8.2f kB = %8.2f MB, '
@@ -312,7 +312,7 @@ class BooltestJson(Booltest):
                             (hwanalysis.deg, hwanalysis.blocklen, tvsize, tvsize/1024.0, tvsize/1024.0/1024.0,
                              cur_round, len(bits)))
 
-                with timer_process:
+                with self.timer_process:
                     hwanalysis.process_chunk(bits, None)
                 cur_round += 1
 
@@ -347,9 +347,9 @@ class BooltestJson(Booltest):
         jsres['top_k'] = self.top_k
         jsres['all_deg'] = self.all_deg
         jsres['time_elapsed'] = time.time() - time_test_start
-        jsres['time_data_read'] = timer_data_read.total()
-        jsres['time_data_bins'] = timer_data_bins.total()
-        jsres['time_process'] = timer_process.total()
+        jsres['time_data_read'] = self.timer_data_read.total()
+        jsres['time_data_bins'] = self.timer_data_bins.total()
+        jsres['time_process'] = self.timer_process.total()
 
         jsres['data_hash'] = data_hash
         jsres['data_read'] = iobj.data_read

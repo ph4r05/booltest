@@ -87,7 +87,6 @@ class HWAnalysis(object):
         self.top_comb = None
         self.zscore_thresh = None
         self.combine_all_deg = False
-        self.do_ref = False
         self.no_comb_xor = False
         self.no_comb_and = False
         self.prob_comb = 1.0
@@ -727,10 +726,19 @@ class Booltest(object):
         self.args = None
         self.tester = None
         self.blocklen = None
+        self.deg = None
+        self.top_comb = None
+        self.top_k = None
+        self.all_deg = None
+        self.zscore_thresh = None
+        self.rounds = 0
         self.input_poly = []
         self.input_objects = []
         self.dump_cpu_info = False
         self.hwanalysis = None
+        self.timer_data_read = timer.Timer(start=False)
+        self.timer_data_bins = timer.Timer(start=False)
+        self.timer_process = timer.Timer(start=False)
 
     def defset(self, val, default=None):
         return val if val is not None else default
@@ -959,7 +967,13 @@ class Booltest(object):
             self.args.topterm_heap = True
             self.args.topterm_heap_k = 256
 
-    def setup_hwanalysis(self, deg, top_comb, top_k, all_deg, zscore_thresh, reffile):
+        self.deg = int(self.defset(self.args.degree, 3))
+        self.top_k = int(self.args.topk) if self.args.topk is not None else None
+        self.top_comb = int(self.defset(self.args.combdeg, 2))
+        self.all_deg = self.args.alldeg
+        self.rounds = int(self.args.rounds) if self.args.rounds is not None else None
+
+    def setup_hwanalysis(self, deg, top_comb, top_k, all_deg, zscore_thresh):
         hwanalysis = HWAnalysis()
         hwanalysis.deg = deg
         hwanalysis.blocklen = self.blocklen
@@ -968,7 +982,6 @@ class Booltest(object):
         hwanalysis.top_k = top_k
         hwanalysis.combine_all_deg = all_deg
         hwanalysis.zscore_thresh = zscore_thresh
-        hwanalysis.do_ref = reffile is not None
         hwanalysis.input_poly = self.input_poly
         hwanalysis.no_comb_and = self.args.no_comb_and
         hwanalysis.no_comb_xor = self.args.no_comb_xor
@@ -1008,14 +1021,8 @@ class Booltest(object):
 
         self.init_params()
 
-        deg = int(self.defset(self.args.degree, 3))
         tvsize_orig = self.defset(self.process_size(self.args.tvsize), None)
         zscore_thresh = self.args.conf
-        rounds = int(self.args.rounds) if self.args.rounds is not None else None
-        top_k = int(self.args.topk) if self.args.topk is not None else None
-        top_comb = int(self.defset(self.args.combdeg, 2))
-        reffile = self.defset(self.args.reffile)
-        all_deg = self.args.alldeg
         offset = self.args.offset
 
         if offset is not None and '.' in offset:
@@ -1025,9 +1032,9 @@ class Booltest(object):
         else:
             offset = 0
 
-        timer_data_read = timer.Timer(start=False)
-        timer_data_bins = timer.Timer(start=False)
-        timer_process = timer.Timer(start=False)
+        self.timer_data_read.reset()
+        self.timer_data_bins.reset()
+        self.timer_process.reset()
         cpu_pcnt_load_before = misc.try_get_cpu_percent()
         cpu_load_before = misc.try_get_cpu_load()
 
@@ -1036,7 +1043,7 @@ class Booltest(object):
         self.load_input_objects()
 
         logger.info('Basic settings, deg: %s, blocklen: %s, comb deg: %s, TV size: %s, rounds: %s'
-                    % (deg, self.blocklen, top_comb, tvsize_orig, rounds))
+                    % (self.deg, self.blocklen, self.top_comb, tvsize_orig, self.rounds))
 
         # specific polynomial testing
         logger.debug('Initialising')
@@ -1046,9 +1053,9 @@ class Booltest(object):
         jsres_acc = [jscres]
         jsout = collections.OrderedDict([
             ('blocklen', self.blocklen),
-            ('degree', deg),
-            ('comb_degree', top_comb),
-            ('top_k', top_k),
+            ('degree', self.deg),
+            ('comb_degree', self.top_comb),
+            ('top_k', self.top_k),
             ('input_poly', self.input_poly),
             ('offset', offset),
             ('halving', self.args.halving),
@@ -1089,15 +1096,15 @@ class Booltest(object):
                 tvsize -= rem//coef
                 logger.info('Updating TV to %d' % tvsize)
 
-            self.hwanalysis = self.setup_hwanalysis(deg, top_comb, top_k, all_deg, zscore_thresh, reffile)
+            self.hwanalysis = self.setup_hwanalysis(self.deg, self.top_comb, self.top_k, self.all_deg, zscore_thresh)
             if self.hwanalysis.ref_db_path:
                 logger.info('Using reference data file %s' % self.hwanalysis.ref_db_path)
 
             logger.debug('Initializing test')
             self.hwanalysis.init()
 
-            total_terms = int(common.comb(self.blocklen, deg, True))
-            logger.info('BlockLength: %d, deg: %d, terms: %d' % (self.blocklen, deg, total_terms))
+            total_terms = int(common.comb(self.blocklen, self.deg, True))
+            logger.info('BlockLength: %d, deg: %d, terms: %d' % (self.blocklen, self.deg, total_terms))
 
             jscres['sha1'] = ''
             jscres['sha256'] = ''
@@ -1105,108 +1112,14 @@ class Booltest(object):
             jscres['blocks'] = int((tvsize * 8) // self.blocklen)
             jscres['res'] = []
 
-            # Reference data stream reading
             # Read the file until there is no data.
-            fref = None
-            if reffile is not None:
-                fref = open(reffile, 'r')
-
             with iobj:
-                data_read = 0
-                cur_round = 0
-
-                if coffset > 0:
-                    with timer_data_read:
-                        iobj.read(coffset)
-                    size -= coffset
-
-                if self.args.halving:
-                    tvsize = tvsize // 2
-
-                while size < 0 or data_read < size:
-                    if rounds is not None and rounds > 0 and cur_round > rounds:
-                        break
-
-                    with timer_data_read:
-                        data = iobj.read(tvsize)
-
-                    if len(data) == 0:
-                        logger.info('File read completely')
-                        break
-
-                    if (len(data) * 8 % self.hwanalysis.blocklen) != 0:
-                        logger.warning('Not aligned block read, terminating. Data: %s bits remainder: %s'
-                                       % (len(data) * 8, self.hwanalysis.blocklen))
-                        break
-
-                    with timer_data_bins:
-                        bits = common.to_bitarray(data)
-
-                    ref_bits = None
-                    if fref is not None:
-                        ref_data = fref.read(tvsize)
-                        ref_bits = common.to_bitarray(ref_data)
-
-                    logger.info('Pre-computing with TV, deg: %d, blocklen: %4d, tvsize: %8d = %8.2f kB = %8.2f MB, '
-                                'num-blocks: %d, round: %d, process: %d bits' %
-                                (deg, self.blocklen, tvsize, tvsize/1024.0, tvsize/1024.0/1024.0,
-                                 (tvsize * 8) // self.blocklen, cur_round, len(bits)))
-
-                    with timer_process:
-                        r = self.hwanalysis.process_chunk(bits, ref_bits)
-
-                    jsres = collections.OrderedDict([('round', cur_round)])
-                    jsres_dists = [comb2dict(x, self.args.json_nice) for x in r[:min(len(r), self.args.json_top)]]
-                    jsres['dists'] = jsres_dists
-
-                    if self.hwanalysis.ref_samples and jsres_dists and (not self.args.halving or cur_round & 1 == 0):
-                        best_zsc = abs(jsres_dists[0]['zscore'])
-                        jsres['ref_samples'] = self.hwanalysis.ref_samples
-                        jsres['ref_alpha'] = 1. / self.hwanalysis.ref_samples
-                        jsres['ref_minmax'] = self.hwanalysis.ref_minmax
-                        jsres['rejects'] = best_zsc < self.hwanalysis.ref_minmax[0] or best_zsc > self.hwanalysis.ref_minmax[1]
-                        logger.info('Ref samples: %s, min-zscrore: %s, max-zscore: %s, best observed: %s, rejected: %s, alpha: %.5e'
-                                    % (self.hwanalysis.ref_samples, self.hwanalysis.ref_minmax[0], self.hwanalysis.ref_minmax[1],
-                                       best_zsc, jsres['rejects'], 1./self.hwanalysis.ref_samples))
-
-                    if self.args.halving and cur_round & 1:
-                        from scipy import stats
-
-                        jsres['halvings'] = []
-                        for ix, cr in enumerate(self.sort_res_by_input_poly(r)):
-                            ntrials = (tvsize * 8) // self.blocklen
-                            pval = stats.binom_test(cr.obs_cnt, n=ntrials, p=cr.expp, alternative='two-sided')
-
-                            jsresc = collections.OrderedDict()
-                            jsresc['poly'] = self.noindent(immutable_poly(cr.poly))
-                            jsresc['nsamples'] = ntrials
-                            jsresc['nsucc'] = cr.obs_cnt
-                            jsresc['pval'] = pval
-                            jsres['halvings'].append(jsresc)
-
-                            logger.info(
-                                'Binomial dist [%d], two-sided pval: %.5e, poly pst: %.4e, ntrials: %s, succ: %s, poly: %s'
-                                % (ix, pval, cr.expp, ntrials, cr.obs_cnt, cr.poly))
-
-                    jscres['res'].append(jsres)
-                    cur_round += 1
-
-                    if self.args.halving:
-                        self.hwanalysis = self.setup_hwanalysis(deg, top_comb, top_k, all_deg, zscore_thresh, reffile)
-                        if cur_round & 1:  # custom poly = best dist
-                            selected_poly = [jsunwrap(jsres_dists[ix]['poly']) for ix in range(min(self.args.halving_top, len(jsres_dists)))]
-                            logger.info("Halving, setting the best poly: %s" % selected_poly)
-                            self.hwanalysis.set_input_poly(selected_poly)
-                        self.hwanalysis.init()
-                pass
+                self.analyze_iobj(iobj, coffset, tvsize, jscres['res'])
 
             logger.info('Finished processing: %s ' % iobj)
             logger.info('Data read: %s B' % iobj.data_read)
             logger.info('Read data SHA1:   %s ' % iobj.sha1.hexdigest())
             logger.info('Read data SHA256: %s ' % iobj.sha256.hexdigest())
-
-            if fref is not None:
-                fref.close()
 
             jscres['sha1'] = iobj.sha1.hexdigest()
             jscres['sha256'] = iobj.sha256.hexdigest()
@@ -1217,9 +1130,9 @@ class Booltest(object):
         logger.info('Processing finished in %s sec' % (time.time() - time_test_start,))
 
         jsout['time_elapsed'] = time.time() - time_test_start
-        jsout['time_data_read'] = timer_data_read.total()
-        jsout['time_data_bins'] = timer_data_bins.total()
-        jsout['time_process'] = timer_process.total()
+        jsout['time_data_read'] = self.timer_data_read.total()
+        jsout['time_data_bins'] = self.timer_data_bins.total()
+        jsout['time_process'] = self.timer_process.total()
 
         if self.dump_cpu_info:
             jsout['hostname'] = misc.try_get_hostname()
@@ -1241,6 +1154,93 @@ class Booltest(object):
 
         return jsunwrap(jsout)
 
+    def analyze_iobj(self, iobj, coffset, tvsize, jscres):
+        data_read = 0
+        cur_round = 0
+
+        size = iobj.size()
+        if coffset > 0:
+            with self.timer_data_read:
+                iobj.read(coffset)
+            size -= coffset
+
+        if self.args.halving:
+            tvsize = tvsize // 2
+
+        while size < 0 or data_read < size:
+            if self.rounds is not None and self.rounds > 0 and cur_round > self.rounds:
+                break
+
+            with self.timer_data_read:
+                data = iobj.read(tvsize)
+
+            if len(data) == 0:
+                logger.info('File read completely')
+                break
+
+            if (len(data) * 8 % self.hwanalysis.blocklen) != 0:
+                logger.warning('Not aligned block read, terminating. Data: %s bits remainder: %s'
+                               % (len(data) * 8, self.hwanalysis.blocklen))
+                break
+
+            with self.timer_data_bins:
+                bits = common.to_bitarray(data)
+
+            logger.info('Pre-computing with TV, deg: %d, blocklen: %4d, tvsize: %8d = %8.2f kB = %8.2f MB, '
+                        'num-blocks: %d, round: %d, process: %d bits' %
+                        (self.deg, self.blocklen, tvsize, tvsize / 1024.0, tvsize / 1024.0 / 1024.0,
+                         (tvsize * 8) // self.blocklen, cur_round, len(bits)))
+
+            with self.timer_process:
+                r = self.hwanalysis.process_chunk(bits)
+
+            jsres = collections.OrderedDict([('round', cur_round)])
+            jsres_dists = [comb2dict(x, self.args.json_nice) for x in r[:min(len(r), self.args.json_top)]]
+            jsres['dists'] = jsres_dists
+
+            if self.hwanalysis.ref_samples and jsres_dists and (not self.args.halving or cur_round & 1 == 0):
+                best_zsc = abs(jsres_dists[0]['zscore'])
+                jsres['ref_samples'] = self.hwanalysis.ref_samples
+                jsres['ref_alpha'] = 1. / self.hwanalysis.ref_samples
+                jsres['ref_minmax'] = self.hwanalysis.ref_minmax
+                jsres['rejects'] = best_zsc < self.hwanalysis.ref_minmax[0] or best_zsc > self.hwanalysis.ref_minmax[1]
+                logger.info(
+                    'Ref samples: %s, min-zscrore: %s, max-zscore: %s, best observed: %s, rejected: %s, alpha: %.5e'
+                    % (self.hwanalysis.ref_samples, self.hwanalysis.ref_minmax[0], self.hwanalysis.ref_minmax[1],
+                       best_zsc, jsres['rejects'], 1. / self.hwanalysis.ref_samples))
+
+            if self.args.halving and cur_round & 1:
+                from scipy import stats
+
+                jsres['halvings'] = []
+                for ix, cr in enumerate(self.sort_res_by_input_poly(r)):
+                    ntrials = (tvsize * 8) // self.blocklen
+                    pval = stats.binom_test(cr.obs_cnt, n=ntrials, p=cr.expp, alternative='two-sided')
+
+                    jsresc = collections.OrderedDict()
+                    jsresc['poly'] = self.noindent(immutable_poly(cr.poly))
+                    jsresc['nsamples'] = ntrials
+                    jsresc['nsucc'] = cr.obs_cnt
+                    jsresc['pval'] = pval
+                    jsres['halvings'].append(jsresc)
+
+                    logger.info(
+                        'Binomial dist [%d], two-sided pval: %.5e, poly pst: %.4e, ntrials: %s, succ: %s, poly: %s'
+                        % (ix, pval, cr.expp, ntrials, cr.obs_cnt, cr.poly))
+
+            jscres.append(jsres)
+            cur_round += 1
+
+            if self.args.halving:
+                self.hwanalysis = self.setup_hwanalysis(self.deg, self.top_comb, self.top_k, self.all_deg, self.hwanalysis.zscore_thresh)
+                if cur_round & 1:  # custom poly = best dist
+                    selected_poly = [jsunwrap(jsres_dists[ix]['poly']) for ix in
+                                     range(min(self.args.halving_top, len(jsres_dists)))]
+                    logger.info("Halving, setting the best poly: %s" % selected_poly)
+                    self.hwanalysis.set_input_poly(selected_poly)
+                self.hwanalysis.init()
+        return jscres
+
     def main(self):
         logger.debug('App started')
 
@@ -1253,10 +1253,6 @@ class Booltest(object):
 
         parser.add_argument('--debug', dest='debug', action='store_const', const=True,
                             help='enables debug mode')
-
-        parser.add_argument('--ref', dest='reffile',
-                            help='reference file with random data. Old way of evaluating z-scores. '
-                                 'Does not work properly, deprecated, do not use.')
 
         parser.add_argument('--ref-db', dest='ref_db',
                             help='Reference JSON database file')
