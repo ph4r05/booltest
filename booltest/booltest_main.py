@@ -1249,13 +1249,14 @@ class Booltest(object):
         self.work()
 
     def argparser(self):
-        parser = argparse.ArgumentParser(description='PolyDist')
+        parser = argparse.ArgumentParser(description='BoolTest')
 
         parser.add_argument('--debug', dest='debug', action='store_const', const=True,
                             help='enables debug mode')
 
         parser.add_argument('--ref', dest='reffile',
-                            help='reference file with random data')
+                            help='reference file with random data. Old way of evaluating z-scores. '
+                                 'Does not work properly, deprecated, do not use.')
 
         parser.add_argument('--ref-db', dest='ref_db',
                             help='Reference JSON database file')
@@ -1264,17 +1265,19 @@ class Booltest(object):
                             help='block size in bits, number of bit variables to construct terms from')
 
         parser.add_argument('--degree', dest='degree',
-                            help='maximum degree of terms to construct')
+                            help='maximum degree of terms to construct in the first phase (AND)')
 
         parser.add_argument('--tv', dest='tvsize',
-                            help='Size of one test vector, in this interpretation = number of bytes to read from file. '
+                            help='Size of input data to process in bytes.'
                                  'Has to be aligned on block size')
 
         parser.add_argument('-r', '--rounds', dest='rounds', type=int, default=0,
-                            help='Maximal number of test rounds, independent tests. One test round = one test vector length processing')
+                            help='Maximal number of test rounds, independent tests. '
+                                 'One test round = one test vector length processing')
 
         parser.add_argument('--top', dest='topk', default=128, type=int,
-                            help='top K number of the best distinguishers to select to the combination phase (second phase), combining terms with XOR')
+                            help='top K number of the best distinguishers to select to the combination phase '
+                                 '(second phase), combining terms with XOR')
 
         parser.add_argument('--comb-rand', dest='comb_random', default=0, type=int,
                             help='number of terms to add randomly to the combination set')
@@ -1290,7 +1293,8 @@ class Booltest(object):
                                  'dependencies and unknown z-score distribution. ')
 
         parser.add_argument('--alldeg', dest='alldeg', action='store_const', const=True, default=False,
-                            help='Add top K best terms to the combination phase also for lower degree, not just the top one')
+                            help='Add top K best terms to the combination phase also for lower degree, '
+                                 'not just the top one')
 
         parser.add_argument('--poly', dest='polynomials', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='input polynomial to evaluate on the input data instead of generated one')
@@ -1311,11 +1315,13 @@ class Booltest(object):
                             help='Disables AND in the combination phase')
 
         parser.add_argument('--only-top-comb', dest='only_top_comb', action='store_const', const=True, default=False,
-                            help='If set, only the comb-degree combination is performed, otherwise all combinations up to given comb-degree')
+                            help='If set, only the comb-degree combination is performed, '
+                                 'otherwise all combinations up to given comb-degree')
 
         parser.add_argument('--only-top-deg', dest='only_top_deg', action='store_const', const=True, default=False,
-                            help='If set, only the top degree of 1st stage polynomials are evaluated (zscore is computed), otherwise '
-                                 'also lower degrees are input to the topk for next state - combinations')
+                            help='If set, only the top degree of 1st stage polynomials are evaluated'
+                                 '(zscore is computed), otherwise also lower degrees are input to the '
+                                 'topk for next state - combinations')
 
         parser.add_argument('--no-term-map', dest='no_term_map', action='store_const', const=True, default=False,
                             help='Disables term map precomputation, uses unranking algorithm instead')
@@ -1330,7 +1336,8 @@ class Booltest(object):
                             help='Number of best combinations to return. If defined, heap is used')
 
         parser.add_argument('--prob-comb', dest='prob_comb', type=float, default=1.0,
-                            help='Probability the given combination is going to be chosen. Enables stochastic test, useful for large degrees.')
+                            help='Probability the given combination is going to be chosen. '
+                                 'Enables stochastic test, useful for large degrees.')
 
         parser.add_argument('--default-params', dest='default_params', action='store_const', const=True, default=False,
                             help='Default parameter settings for testing, used in the paper')
@@ -1364,8 +1371,8 @@ class Booltest(object):
 
         parser.add_argument('--indiv-pval', dest='indiv_pval', action='store_const', const=True, default=False,
                             help='Compute individual pvalue with binomial test for each distinguisher. '
-                                 'Warning! The computed pvals cannot be directly used as there are string dependencies.'
-                                 'Use only when you know what you are doing')
+                                 'Warning! The computed pvals cannot be directly used as there are strong '
+                                 'dependencies. Use only when you know what you are doing')
 
         parser.add_argument('--halving-top', dest='halving_top', type=int, default=1,
                             help='Number of top distinguishers to select to the halving phase')
