@@ -728,13 +728,16 @@ class Booltest(object):
         self.blocklen = None
         self.deg = None
         self.top_comb = None
-        self.top_k = None
+        self.top_k = 128
         self.all_deg = None
         self.zscore_thresh = None
         self.rounds = 0
+        self.do_halving = False
+        self.halving_top = 1
         self.input_poly = []
         self.input_objects = []
         self.dump_cpu_info = False
+
         self.hwanalysis = None
         self.timer_data_read = timer.Timer(start=False)
         self.timer_data_bins = timer.Timer(start=False)
@@ -972,6 +975,8 @@ class Booltest(object):
         self.top_comb = int(self.defset(self.args.combdeg, 2))
         self.all_deg = self.args.alldeg
         self.rounds = int(self.args.rounds) if self.args.rounds is not None else None
+        self.do_halving = self.args.halving
+        self.halving_top = self.args.halving_top
 
     def setup_hwanalysis(self, deg, top_comb, top_k, all_deg, zscore_thresh):
         hwanalysis = HWAnalysis()
@@ -1011,6 +1016,15 @@ class Booltest(object):
     def noindent(self, val):
         return NoIndent(val) if self.args.json_nice else val
 
+    def proc_offset(self, offset):
+        if offset is not None and '.' in offset:
+            offset = float(offset)
+        elif offset is not None:
+            offset = int(offset)
+        else:
+            offset = 0
+        return offset
+
     def work(self):
         """
         Main entry point - data processing
@@ -1023,14 +1037,7 @@ class Booltest(object):
 
         tvsize_orig = self.defset(self.process_size(self.args.tvsize), None)
         zscore_thresh = self.args.conf
-        offset = self.args.offset
-
-        if offset is not None and '.' in offset:
-            offset = float(offset)
-        elif offset is not None:
-            offset = int(offset)
-        else:
-            offset = 0
+        offset = self.proc_offset(self.args.offset)
 
         self.timer_data_read.reset()
         self.timer_data_bins.reset()
@@ -1058,7 +1065,7 @@ class Booltest(object):
             ('top_k', self.top_k),
             ('input_poly', self.input_poly),
             ('offset', offset),
-            ('halving', self.args.halving),
+            ('halving', self.do_halving),
             ('inputs', jsres_acc)
         ])
 
@@ -1088,7 +1095,7 @@ class Booltest(object):
             if tvsize < 0:
                 raise ValueError('Negative TV size: %s' % tvsize)
 
-            coef = 8 if not self.args.halving else 4
+            coef = 8 if not self.do_halving else 4
             if (tvsize * coef) % self.blocklen != 0:
                 rem = (tvsize * coef) % self.blocklen
                 logger.warning('Input data size not aligned to the block size. '
@@ -1164,7 +1171,7 @@ class Booltest(object):
                 iobj.read(coffset)
             size -= coffset
 
-        if self.args.halving:
+        if self.do_halving:
             tvsize = tvsize // 2
 
         while size < 0 or data_read < size:
@@ -1198,7 +1205,7 @@ class Booltest(object):
             jsres_dists = [comb2dict(x, self.args.json_nice) for x in r[:min(len(r), self.args.json_top)]]
             jsres['dists'] = jsres_dists
 
-            if self.hwanalysis.ref_samples and jsres_dists and (not self.args.halving or cur_round & 1 == 0):
+            if self.hwanalysis.ref_samples and jsres_dists and (not self.do_halving or cur_round & 1 == 0):
                 best_zsc = abs(jsres_dists[0]['zscore'])
                 jsres['ref_samples'] = self.hwanalysis.ref_samples
                 jsres['ref_alpha'] = 1. / self.hwanalysis.ref_samples
@@ -1209,7 +1216,7 @@ class Booltest(object):
                     % (self.hwanalysis.ref_samples, self.hwanalysis.ref_minmax[0], self.hwanalysis.ref_minmax[1],
                        best_zsc, jsres['rejects'], 1. / self.hwanalysis.ref_samples))
 
-            if self.args.halving and cur_round & 1:
+            if self.do_halving and cur_round & 1:
                 from scipy import stats
 
                 jsres['halvings'] = []
@@ -1231,11 +1238,11 @@ class Booltest(object):
             jscres.append(jsres)
             cur_round += 1
 
-            if self.args.halving:
+            if self.do_halving:
                 self.hwanalysis = self.setup_hwanalysis(self.deg, self.top_comb, self.top_k, self.all_deg, self.hwanalysis.zscore_thresh)
                 if cur_round & 1:  # custom poly = best dist
                     selected_poly = [jsunwrap(jsres_dists[ix]['poly']) for ix in
-                                     range(min(self.args.halving_top, len(jsres_dists)))]
+                                     range(min(self.halving_top, len(jsres_dists)))]
                     logger.info("Halving, setting the best poly: %s" % selected_poly)
                     self.hwanalysis.set_input_poly(selected_poly)
                 self.hwanalysis.init()

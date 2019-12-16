@@ -32,25 +32,13 @@ class BooltestJson(Booltest):
     """
     def __init__(self, *args, **kwargs):
         super(BooltestJson, self).__init__(*args, **kwargs)
-        self.args = None
         self.tester = None
-        self.input_poly = []
 
         self.results_dir = None
         self.job_dir = None
         self.generator_path = None
         self.test_stride = None
         self.test_manuals = None
-        self.top_k = 128
-        self.zscore_thresh = None
-        self.all_deg = None
-
-        # In halving setting we "train" the distinguisher on first 1/2 data
-        # and then "test" the best distinguisher on the another 1/2 data, previously unseen.
-        self.halving_testing = False
-
-        # Number of top distinguishers for halving. 1 has clear statistical interpretation, independent.
-        self.halving_tops = 1
 
         self.randomize_tests = True
         self.test_random = random.Random()
@@ -228,6 +216,8 @@ class BooltestJson(Booltest):
         test_run = config['config']
         data_file = common.defvalkeys(config, 'spec.data_file')
         skip_finished = common.defvalkey(config, 'skip_finished', False)
+        self.do_halving = common.defvalkey(config, 'halving', False)
+        self.halving_top = common.defvalkey(config, 'halving_top', 1)
         res_file = common.defvalkey(config, 'res_file')
         backup_dir = common.defvalkey(config, 'backup_dir')
         all_zscores = common.defvalkey(config, 'all_zscores')
@@ -239,23 +229,30 @@ class BooltestJson(Booltest):
             elif backup_dir:
                 misc.file_backup(res_file, backup_dir=backup_dir)
 
-        hwanalysis = HWAnalysis()
-        hwanalysis.from_json(hw_cfg)
-        if all_zscores:
-            hwanalysis.all_zscore_comp = True
+        self.hwanalysis = HWAnalysis()
+        self.hwanalysis.from_json(hw_cfg)
+        self.deg = self.hwanalysis.deg
+        self.top_comb = self.hwanalysis.top_comb
+        self.top_k = self.hwanalysis.top_k
+        self.all_deg = self.hwanalysis.all_deg_compute
+        self.zscore_thresh = self.hwanalysis.zscore_thresh
 
-        rounds = common.defvalkey(test_run['spec'], 'data_rounds')
+        if all_zscores:
+            self.hwanalysis.all_zscore_comp = True
+
+        self.rounds = common.defvalkey(test_run['spec'], 'data_rounds')
         tvsize = test_run['spec']['data_size']
 
         # Load input polynomials
         # self.load_input_poly()
 
-        logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s' % (hwanalysis.deg, hwanalysis.blocklen, tvsize))
-        total_terms = int(common.comb(hwanalysis.blocklen, hwanalysis.deg, True))
+        logger.info('Basic settings, deg: %s, blocklen: %s, TV size: %s'
+                    % (self.hwanalysis.deg, self.hwanalysis.blocklen, tvsize))
+        total_terms = int(common.comb(self.hwanalysis.blocklen, self.hwanalysis.deg, True))
 
         logger.info('Initializing test')
         time_test_start = time.time()
-        hwanalysis.init()
+        self.hwanalysis.init()
 
         # Process input object
         iobj = None
@@ -274,47 +271,21 @@ class BooltestJson(Booltest):
             logger.info('File size is smaller than TV, updating TV to %d' % size)
             tvsize = size
 
-        if tvsize*8 % hwanalysis.blocklen != 0:
-            rem = tvsize*8 % hwanalysis.blocklen
+        if tvsize*8 % self.hwanalysis.blocklen != 0:
+            rem = tvsize*8 % self.hwanalysis.blocklen
             logger.warning('Input data size not aligned to the block size. '
-                           'Input bytes: %d, block bits: %d, rem: %d' % (tvsize, hwanalysis.blocklen, rem))
+                           'Input bytes: %d, block bits: %d, rem: %d' % (tvsize, self.hwanalysis.blocklen, rem))
             tvsize -= rem//8
             logger.info('Updating TV to %d' % tvsize)
 
         tvsize = int(tvsize)
-        hwanalysis.reset()
-        logger.info('BlockLength: %d, deg: %d, terms: %d' % (hwanalysis.blocklen, hwanalysis.deg, total_terms))
+        self.hwanalysis.reset()
+        logger.info('BlockLength: %d, deg: %d, terms: %d'
+                    % (self.hwanalysis.blocklen, self.hwanalysis.deg, total_terms))
+
+        jscres = []
         with iobj:
-            data_read = 0
-            cur_round = 0
-
-            while size < 0 or data_read < size:
-                if rounds is not None and cur_round >= rounds:
-                    break
-
-                with self.timer_data_read:
-                    data = iobj.read(tvsize)
-
-                if (len(data)*8 % hwanalysis.blocklen) != 0:
-                    logger.warning('Not aligned block read, terminating. Data: %s bits remainder: %s'
-                                   % (len(data)*8, hwanalysis.blocklen))
-                    break
-
-                if len(data) == 0:
-                    logger.info('File read completely')
-                    break
-
-                with self.timer_data_bins:
-                    bits = common.to_bitarray(data)
-
-                logger.info('Pre-computing with TV, deg: %d, blocklen: %04d, tvsize: %08d = %8.2f kB = %8.2f MB, '
-                            'round: %d, avail: %d' %
-                            (hwanalysis.deg, hwanalysis.blocklen, tvsize, tvsize/1024.0, tvsize/1024.0/1024.0,
-                             cur_round, len(bits)))
-
-                with self.timer_process:
-                    hwanalysis.process_chunk(bits, None)
-                cur_round += 1
+            self.analyze_iobj(iobj, 0, tvsize, jscres)
 
         data_hash = iobj.sha1.hexdigest()
         logger.info('Finished processing %s ' % iobj)
@@ -323,27 +294,21 @@ class BooltestJson(Booltest):
 
         # All zscore list for statistical processing / theory check
         if all_zscores and res_file:
-            self.all_zscore_process(res_file, hwanalysis)
+            self.all_zscore_process(res_file, self.hwanalysis)
             return
 
         # RESULT process...
-        total_results = len(hwanalysis.last_res) if hwanalysis.last_res else 0
-        best_dists = hwanalysis.last_res[0:min(128, total_results)] if hwanalysis.last_res else None
-
-        # Halving strategy
-        halving_res = None
-        if self.halving_testing:
-            logger.info('Halving strategy testing')
-            halving_res = hwanalysis.eval_combs([x.poly for x in best_dists], None)  # TODO: finish
+        total_results = len(self.hwanalysis.last_res) if self.hwanalysis.last_res else 0
+        best_dists = self.hwanalysis.last_res[0:min(128, total_results)] if self.hwanalysis.last_res else None
 
         jsres = collections.OrderedDict()
         if best_dists:
             jsres['best_zscore'] = best_dists[0].zscore
             jsres['best_poly'] = best_dists[0].poly
 
-        jsres['blocklen'] = hwanalysis.blocklen
-        jsres['degree'] = hwanalysis.deg
-        jsres['comb_degree'] = hwanalysis.top_comb
+        jsres['blocklen'] = self.hwanalysis.blocklen
+        jsres['degree'] = self.hwanalysis.deg
+        jsres['comb_degree'] = self.hwanalysis.top_comb
         jsres['top_k'] = self.top_k
         jsres['all_deg'] = self.all_deg
         jsres['time_elapsed'] = time.time() - time_test_start
@@ -355,8 +320,8 @@ class BooltestJson(Booltest):
         jsres['data_read'] = iobj.data_read
         jsres['generator'] = self.config_js
         jsres['best_dists'] = best_dists
-        jsres['halving_res'] = halving_res
         jsres['config'] = config
+        jsres['booltest_res'] = jscres[0]
 
         if self.dump_cpu_info:
             jsres['hostname'] = misc.try_get_hostname()
@@ -378,9 +343,6 @@ class BooltestJson(Booltest):
 
         parser.add_argument('--debug', dest='debug', action='store_const', const=True,
                             help='enables debug mode')
-
-        parser.add_argument('--verbose', dest='verbose', action='store_const', const=True,
-                            help='enables verbose mode')
 
         #
         # Testbed related options
