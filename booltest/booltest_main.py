@@ -24,7 +24,7 @@ from booltest import timer
 
 
 logger = logging.getLogger(__name__)
-coloredlogs.install(level=logging.DEBUG)
+coloredlogs.install(level=logging.INFO)
 
 
 Combined = collections.namedtuple('Combined', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore'])
@@ -126,10 +126,10 @@ class HWAnalysis(object):
         Initializes state, term_eval engine, input polynomials expected probability.
         :return:
         """
-        logger.info('Initializing HWanalysis')
+        logger.debug('Initializing HWanalysis')
 
         if not self.no_term_map:
-            logger.info('Precomputing term mappings')
+            logger.debug('Precomputing term mappings')
             self.term_map = common.build_term_map(self.deg, self.blocklen)
 
         self.term_eval = common.TermEval(blocklen=self.blocklen, deg=self.deg)
@@ -715,7 +715,7 @@ class Booltest(object):
         self.blocklen = None
         self.input_poly = []
         self.input_objects = []
-        self.dump_cpu_info = True
+        self.dump_cpu_info = False
         self.hwanalysis = None
 
     def defset(self, val, default=None):
@@ -982,6 +982,9 @@ class Booltest(object):
         Main entry point - data processing
         :return:
         """
+        if self.args.debug:
+            coloredlogs.install(level=logging.DEBUG)
+
         self.init_params()
 
         deg = int(self.defset(self.args.degree, 3))
@@ -1015,7 +1018,7 @@ class Booltest(object):
                     % (deg, self.blocklen, top_comb, tvsize_orig, rounds))
 
         # specific polynomial testing
-        logger.info('Initialising')
+        logger.debug('Initialising')
         time_test_start = time.time()
 
         jscres = collections.OrderedDict()
@@ -1069,7 +1072,7 @@ class Booltest(object):
             if self.hwanalysis.ref_db_path:
                 logger.info('Using reference data file %s' % self.hwanalysis.ref_db_path)
 
-            logger.info('Initializing test')
+            logger.debug('Initializing test')
             self.hwanalysis.init()
 
             total_terms = int(common.comb(self.blocklen, deg, True))
@@ -1212,13 +1215,15 @@ class Booltest(object):
     def main(self):
         logger.debug('App started')
 
+        parser = self.argparser()
+        self.args = parser.parse_args()
+        self.work()
+
+    def argparser(self):
         parser = argparse.ArgumentParser(description='PolyDist')
-        parser.add_argument('-t', '--threads', dest='threads', type=int, default=None,
-                            help='Number of threads to use')
+
         parser.add_argument('--debug', dest='debug', action='store_const', const=True,
                             help='enables debug mode')
-        parser.add_argument('--verbose', dest='verbose', action='store_const', const=True,
-                            help='enables verbose mode')
 
         parser.add_argument('--ref', dest='reffile',
                             help='reference file with random data')
@@ -1239,7 +1244,7 @@ class Booltest(object):
         parser.add_argument('-r', '--rounds', dest='rounds', type=int, default=0,
                             help='Maximal number of test rounds, independent tests. One test round = one test vector length processing')
 
-        parser.add_argument('--top', dest='topk', default=30, type=int,
+        parser.add_argument('--top', dest='topk', default=128, type=int,
                             help='top K number of the best distinguishers to select to the combination phase (second phase), combining terms with XOR')
 
         parser.add_argument('--comb-rand', dest='comb_random', default=0, type=int,
@@ -1327,9 +1332,7 @@ class Booltest(object):
 
         parser.add_argument('--halving-top', dest='halving_top', type=int, default=1,
                             help='Number of top distinguishers to select to the halving phase')
-
-        self.args = parser.parse_args()
-        self.work()
+        return parser
 
 
 # Launcher
