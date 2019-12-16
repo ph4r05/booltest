@@ -734,6 +734,7 @@ class Booltest(object):
         self.rounds = 0
         self.do_halving = False
         self.halving_top = 1
+        self.json_top = 30
         self.input_poly = []
         self.input_objects = []
         self.dump_cpu_info = False
@@ -977,6 +978,7 @@ class Booltest(object):
         self.rounds = int(self.args.rounds) if self.args.rounds is not None else None
         self.do_halving = self.args.halving
         self.halving_top = self.args.halving_top
+        self.json_top = self.args.json_top
 
     def setup_hwanalysis(self, deg, top_comb, top_k, all_deg, zscore_thresh):
         hwanalysis = HWAnalysis()
@@ -1206,7 +1208,7 @@ class Booltest(object):
                 r = self.hwanalysis.process_chunk(bits)
 
             jsres = collections.OrderedDict([('round', cur_round)])
-            jsres_dists = [comb2dict(x, self.args.json_nice) for x in r[:min(len(r), self.args.json_top)]]
+            jsres_dists = [comb2dict(x, self.args.json_nice) for x in r[:min(len(r), self.json_top)]]
             jsres['dists'] = jsres_dists
 
             if self.hwanalysis.ref_samples and jsres_dists and (not self.do_halving or cur_round & 1 == 0):
