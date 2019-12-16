@@ -1025,6 +1025,27 @@ class Booltest(object):
             offset = 0
         return offset
 
+    def adjust_tvsize(self, tvsize, size, coffset=0):
+        if tvsize is None:
+            tvsize = size - coffset
+
+        # size smaller than TV? Adapt tv then
+        if size >= 0 and size < tvsize:
+            logger.info('File size is smaller than TV, updating TV to %d' % size)
+            tvsize = size - coffset
+
+        if tvsize < 0:
+            raise ValueError('Negative TV size: %s' % tvsize)
+
+        coef = 8 if not self.do_halving else 4
+        if (tvsize * coef) % self.blocklen != 0:
+            rem = (tvsize * coef) % self.blocklen
+            logger.warning('Input data size not aligned to the block size. '
+                           'Input bytes: %d, block bits: %d, rem: %d' % (tvsize, self.blocklen, rem))
+            tvsize -= rem // coef
+            logger.info('Updating TV to %d' % tvsize)
+        return int(tvsize)
+
     def work(self):
         """
         Main entry point - data processing
@@ -1084,24 +1105,7 @@ class Booltest(object):
                 coffset = int(coffset * size)
             jscres['offset'] = coffset
 
-            if tvsize is None:
-                tvsize = size - coffset
-
-            # size smaller than TV? Adapt tv then
-            if size >= 0 and size < tvsize:
-                logger.info('File size is smaller than TV, updating TV to %d' % size)
-                tvsize = size - coffset
-
-            if tvsize < 0:
-                raise ValueError('Negative TV size: %s' % tvsize)
-
-            coef = 8 if not self.do_halving else 4
-            if (tvsize * coef) % self.blocklen != 0:
-                rem = (tvsize * coef) % self.blocklen
-                logger.warning('Input data size not aligned to the block size. '
-                               'Input bytes: %d, block bits: %d, rem: %d' % (tvsize, self.blocklen, rem))
-                tvsize -= rem//coef
-                logger.info('Updating TV to %d' % tvsize)
+            tvsize = self.adjust_tvsize(tvsize, size, coffset)
 
             self.hwanalysis = self.setup_hwanalysis(self.deg, self.top_comb, self.top_k, self.all_deg, zscore_thresh)
             if self.hwanalysis.ref_db_path:
