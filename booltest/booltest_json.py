@@ -44,7 +44,6 @@ class BooltestJson(Booltest):
         self.top_k = 128
         self.zscore_thresh = None
         self.all_deg = None
-        self.dump_cpu_info = True
 
         # In halving setting we "train" the distinguisher on first 1/2 data
         # and then "test" the best distinguisher on the another 1/2 data, previously unseen.
