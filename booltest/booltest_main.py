@@ -85,7 +85,7 @@ class HWAnalysis(object):
         self.top_k = None
         self.comb_random = None
         self.top_comb = None
-        self.zscore_thresh = 1.96
+        self.zscore_thresh = None
         self.combine_all_deg = False
         self.do_ref = False
         self.no_comb_xor = False
@@ -328,7 +328,7 @@ class HWAnalysis(object):
             from scipy import stats
 
         for res in results:
-            fail = 'x' if abs(res.zscore) > self.zscore_thresh else ' '
+            fail = 'x' if self.zscore_thresh and abs(res.zscore) > self.zscore_thresh else ' '
             indiv_pval = ' indiv-pval: %.5e,' % (stats.binom_test(res.obs_cnt, n=num_evals, p=res.expp, alternative='two-sided'),) if self.com_indiv_pval else ''
             self.tprint(' - zscore[idx%02d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d,%s poly: %s'
                         % (res.idx, res.zscore, res.obs_cnt, res.exp_cnt, fail, res.idx, indiv_pval, self.input_poly[res.idx]))
@@ -369,8 +369,8 @@ class HWAnalysis(object):
 
         # threshold zscore = self.zscore_thresh,
         # threshold hw_diff = self.zscore_thresh * zscore_denom * num_evals
-        hw_diff_threshold = self.zscore_thresh * zscore_denom * num_evals
-        hw_diff_over = 0
+        hw_diff_threshold = self.zscore_thresh * zscore_denom * num_evals if self.zscore_thresh else None
+        hw_diff_over = 0 if self.zscore_thresh else None
 
         # After this iteration hp will be a heap with sort_best_zscores elements
         hp = []
@@ -378,7 +378,8 @@ class HWAnalysis(object):
         for (idx, hw) in enumerate(hws[deg]):
             hw_diff = abs(hw - exp_count[deg])
             hw_diff_sum += hw_diff
-            hw_diff_over += 1 if hw_diff >= hw_diff_threshold else 0
+            if hw_diff_threshold and hw_diff >= hw_diff_threshold:
+                hw_diff_over += 1
 
             if self.sort_best_zscores < 0 or hp_size <= self.sort_best_zscores:
                 heapq.heappush(hp, (hw_diff, hw, idx))
@@ -435,7 +436,7 @@ class HWAnalysis(object):
         logger.info('Sorted... len: %d' % len(zscores[deg]))
 
         mean_zscore = sum([abs(x[0]) for x in zscores[deg]]) / float(len(zscores[deg]))
-        fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
+        fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh]) if self.zscore_thresh else None
         logger.info('Stats computed [%d], mean zscore: %s' % (deg, mean_zscore))
         return mean_zscore, fails
 
@@ -462,7 +463,7 @@ class HWAnalysis(object):
                             for idx, x in enumerate(hws[deg])]
 
         mean_zscore = sum([abs(x[0]) for x in zscores[deg]]) / float(len(zscores[deg]))
-        fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh])
+        fails = sum([1 for x in zscores[deg] if abs(x[0]) > self.zscore_thresh]) if self.zscore_thresh else None
         logger.info('Stats computed [%d], mean zscore: %s' % (deg, mean_zscore))
         return mean_zscore, fails
 
@@ -510,7 +511,7 @@ class HWAnalysis(object):
 
             # Selecting TOP k polynomials for further combinations
             for idx, x in enumerate(zscores[deg][0:15]):
-                fail = 'x' if abs(x[0]) > self.zscore_thresh else ' '
+                fail = 'x' if self.zscore_thresh and abs(x[0]) > self.zscore_thresh else ' '
                 self.tprint(' - zscore[deg=%d]: %+05.5f, %+05.5f, observed: %08d, expected: %08d %s idx: %6d, term: %s'
                             % (deg, x[0], zscores_ref[deg][idx]-x[0], x[2],
                                exp_count[deg], fail, x[1], self.unrank(deg, x[1])))
@@ -528,10 +529,11 @@ class HWAnalysis(object):
                     top_terms += [self.unrank(deg, x[1]) for x in random_subset]
 
             logger.info('Stats...')
-            fails_fraction = float(fails)/len(zscores[deg])
 
             self.tprint('Mean zscore[deg=%d]: %s' % (deg, mean_zscore))
-            self.tprint('Num of fails[deg=%d]: %s = %02f.5%%' % (deg, fails, 100.0*fails_fraction))
+            if fails:
+                fails_fraction = float(fails) / len(zscores[deg])
+                self.tprint('Num of fails[deg=%d]: %s = %02f.5%%' % (deg, fails, 100.0*fails_fraction))
 
         if self.all_zscore_comp:
             self.all_zscore_list = zscores
@@ -1008,7 +1010,7 @@ class Booltest(object):
 
         deg = int(self.defset(self.args.degree, 3))
         tvsize_orig = self.defset(self.process_size(self.args.tvsize), None)
-        zscore_thresh = float(self.args.conf)
+        zscore_thresh = self.args.conf
         rounds = int(self.args.rounds) if self.args.rounds is not None else None
         top_k = int(self.args.topk) if self.args.topk is not None else None
         top_comb = int(self.defset(self.args.combdeg, 2))
@@ -1281,8 +1283,11 @@ class Booltest(object):
                             help='Degree of combinations in the second phase (Combining terms by XOR). '
                                  'Number of terms to combine to one distinguisher.')
 
-        parser.add_argument('--conf', dest='conf', type=float, default=1.96,
-                            help='Zscore failing threshold')
+        parser.add_argument('--conf', dest='conf', type=float, default=None,
+                            help='Zscore failing threshold. If set, BoolTest will compute failing stats. '
+                                 'Takes only zscores higher than this value. Low limit is not supported. '
+                                 'Setup if you know what are you doing. Computing failing zscore is hard due to'
+                                 'dependencies and unknown z-score distribution. ')
 
         parser.add_argument('--alldeg', dest='alldeg', action='store_const', const=True, default=False,
                             help='Add top K best terms to the combination phase also for lower degree, not just the top one')
