@@ -16,6 +16,7 @@ import subprocess
 import sys
 import binascii
 from functools import reduce
+from booltest import jsonenc
 
 import scipy.misc
 import ufx.uf_hash as ufh
@@ -406,7 +407,7 @@ def merge_dicts(dicts):
     return dres
 
 
-class AutoJSONEncoder(json.JSONEncoder):
+class AutoJSONEncoder(jsonenc.IndentingJSONEncoder):
     """
     JSON encoder trying to_json() first
     """
@@ -436,6 +437,10 @@ def json_dumps(obj, **kwargs):
     :return:
     """
     return json.dumps(obj, cls=AutoJSONEncoder, **kwargs)
+
+
+def json_dump(obj, fp, **kwargs):
+    return json.dump(obj, fp, cls=AutoJSONEncoder, **kwargs)
 
 
 def try_json_dumps(obj, **kwargs):
