@@ -101,6 +101,7 @@ class HWAnalysis(object):
         self.ref_db_path = None
         self.ref_samples = None
         self.ref_minmax = None
+        self.com_indiv_pval = False
 
         self.total_rounds = 0
         self.total_hws = []
@@ -323,10 +324,14 @@ class HWAnalysis(object):
         # Sort by the zscore
         results.sort(key=lambda x: abs(x.zscore), reverse=True)
 
+        if self.com_indiv_pval:
+            from scipy import stats
+
         for res in results:
             fail = 'x' if abs(res.zscore) > self.zscore_thresh else ' '
-            self.tprint(' - zscore[idx%02d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d, poly: %s'
-                        % (res.idx, res.zscore, res.obs_cnt, res.exp_cnt, fail, res.idx, self.input_poly[res.idx]))
+            indiv_pval = ' indiv-pval: %.5e,' % (stats.binom_test(res.obs_cnt, n=num_evals, p=res.expp, alternative='two-sided'),) if self.com_indiv_pval else ''
+            self.tprint(' - zscore[idx%02d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d,%s poly: %s'
+                        % (res.idx, res.zscore, res.obs_cnt, res.exp_cnt, fail, res.idx, indiv_pval, self.input_poly[res.idx]))
 
         self.input_poly_last_res = results
         return results
@@ -560,11 +565,15 @@ class HWAnalysis(object):
         logger.info('Evaluating')
         top_res = self.sort_top_res(top_res)
 
+        if self.com_indiv_pval:
+            from scipy import stats
+
         for i in range(min(len(top_res), 30)):
             comb = top_res[i]
-            self.tprint(' - best poly zscore %9.5f, expp: %.4f, exp: %7d, obs: %7d, diff: %10.7f %%, poly: %s'
+            indiv_pval = ' indiv-pval: %.5e,' % (stats.binom_test(comb.obs_cnt, n=num_evals, p=comb.expp, alternative='two-sided'),) if self.com_indiv_pval else ''
+            self.tprint(' - best poly zscore %9.5f, expp: %.4e, exp: %7d, obs: %7d, diff: %10.7f %%,%s poly: %s'
                         % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
-                           100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, sorted(comb.poly)))
+                           100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, indiv_pval, sorted(comb.poly)))
 
         self.last_res = top_res
         return top_res
@@ -969,6 +978,7 @@ class Booltest(object):
         hwanalysis.sort_best_zscores = max(common.replace_none([self.args.topterm_heap_k, top_k, 100]))
         hwanalysis.best_x_combinations = self.args.best_x_combinations
         hwanalysis.ref_db_path = self.try_find_refdb()
+        hwanalysis.com_indiv_pval = self.args.indiv_pval
 
         # compute classical analysis only if there are no input polynomials
         hwanalysis.all_deg_compute = len(self.input_poly) == 0
@@ -1173,7 +1183,7 @@ class Booltest(object):
                             jsres['halvings'].append(jsresc)
 
                             logger.info(
-                                'Binomial dist [%d], two-sided pval: %11.9f, poly pst: %s, ntrials: %s, succ: %s, poly: %s'
+                                'Binomial dist [%d], two-sided pval: %.5e, poly pst: %.4e, ntrials: %s, succ: %s, poly: %s'
                                 % (ix, pval, cr.expp, ntrials, cr.obs_cnt, cr.poly))
 
                     jscres['res'].append(jsres)
@@ -1346,6 +1356,11 @@ class Booltest(object):
 
         parser.add_argument('--halving', dest='halving', action='store_const', const=True, default=False,
                             help='Pick the best distinguisher on the first half, evaluate on the second half')
+
+        parser.add_argument('--indiv-pval', dest='indiv_pval', action='store_const', const=True, default=False,
+                            help='Compute individual pvalue with binomial test for each distinguisher. '
+                                 'Warning! The computed pvals cannot be directly used as there are string dependencies.'
+                                 'Use only when you know what you are doing')
 
         parser.add_argument('--halving-top', dest='halving_top', type=int, default=1,
                             help='Number of top distinguishers to select to the halving phase')
