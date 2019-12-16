@@ -735,6 +735,7 @@ class Booltest(object):
         self.do_halving = False
         self.halving_top = 1
         self.json_top = 30
+        self.json_nice = False
         self.input_poly = []
         self.input_objects = []
         self.dump_cpu_info = False
@@ -979,6 +980,7 @@ class Booltest(object):
         self.do_halving = self.args.halving
         self.halving_top = self.args.halving_top
         self.json_top = self.args.json_top
+        self.json_nice = self.args.json_nice
 
     def setup_hwanalysis(self, deg, top_comb, top_k, all_deg, zscore_thresh):
         hwanalysis = HWAnalysis()
@@ -1016,7 +1018,7 @@ class Booltest(object):
         return sorted(res, key=lambda x: sorder[immutable_poly(x.poly)])
 
     def noindent(self, val):
-        return NoIndent(val) if self.args.json_nice else val
+        return NoIndent(val) if self.json_nice else val
 
     def proc_offset(self, offset):
         if offset is not None and '.' in offset:
@@ -1157,7 +1159,7 @@ class Booltest(object):
             if 'flags' in jsout['cpu']:
                 jsout['cpu']['flags'] = self.noindent(jsout['cpu']['flags'])
 
-        kwargs = {'indent': 2} if self.args.json_nice else {}
+        kwargs = {'indent': 2} if self.json_nice else {}
         if self.args.json_out:
             print(common.json_dumps(jsout, **kwargs))
 
@@ -1208,7 +1210,7 @@ class Booltest(object):
                 r = self.hwanalysis.process_chunk(bits)
 
             jsres = collections.OrderedDict([('round', cur_round)])
-            jsres_dists = [comb2dict(x, self.args.json_nice) for x in r[:min(len(r), self.json_top)]]
+            jsres_dists = [comb2dict(x, self.json_nice) for x in r[:min(len(r), self.json_top)]]
             jsres['dists'] = jsres_dists
 
             if self.hwanalysis.ref_samples and jsres_dists and (not self.do_halving or cur_round & 1 == 0):
