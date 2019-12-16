@@ -1163,7 +1163,7 @@ class Booltest(object):
                         jsres['ref_alpha'] = 1. / self.hwanalysis.ref_samples
                         jsres['ref_minmax'] = self.hwanalysis.ref_minmax
                         jsres['rejects'] = best_zsc < self.hwanalysis.ref_minmax[0] or best_zsc > self.hwanalysis.ref_minmax[1]
-                        logger.info('Ref samples: %s, min-zscrore: %s, max-zscore: %s, best observed: %s, rejected: %s, alpha: %s'
+                        logger.info('Ref samples: %s, min-zscrore: %s, max-zscore: %s, best observed: %s, rejected: %s, alpha: %.5e'
                                     % (self.hwanalysis.ref_samples, self.hwanalysis.ref_minmax[0], self.hwanalysis.ref_minmax[1],
                                        best_zsc, jsres['rejects'], 1./self.hwanalysis.ref_samples))
 
