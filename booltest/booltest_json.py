@@ -231,6 +231,7 @@ class BooltestJson(Booltest):
 
         self.hwanalysis = HWAnalysis()
         self.hwanalysis.from_json(hw_cfg)
+        self.blocklen = self.hwanalysis.blocklen
         self.deg = self.hwanalysis.deg
         self.top_comb = self.hwanalysis.top_comb
         self.top_k = self.hwanalysis.top_k
