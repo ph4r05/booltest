@@ -492,14 +492,21 @@ class LinkInputObject(InputObject):
     """
     Input object using link - remote load
     """
-    def __init__(self, url, headers=None, auth=None, timeout=None, *args, **kwargs):
+    def __init__(self, url, headers=None, auth=None, timeout=None, allow_head=True, *args, **kwargs):
         super(LinkInputObject, self).__init__(*args, **kwargs)
         self.url = url
         self.headers = headers
         self.auth = auth
         self.r = None
+        self.hres_loaded = False
+        self.hres = None
         self.timeout = timeout
+        self.allow_head = allow_head
         self.kwargs = kwargs
+
+    def head(self, **kwargs):
+        return requests.head(self.url, allow_redirects=True,
+                     headers=self.headers, auth=self.auth, timeout=self.timeout, **kwargs)
 
     def __enter__(self):
         super(LinkInputObject, self).__enter__()
@@ -521,11 +528,36 @@ class LinkInputObject(InputObject):
     def __str__(self):
         return self.url
 
+    def get_hres(self):
+        if self.hres_loaded:
+            return self.hres
+
+        self.hres = self.head(**self.kwargs)
+        self.hres_loaded = True
+        return self.hres
+
     def check(self):
-        return True
+        if not self.allow_head:
+            return True
+
+        try:
+            self.get_hres()
+            self.hres.raise_for_status()
+            return True
+        except Exception as e:
+            logger.debug('Exception in getting %s: %s' % (self.url, e), exc_info=e)
+            return False
 
     def size(self):
-        return -1
+        if not self.allow_head:
+            return -1
+        
+        try:
+            h = self.get_hres()
+            return int(h.headers['content-length'])
+        except Exception as e:
+            logger.debug('Exception in getting size of %s: %s' % (self.url, e), exc_info=e)
+            return -1
 
     def read(self, size=None):
         data = self.r.raw.read(size)
