@@ -544,6 +544,7 @@ FileLikeInputObject = input_obj.FileLikeInputObject
 CommandStdoutInputObject = input_obj.CommandStdoutInputObject
 AESInputObject = input_obj.AESInputObject
 BinaryInputObject = input_obj.BinaryInputObject
+LinkInputObject = input_obj.LinkInputObject
 
 
 class TermEval(object):

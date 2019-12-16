@@ -882,7 +882,10 @@ class Booltest(object):
         :return:
         """
         for file in self.args.files:
-            io = common.FileInputObject(fname=file, fmode='rb')
+            if file.startswith('http://') or file.startswith('https://') or file.startswith('ftp://'):
+                io = common.LinkInputObject(file)
+            else:
+                io = common.FileInputObject(fname=file, fmode='rb')
             io.check()
             self.input_objects.append(io)
 
