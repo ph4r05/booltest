@@ -3,11 +3,10 @@ import sys
 from setuptools import setup
 from setuptools import find_packages
 
-version = '0.4.0'
+version = '0.5.0'
 
 # Please update tox.ini when modifying dependency version requirements
 install_requires = [
-    # 'pycrypto>=2.6.1',
     'pycryptodome',      # pycrypto alternative, working also on Win
 
     'requests',
@@ -23,7 +22,6 @@ install_requires = [
     'bitstring',
     'bitarray_ph4',
     'ufx',
-     # 'matplotlib',  # apt-get install python-tk
     'filelock',
     'repoze.lru',
     'py-cpuinfo',
