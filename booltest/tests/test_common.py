@@ -13,7 +13,7 @@ __author__ = 'dusanklinec'
 
 
 class CommonTest(unittest.TestCase):
-    """Simple Booltest tests"""
+    """Simple BoolTest tests"""
 
     def __init__(self, *args, **kwargs):
         super(CommonTest, self).__init__(*args, **kwargs)

@@ -330,7 +330,7 @@ class BooltestJson(Booltest):
         return jsres
 
     def arg_parser(self):
-        parser = argparse.ArgumentParser(description='Booltest with json in/out')
+        parser = argparse.ArgumentParser(description='BoolTest with json in/out')
 
         parser.add_argument('--debug', dest='debug', action='store_const', const=True,
                             help='enables debug mode')

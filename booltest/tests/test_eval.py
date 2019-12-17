@@ -13,7 +13,7 @@ __author__ = 'dusanklinec'
 
 
 class TermEvalTest(unittest.TestCase):
-    """Simple Booltest tests"""
+    """Simple BoolTest tests"""
 
     def __init__(self, *args, **kwargs):
         super(TermEvalTest, self).__init__(*args, **kwargs)

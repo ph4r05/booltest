@@ -1,4 +1,4 @@
-# Booltest
+# BoolTest
 
 [![Build Status](https://travis-ci.org/ph4r05/polynomial-distinguishers.svg?branch=master)](https://travis-ci.org/ph4r05/polynomial-distinguishers)
 
@@ -8,12 +8,12 @@ Randomness tester based on our paper published at [Secrypt 2017](https://crocs.f
 
 ## How does it work?
 
-Booltest generates a set of boolean functions, computes the expected result distribution when evaluated on truly random
+BoolTest generates a set of boolean functions, computes the expected result distribution when evaluated on truly random
 data and compares this to the evaluation on the data being tested. 
 
 ## Pip installation
 
-Booltest is available via `pip`:
+BoolTest is available via `pip`:
 
 ```
 pip3 install booltest
@@ -29,7 +29,7 @@ pip3 install --upgrade --find-links=. .
 
 ## The engine
 
-Booltest does the heavy lifting with the native python extension [bitarray_ph4](https://github.com/ph4r05/bitarray)
+BoolTest does the heavy lifting with the native python extension [bitarray_ph4](https://github.com/ph4r05/bitarray)
 
 Bitarray operations are performed effectively using fast operations implemented in C.
 
@@ -60,7 +60,7 @@ to the `--combine-deg` number of terms.
 
 ## Common testing parameters
 
-We usually use Booltest with the following testing parameters:
+We usually use BoolTest with the following testing parameters:
 
 ```
 --top 128 --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap --topterm-heap-k 256
@@ -70,10 +70,10 @@ The same can be done with the `--default-params`
 
 ## Output and p-values
 
-Booltest returns zscores of the best distinguishers.
+BoolTest returns zscores of the best distinguishers.
 
-In order to obtain a p-value from the Z-score you need to compute a reference experiments, i.e., compute N Booltest experiments on a random data and observe the z-score distribution.
-Z-score is data-size invariant but it depends on the Booltest parameters `(n, deg, k)`.
+In order to obtain a p-value from the Z-score you need to compute a reference experiments, i.e., compute N BoolTest experiments on a random data and observe the z-score distribution.
+Z-score is data-size invariant but it depends on the BoolTest parameters `(n, deg, k)`.
 
 The most straightforward evaluation is to check whether z-score obtained from the real experiment has been observed in the reference runs. 
 If not, we can conclude the BoolTest rejects the null hypothesis with pvalue `1/N`.
@@ -84,7 +84,7 @@ to obtain higher alpha integrate the z-score histogram from tails to mean to obt
 The file [pval_db.json](https://github.com/ph4r05/polynomial-distinguishers/blob/master/pval_db.json) contains reference z-score -> pvalue mapping for N=20 000 reference runs.
 
 BoolTest now supports adding pvalue database as a parameter `--ref-db path-to-db.json`
-If the database is not given, BoolTest tries to locate the default `pval_db.json` in the Booltest installation directory and on the path.
+If the database is not given, BoolTest tries to locate the default `pval_db.json` in the BoolTest installation directory and on the path.
 
 If the database is found, BoolTest shows also OK/reject result for the best distinguisher, given the reference database contains the 
 data for given `(n, deg, k)` parameters.
@@ -134,7 +134,7 @@ booltest --degree 2 --block 512 --combine-deg 2 --top 128 --tv $((1024*1024*100)
 
 ## Input data
 
-Booltest can test:
+BoolTest can test:
 
 - Pregenerated data files
 - Use the [CryptoStreams] configuration files to generate input data on the fly, using [CryptoStreams] (library contains plenty round-reduced cryptographic primitives)
@@ -144,8 +144,8 @@ Booltest can test:
 - Map / Reduce. 
   - The `booltest/testjobs.py` creates job files
   - The `booltest/testjobsproc.py` processes result files
-- Booltest job is configured via JSON file. Result of a computation is JSON file.
-- The `booltest/testjobsbase.py` performs job aggregation, i.e., more Booltest runs in one shell script as job planning overhead is non-negligible. Useful for fast running jobs.
+- BoolTest job is configured via JSON file. Result of a computation is JSON file.
+- The `booltest/testjobsbase.py` performs job aggregation, i.e., more BoolTest runs in one shell script as job planning overhead is non-negligible. Useful for fast running jobs.
 - Works with PBSPro, qsub queueing algorithm
 
 
@@ -160,7 +160,7 @@ python ../booltest/booltest/testjobs.py  \
     --generator-folder ../bool-cfggens/ --generator-path ../bool-cfggens/crypto-streams_v2.3-13-gff877be
 ```
 
-For all [CryptoStreams] configuration files located under `../bool-cfggens/` it generates Booltest tests
+For all [CryptoStreams] configuration files located under `../bool-cfggens/` it generates BoolTest tests
 with parameters: 
 
 ```
@@ -199,7 +199,7 @@ python ../booltest/booltest/testjobs.py  \
 ```
 
 Computes 1000 independent AES round 10 runs, each with different seed in the counter mode. 
-Tests Booltest in various configurations.
+Tests BoolTest in various configurations.
 
 ## Reference statistics (old)
 
@@ -360,7 +360,7 @@ module add gcc-4.8.2
 
 ## Python 2.7.14+
 
-Booltest does not work with lower Python version. Use `pyenv` to install a new Python version.
+BoolTest does not work with lower Python version. Use `pyenv` to install a new Python version.
 It internally downloads Python sources and installs it to `~/.pyenv`.
 
 ```

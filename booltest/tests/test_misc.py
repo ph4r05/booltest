@@ -13,7 +13,7 @@ __author__ = 'dusanklinec'
 
 
 class MiscTest(unittest.TestCase):
-    """Simple Booltest tests"""
+    """Simple BoolTest tests"""
 
     def __init__(self, *args, **kwargs):
         super(MiscTest, self).__init__(*args, **kwargs)

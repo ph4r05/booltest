@@ -52,7 +52,7 @@ except(IOError, ImportError):
 setup(
     name='booltest',
     version=version,
-    description='Booltest: Polynomial randomness tester',
+    description='BoolTest: Polynomial randomness tester',
     long_description=long_description,
     url='https://github.com/ph4r05/polynomial-distinguishers',
     author='Dusan Klinec',
