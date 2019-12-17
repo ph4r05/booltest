@@ -967,13 +967,16 @@ class Booltest(object):
         hwanalysis.all_deg_compute = len(self.input_poly) == 0
         return hwanalysis
 
+    def build_poly_sort_index(self, poly):
+        impoly = [common.immutable_poly(x) for x in poly]
+        sorder = collections.defaultdict(lambda: 2 ** 40, list(zip(impoly, range(len(poly)))))
+        return sorder
+
     def sort_res_by_input_poly(self, res, hwanalysis=None):
         hwanalysis = hwanalysis if hwanalysis else self.hwanalysis
         if not hwanalysis.input_poly:
             return res
-
-        impoly = [common.immutable_poly(x) for x in hwanalysis.input_poly]
-        sorder = collections.defaultdict(lambda: 2**40, list(zip(impoly, range(len(hwanalysis.input_poly)))))
+        sorder = self.build_poly_sort_index(hwanalysis.input_poly)
         return sorted(res, key=lambda x: sorder[common.immutable_poly(x.poly)])
 
     def noindent(self, val):
