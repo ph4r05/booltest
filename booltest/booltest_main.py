@@ -1135,6 +1135,7 @@ class Booltest(object):
         data_read = 0
         cur_round = 0
 
+        prev_hwanalysis = None
         size = iobj.size()
         tvsize = tvsize if tvsize is not None else size
         jscres = jscres if jscres is not None else []
@@ -1154,6 +1155,7 @@ class Booltest(object):
             with self.timer_data_read:
                 data = iobj.read(tvsize)
 
+            data_read += len(data)
             if len(data) == 0:
                 logger.info('Input <%s> read completely' % iobj)
                 break
@@ -1171,6 +1173,7 @@ class Booltest(object):
                         (self.deg, self.blocklen, tvsize, tvsize / 1024.0, tvsize / 1024.0 / 1024.0,
                          (tvsize * 8) // self.blocklen, cur_round, len(bits)))
 
+            prev_hwanalysis = None
             with self.timer_process:
                 r = self.hwanalysis.process_chunk(bits)
 
@@ -1212,7 +1215,8 @@ class Booltest(object):
             jscres.append(jsres)
             cur_round += 1
 
-            if self.do_halving and data_read < size:
+            if self.do_halving:
+                prev_hwanalysis = self.hwanalysis
                 self.hwanalysis = self.setup_hwanalysis(self.deg, self.top_comb, self.top_k, self.all_deg, self.hwanalysis.zscore_thresh)
                 if cur_round & 1:  # custom poly = best dist
                     selected_poly = [common.jsunwrap(jsres_dists[ix]['poly']) for ix in
@@ -1220,6 +1224,11 @@ class Booltest(object):
                     logger.info('Halving, setting the best poly: %s' % selected_poly)
                     self.hwanalysis.set_input_poly(selected_poly)
                 self.hwanalysis.init()
+
+        # Revert last used object - one more init done in the halving which is not needed
+        if self.do_halving and prev_hwanalysis:
+            self.hwanalysis = prev_hwanalysis
+
         return jscres
 
     def main(self):
