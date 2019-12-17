@@ -100,7 +100,7 @@ class HWAnalysis(object):
         self.ref_db_path = None
         self.ref_samples = None
         self.ref_minmax = None
-        self.com_indiv_pval = False
+        self.comp_indiv_pval = False
 
         self.total_rounds = 0
         self.total_hws = []
@@ -252,8 +252,6 @@ class HWAnalysis(object):
         r = self.analyse(num_evals=self.term_eval.cur_evals, hws=hws2, hws_input=hws_input, ref_hws=ref_hws)
         return r
 
-    proces_chunk = process_chunk  # compat
-
     def process_ref(self, ref_bits, ln):
         """
         Process reference data stream
@@ -323,12 +321,12 @@ class HWAnalysis(object):
         # Sort by the zscore
         results.sort(key=lambda x: abs(x.zscore), reverse=True)
 
-        if self.com_indiv_pval:
+        if self.comp_indiv_pval:
             from scipy import stats
 
         for res in results:
             fail = 'x' if self.zscore_thresh and abs(res.zscore) > self.zscore_thresh else ' '
-            indiv_pval = ' indiv-pval: %.5e,' % (stats.binom_test(res.obs_cnt, n=num_evals, p=res.expp, alternative='two-sided'),) if self.com_indiv_pval else ''
+            indiv_pval = ' indiv-pval: %.5e,' % (stats.binom_test(res.obs_cnt, n=num_evals, p=res.expp, alternative='two-sided'),) if self.comp_indiv_pval else ''
             self.tprint(' - zscore[idx%02d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d,%s poly: %s'
                         % (res.idx, res.zscore, res.obs_cnt, res.exp_cnt, fail, res.idx, indiv_pval, self.input_poly[res.idx]))
 
@@ -566,12 +564,12 @@ class HWAnalysis(object):
         logger.info('Evaluating')
         top_res = self.sort_top_res(top_res)
 
-        if self.com_indiv_pval:
+        if self.comp_indiv_pval:
             from scipy import stats
 
         for i in range(min(len(top_res), 30)):
             comb = top_res[i]
-            indiv_pval = ' indiv-pval: %.5e,' % (stats.binom_test(comb.obs_cnt, n=num_evals, p=comb.expp, alternative='two-sided'),) if self.com_indiv_pval else ''
+            indiv_pval = ' indiv-pval: %.5e,' % (stats.binom_test(comb.obs_cnt, n=num_evals, p=comb.expp, alternative='two-sided'),) if self.comp_indiv_pval else ''
             self.tprint(' - best poly zscore %9.5f, expp: %.4e, exp: %7d, obs: %7d, diff: %10.7f %%,%s poly: %s'
                         % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
                            100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, indiv_pval, sorted(comb.poly)))
@@ -1002,7 +1000,7 @@ class Booltest(object):
         hwanalysis.sort_best_zscores = max(common.replace_none([self.args.topterm_heap_k, top_k, 100]))
         hwanalysis.best_x_combinations = self.args.best_x_combinations
         hwanalysis.ref_db_path = self.try_find_refdb()
-        hwanalysis.com_indiv_pval = self.args.indiv_pval
+        hwanalysis.comp_indiv_pval = self.args.indiv_pval
 
         # compute classical analysis only if there are no input polynomials
         hwanalysis.all_deg_compute = len(self.input_poly) == 0
