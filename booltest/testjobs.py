@@ -928,6 +928,8 @@ class Testjobs(Booltest):
             json_config['backup_dir'] = self.args.backup_dir
             json_config['skip_finished'] = self.args.skip_finished
             json_config['all_zscores'] = self.args.all_zscores
+            json_config['halving'] = self.args.halving
+            json_config['halving_top'] = self.args.halving_top
 
             if fidx % 1000 == 0:
                 logger.debug('Processing file %s, jobs: %s, time: %s, timef: %s, timej: %s'
@@ -1094,6 +1096,12 @@ class Testjobs(Booltest):
 
         parser.add_argument('--default-params', dest='default_params', action='store_const', const=True, default=False,
                             help='Default parameter settings for testing, used in the paper')
+
+        parser.add_argument('--halving', dest='halving', action='store_const', const=True, default=False,
+                            help='Pick the best distinguisher on the first half, evaluate on the second half')
+
+        parser.add_argument('--halving-top', dest='halving_top', type=int, default=50,
+                            help='Number of top distinguishers to select to the halving phase')
 
         #
         # Testbed related options
