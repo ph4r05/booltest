@@ -1,5 +1,6 @@
 import json
 import re
+import collections
 
 
 class NoIndent(object):
@@ -19,19 +20,20 @@ class NoIndent(object):
         return self.value.__hash__()
 
 
-def unwrap(val):
-    if isinstance(val, NoIndent):
-        return unwrap_rec(val.value)
-    return val
-
-
-def unwrap_rec(val):
+def unwrap_rec(val, rec_fnc=None):
+    rec_fnc = rec_fnc if rec_fnc is not None else unwrap_rec
     if isinstance(val, list):
-        return [unwrap_rec(x) for x in val]
-    if isinstance(val, tuple):
-        return tuple([unwrap_rec(x) for x in val])
+        return [rec_fnc(x) for x in val]
+    elif isinstance(val, tuple):
+        return tuple([rec_fnc(x) for x in val])
+    elif isinstance(val, collections.OrderedDict):
+        return collections.OrderedDict([(x, rec_fnc(val[x])) for x in val])
+    elif isinstance(val, dict):
+        return dict([(x, rec_fnc(val[x])) for x in val])
+    elif isinstance(val, NoIndent):
+        return rec_fnc(val.value)
     else:
-        return unwrap(val)
+        return val
 
 
 class IndentingJSONEncoder(json.JSONEncoder):
@@ -41,7 +43,13 @@ class IndentingJSONEncoder(json.JSONEncoder):
     def __init__(self, **kwargs):
         # Save copy of any keyword argument values needed for use here.
         self.__sort_keys = kwargs.get('sort_keys', None)
+        self.__unwrapper = kwargs.get('unwrapper', unwrap_rec)
         super(IndentingJSONEncoder, self).__init__(**kwargs)
+
+    def unwrap(self, obj):
+        if self.__unwrapper:
+            obj = self.__unwrapper(obj)
+        return obj
 
     def default(self, obj):
         return (self.FORMAT_SPEC.format(id(obj)) if isinstance(obj, NoIndent)
@@ -49,11 +57,16 @@ class IndentingJSONEncoder(json.JSONEncoder):
 
     def encode(self, obj):
         format_spec = self.FORMAT_SPEC  # Local var to expedite access.
-        json_repr = super(IndentingJSONEncoder, self).encode(obj)  # Default JSON.
-
+        has_ctypes = False
         try:
             from _ctypes import PyObj_FromPtr
+            has_ctypes = True
+
         except:
+            obj = self.unwrap(obj)
+
+        json_repr = super(IndentingJSONEncoder, self).encode(obj)  # Default JSON.
+        if not has_ctypes:
             return json_repr
 
         # Replace any marked-up object ids in the JSON repr with the

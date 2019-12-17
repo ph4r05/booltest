@@ -21,54 +21,11 @@ import coloredlogs
 from booltest import common
 from booltest import misc
 from booltest import timer
+from booltest.common import Combined, CombinedIdx, ValueIdx
 from booltest.jsonenc import NoIndent
-from booltest.jsonenc import unwrap_rec as jsunwrap
-
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.INFO)
-
-
-Combined = collections.namedtuple('Combined', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore'])
-CombinedIdx = collections.namedtuple('CombinedIdx', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore', 'idx'])
-ValueIdx = collections.namedtuple('ValueIdx', ['value', 'idx'])
-
-
-def bar_chart(sources=None, values=None, res=None, error=None, xlabel=None, title=None):
-    import numpy as np
-    import matplotlib.pyplot as plt
-    if res is not None:
-        sources = [x[0] for x in res]
-        values = [x[1] for x in res]
-
-    plt.rcdefaults()
-    y_pos = np.arange(len(sources))
-    plt.barh(y_pos, values, align='center', xerr=error, alpha=0.4)
-    plt.yticks(y_pos, sources)
-    plt.xlabel(xlabel)
-    plt.title(title)
-    plt.show()
-
-
-def comb2dict(comb, indent_fix=False):
-    poly = immutable_poly(comb.poly)
-    return collections.OrderedDict([
-        ('expp', comb.expp),
-        ('exp_cnt', comb.exp_cnt),
-        ('obs_cnt', comb.obs_cnt),
-        ('diff', (100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt) if comb.exp_cnt else None),
-        ('zscore', comb.zscore),
-        ('poly', NoIndent(poly) if indent_fix else poly)
-    ])
-
-
-def immutable_poly(poly):
-    if not poly:
-        return poly
-    r = []
-    for t in poly:
-        r.append(tuple(t))
-    return tuple(r)
 
 
 class HWAnalysis(object):
@@ -1011,12 +968,12 @@ class Booltest(object):
         if not hwanalysis.input_poly:
             return res
 
-        impoly = [immutable_poly(x) for x in hwanalysis.input_poly]
+        impoly = [common.immutable_poly(x) for x in hwanalysis.input_poly]
         sorder = collections.defaultdict(lambda: 2**40, list(zip(impoly, range(len(hwanalysis.input_poly)))))
-        return sorted(res, key=lambda x: sorder[immutable_poly(x.poly)])
+        return sorted(res, key=lambda x: sorder[common.immutable_poly(x.poly)])
 
     def noindent(self, val):
-        return NoIndent(val) if self.json_nice else val
+        return NoIndent(val) if val and self.json_nice and not isinstance(val, NoIndent) else val
 
     def proc_offset(self, offset):
         if offset is not None and '.' in offset:
@@ -1165,7 +1122,7 @@ class Booltest(object):
             with open(self.args.json_out_file, 'w+') as fh:
                 common.json_dump(jsout, fh, **kwargs)
 
-        return jsunwrap(jsout)
+        return common.jsunwrap(jsout)
 
     def analyze_iobj(self, iobj, coffset=0, tvsize=None, jscres=None):
         data_read = 0
@@ -1211,7 +1168,7 @@ class Booltest(object):
                 r = self.hwanalysis.process_chunk(bits)
 
             jsres = collections.OrderedDict([('round', cur_round)])
-            jsres_dists = [comb2dict(x, self.json_nice) for x in r[:min(len(r), self.json_top)]]
+            jsres_dists = [common.comb2dict(x, self.json_nice) for x in r[:min(len(r), self.json_top)]]
             jsres['dists'] = jsres_dists
 
             if self.hwanalysis.ref_samples and jsres_dists and (not self.do_halving or cur_round & 1 == 0):
@@ -1234,7 +1191,7 @@ class Booltest(object):
                     pval = stats.binom_test(cr.obs_cnt, n=ntrials, p=cr.expp, alternative='two-sided')
 
                     jsresc = collections.OrderedDict()
-                    jsresc['poly'] = self.noindent(immutable_poly(cr.poly))
+                    jsresc['poly'] = self.noindent(common.immutable_poly(cr.poly))
                     jsresc['nsamples'] = ntrials
                     jsresc['nsucc'] = cr.obs_cnt
                     jsresc['pval'] = pval
@@ -1250,7 +1207,7 @@ class Booltest(object):
             if self.do_halving:
                 self.hwanalysis = self.setup_hwanalysis(self.deg, self.top_comb, self.top_k, self.all_deg, self.hwanalysis.zscore_thresh)
                 if cur_round & 1:  # custom poly = best dist
-                    selected_poly = [jsunwrap(jsres_dists[ix]['poly']) for ix in
+                    selected_poly = [common.jsunwrap(jsres_dists[ix]['poly']) for ix in
                                      range(min(self.halving_top, len(jsres_dists)))]
                     logger.info('Halving, setting the best poly: %s' % selected_poly)
                     self.hwanalysis.set_input_poly(selected_poly)

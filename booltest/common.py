@@ -15,6 +15,7 @@ import signal
 import subprocess
 import sys
 import binascii
+import collections
 from functools import reduce
 from booltest import jsonenc
 
@@ -30,6 +31,9 @@ from repoze.lru import LRUCache
 
 from booltest.crypto_util import aes_ecb, dump_uint
 from booltest import input_obj
+from booltest.jsonenc import NoIndent
+from booltest.jsonenc import unwrap_rec
+
 
 if hasattr(scipy.misc, 'comb'):
     scipy_comb = scipy.misc.comb
@@ -52,6 +56,61 @@ else:
 
 
 logger = logging.getLogger(__name__)
+
+
+Combined = collections.namedtuple('Combined', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore'])
+CombinedIdx = collections.namedtuple('CombinedIdx', ['poly', 'expp', 'exp_cnt', 'obs_cnt', 'zscore', 'idx'])
+ValueIdx = collections.namedtuple('ValueIdx', ['value', 'idx'])
+
+
+def comb2dict(comb, indent_fix=False):
+    poly = immutable_poly(comb.poly)
+    return collections.OrderedDict([
+        ('expp', comb.expp),
+        ('exp_cnt', comb.exp_cnt),
+        ('obs_cnt', comb.obs_cnt),
+        ('diff', (100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt) if comb.exp_cnt else None),
+        ('zscore', comb.zscore),
+        ('poly', NoIndent(poly) if indent_fix else poly)
+    ])
+
+
+def immutable_poly(poly):
+    if not poly:
+        return poly
+    return tuple([tuple(x) for x in poly])
+
+
+def mutable_poly(poly):
+    if not poly:
+        return poly
+    return [list(x) for x in poly]
+
+
+def jsunwrap(val):
+    if isinstance(val, Combined):
+        return Combined(unwrap_rec(val.poly, jsunwrap), *val[1:])
+    elif isinstance(val, CombinedIdx):
+        return CombinedIdx(unwrap_rec(val.poly, jsunwrap), *val[1:])
+    else:
+        return unwrap_rec(val, jsunwrap)
+
+
+def jswrap(val):
+    if isinstance(val, Combined):
+        return Combined(NoIndent(val.poly), *val[1:])
+    elif isinstance(val, CombinedIdx):
+        return CombinedIdx(NoIndent(val.poly), *val[1:])
+    elif isinstance(val, list):
+        return [jswrap(x) for x in val]
+    elif isinstance(val, tuple):
+        return tuple([jswrap(x) for x in val])
+    elif isinstance(val, collections.OrderedDict):
+        return collections.OrderedDict([(x, jswrap(val[x])) for x in val])
+    elif isinstance(val, dict):
+        return dict([(x, jswrap(val[x])) for x in val])
+    else:
+        return val
 
 
 def pos_generator(spec=None, dim=None, maxelem=None):
@@ -414,6 +473,9 @@ class AutoJSONEncoder(jsonenc.IndentingJSONEncoder):
     """
     JSON encoder trying to_json() first
     """
+    def unwrap(self, obj):
+        return jsunwrap(obj)
+
     def default(self, obj):
         try:
             return obj.to_json()
@@ -1423,3 +1485,18 @@ class Tester(object):
     def work(self):
         pass
 
+
+def bar_chart(sources=None, values=None, res=None, error=None, xlabel=None, title=None):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    if res is not None:
+        sources = [x[0] for x in res]
+        values = [x[1] for x in res]
+
+    plt.rcdefaults()
+    y_pos = np.arange(len(sources))
+    plt.barh(y_pos, values, align='center', xerr=error, alpha=0.4)
+    plt.yticks(y_pos, sources)
+    plt.xlabel(xlabel)
+    plt.title(title)
+    plt.show()

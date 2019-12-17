@@ -206,6 +206,7 @@ class BooltestJson(Booltest):
             with open(self.args.config_file) as fh:
                 config = json.load(fh)
 
+        NRES_TO_DUMP = 128
         self.timer_data_read.reset()
         self.timer_data_bins.reset()
         self.timer_process.reset()
@@ -217,7 +218,7 @@ class BooltestJson(Booltest):
         data_file = common.defvalkeys(config, 'spec.data_file')
         skip_finished = common.defvalkey(config, 'skip_finished', False)
         self.do_halving = common.defvalkey(config, 'halving', False)
-        self.halving_top = common.defvalkey(config, 'halving_top', 1)
+        self.halving_top = common.defvalkey(config, 'halving_top', NRES_TO_DUMP)
         res_file = common.defvalkey(config, 'res_file')
         backup_dir = common.defvalkey(config, 'backup_dir')
         all_zscores = common.defvalkey(config, 'all_zscores')
@@ -237,6 +238,8 @@ class BooltestJson(Booltest):
         self.top_k = self.hwanalysis.top_k
         self.all_deg = self.hwanalysis.all_deg_compute
         self.zscore_thresh = self.hwanalysis.zscore_thresh
+        self.json_nice = True
+        self.json_top = min(NRES_TO_DUMP, self.halving_top)
 
         if all_zscores:
             self.hwanalysis.all_zscore_comp = True
@@ -290,12 +293,13 @@ class BooltestJson(Booltest):
 
         # RESULT process...
         total_results = len(self.hwanalysis.last_res) if self.hwanalysis.last_res else 0
-        best_dists = self.hwanalysis.last_res[0:min(128, total_results)] if self.hwanalysis.last_res else None
+        best_dists = self.hwanalysis.last_res[0:min(NRES_TO_DUMP, total_results)] if self.hwanalysis.last_res else None
+        best_dists = [common.jswrap(x) for x in best_dists]
 
         jsres = collections.OrderedDict()
         if best_dists:
-            jsres['best_zscore'] = best_dists[0].zscore
-            jsres['best_poly'] = best_dists[0].poly
+            jsres['best_zscore'] = best_dists[0][4]  # .zscore
+            jsres['best_poly'] = best_dists[0][0]  # .poly
 
         jsres['blocklen'] = self.hwanalysis.blocklen
         jsres['degree'] = self.hwanalysis.deg
@@ -327,7 +331,7 @@ class BooltestJson(Booltest):
                 fh.write(common.json_dumps(jsres, indent=2))
             misc.try_chmod_gr(res_file)
 
-        return jsres
+        return common.jsunwrap(jsres)
 
     def arg_parser(self):
         parser = argparse.ArgumentParser(description='BoolTest with json in/out')
