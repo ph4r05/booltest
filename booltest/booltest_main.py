@@ -140,6 +140,7 @@ class HWAnalysis(object):
         self.input_poly_hws = [0] * len(self.input_poly)
         self.input_poly_ref_hws = [0] * len(self.input_poly)
         self.last_res = None
+        self.input_poly_vars = set()
         self.input_poly_last_res = None
 
     def precompute_input_poly(self):
@@ -436,6 +437,7 @@ class HWAnalysis(object):
 
         # All degrees polynomials + combinations
         if not self.all_deg_compute:
+            self.last_res = r
             return r
 
         probab = [self.term_eval.expp_term_deg(deg) for deg in range(0, self.deg + 1)]
@@ -670,6 +672,8 @@ class HWAnalysis(object):
         for ckey in js.keys():
             if hasattr(self, ckey):
                 setattr(self, ckey, js[ckey])
+
+        self.input_poly_vars = set(self.input_poly_vars) if self.input_poly_vars else set()
 
 
 # Main - argument parsing + processing
