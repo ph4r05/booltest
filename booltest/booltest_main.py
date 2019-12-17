@@ -1209,7 +1209,7 @@ class Booltest(object):
             jscres.append(jsres)
             cur_round += 1
 
-            if self.do_halving:
+            if self.do_halving and data_read < size:
                 self.hwanalysis = self.setup_hwanalysis(self.deg, self.top_comb, self.top_k, self.all_deg, self.hwanalysis.zscore_thresh)
                 if cur_round & 1:  # custom poly = best dist
                     selected_poly = [common.jsunwrap(jsres_dists[ix]['poly']) for ix in
