@@ -1167,11 +1167,14 @@ class Booltest(object):
 
         return jsunwrap(jsout)
 
-    def analyze_iobj(self, iobj, coffset, tvsize, jscres):
+    def analyze_iobj(self, iobj, coffset=0, tvsize=None, jscres=None):
         data_read = 0
         cur_round = 0
 
         size = iobj.size()
+        tvsize = tvsize if tvsize is not None else size
+        jscres = jscres if jscres is not None else []
+
         if coffset > 0:
             with self.timer_data_read:
                 iobj.read(coffset)
@@ -1188,18 +1191,18 @@ class Booltest(object):
                 data = iobj.read(tvsize)
 
             if len(data) == 0:
-                logger.info('File read completely')
+                logger.info('Input <%s> read completely' % iobj)
                 break
 
             if (len(data) * 8 % self.hwanalysis.blocklen) != 0:
-                logger.warning('Not aligned block read, terminating. Data: %s bits remainder: %s'
-                               % (len(data) * 8, self.hwanalysis.blocklen))
+                logger.info('Not aligned block read, terminating. Data left: %s bits, block size: %s bits'
+                            % (len(data) * 8, self.hwanalysis.blocklen))
                 break
 
             with self.timer_data_bins:
                 bits = common.to_bitarray(data)
 
-            logger.info('Pre-computing with TV, deg: %d, blocklen: %4d, tvsize: %8d = %8.2f kB = %8.2f MB, '
+            logger.info('Analyzing input, deg: %d, blocklen: %4d, tvsize: %8d = %8.2f kB = %8.2f MB, '
                         'num-blocks: %d, round: %d, process: %d bits' %
                         (self.deg, self.blocklen, tvsize, tvsize / 1024.0, tvsize / 1024.0 / 1024.0,
                          (tvsize * 8) // self.blocklen, cur_round, len(bits)))
@@ -1249,7 +1252,7 @@ class Booltest(object):
                 if cur_round & 1:  # custom poly = best dist
                     selected_poly = [jsunwrap(jsres_dists[ix]['poly']) for ix in
                                      range(min(self.halving_top, len(jsres_dists)))]
-                    logger.info("Halving, setting the best poly: %s" % selected_poly)
+                    logger.info('Halving, setting the best poly: %s' % selected_poly)
                     self.hwanalysis.set_input_poly(selected_poly)
                 self.hwanalysis.init()
         return jscres
