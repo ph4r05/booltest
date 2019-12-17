@@ -1171,8 +1171,9 @@ class Booltest(object):
             with self.timer_process:
                 r = self.hwanalysis.process_chunk(bits)
 
+            rshort = r[:min(len(r), self.json_top)]
             jsres = collections.OrderedDict([('round', cur_round)])
-            jsres_dists = [common.comb2dict(x, self.json_nice) for x in r[:min(len(r), self.json_top)]]
+            jsres_dists = [common.comb2dict(x, self.json_nice) for x in rshort]
             jsres['dists'] = jsres_dists
 
             if self.hwanalysis.ref_samples and jsres_dists and (not self.do_halving or cur_round & 1 == 0):
@@ -1190,7 +1191,7 @@ class Booltest(object):
                 from scipy import stats
 
                 jsres['halvings'] = []
-                for ix, cr in enumerate(self.sort_res_by_input_poly(r)):
+                for ix, cr in enumerate(self.sort_res_by_input_poly(rshort)):
                     ntrials = (tvsize * 8) // self.blocklen
                     pval = stats.binom_test(cr.obs_cnt, n=ntrials, p=cr.expp, alternative='two-sided')
 
