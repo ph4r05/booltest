@@ -306,9 +306,12 @@ class BooltestJson(Booltest):
 
         if self.do_halving and len(jscres) > 1 and 'halvings' in jscres[1] and jscres[1]['halvings']:
             halving_pvals_ok = True
-            if len(jscres[1]['halvings']) != len(best_dists):
-                logger.info('Inonsistent lengths of best_dists and halvings')
 
+            # Re-sort best distinguishers by the halving ordering
+            sorder = self.build_poly_sort_index([common.jsunwrap(x['poly']) for x in jscres[1]['halvings']])
+            best_dists.sort(key=lambda x: sorder[common.immutable_poly(common.jsunwrap(x.poly))])
+
+            # Add pvalue from the halving to the best distingushers
             mrange = min(len(jscres[1]['halvings']), len(best_dists))
             best_dists = [tuple(list(best_dists[ix]) + [jscres[1]['halvings'][ix]['pval']]) for ix in range(mrange)]
 
