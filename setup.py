@@ -33,6 +33,7 @@ dev_extras = [
     'nose',
     'pep8',
     'tox',
+    'pypandoc',
 ]
 
 docs_extras = [
