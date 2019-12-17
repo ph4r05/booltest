@@ -21,9 +21,6 @@ from booltest import jsonenc
 import scipy.misc
 import ufx.uf_hash as ufh
 
-import bitarray
-from bitstring import Bits, BitArray, BitStream, ConstBitStream
-
 if sys.version_info >= (3, 2):
     from functools import lru_cache
 else:
@@ -31,7 +28,7 @@ else:
 
 from repoze.lru import LRUCache
 
-from booltest.crypto_util import aes_ctr, get_zero_vector, aes_ecb, dump_uint
+from booltest.crypto_util import aes_ecb, dump_uint
 from booltest import input_obj
 
 if hasattr(scipy.misc, 'comb'):
@@ -46,6 +43,12 @@ FAST_IMPL = True
 
 # Enables bitarray - with native C extension with eval_monic()
 FAST_IMPL_PH4 = True
+
+
+if FAST_IMPL:
+    import bitarray
+else:
+    from bitstring import Bits, BitArray, BitStream, ConstBitStream
 
 
 logger = logging.getLogger(__name__)

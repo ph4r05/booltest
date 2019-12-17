@@ -8,23 +8,25 @@ version = '0.5.1'
 # Please update tox.ini when modifying dependency version requirements
 install_requires = [
     'pycryptodome',      # pycrypto alternative, working also on Win
+    'bitarray_ph4',
+    'scipy',
+    'ufx',
+    'repoze.lru',
 
-    'requests',
     'setuptools>=1.0',
     'six',
-    'cmd2>=0.6.9',
+    'future',
+    'requests',
+    'coloredlogs',
+
     'psutil',
     'pid>=2.0.1',
-    'future',
-    'coloredlogs',
-    'scipy',
-    'numpy',
-    'bitstring',
-    'bitarray_ph4',
-    'ufx',
-    'filelock',
-    'repoze.lru',
     'py-cpuinfo',
+]
+
+impl_extras = [
+    'bitstring',
+    'numpy',
 ]
 
 dev_extras = [
@@ -78,6 +80,7 @@ setup(
     extras_require={
         'dev': dev_extras,
         'docs': docs_extras,
+        'impl': impl_extras,
     },
     entry_points={
         'console_scripts': [
