@@ -1101,7 +1101,7 @@ class Testjobs(Booltest):
         parser.add_argument('--halving', dest='halving', action='store_const', const=True, default=False,
                             help='Pick the best distinguisher on the first half, evaluate on the second half')
 
-        parser.add_argument('--halving-top', dest='halving_top', type=int, default=50,
+        parser.add_argument('--halving-top', dest='halving_top', type=int, default=30,
                             help='Number of top distinguishers to select to the halving phase')
 
         #
