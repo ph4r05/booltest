@@ -33,6 +33,7 @@ class BooltestJson(Booltest):
     def __init__(self, *args, **kwargs):
         super(BooltestJson, self).__init__(*args, **kwargs)
         self.tester = None
+        self.hw_cfg = None
 
         self.results_dir = None
         self.job_dir = None
@@ -195,6 +196,12 @@ class BooltestJson(Booltest):
                 fh.write('\n')
         logger.info('All zscore computed')
 
+    def setup_hwanalysis(self, deg, top_comb, top_k, all_deg, zscore_thresh):
+        hwanalysis = HWAnalysis()
+        hwanalysis.from_json(self.hw_cfg)
+        hwanalysis.reset()
+        return hwanalysis
+
     def work(self, bin_data=None):
         """
         Main entry point - data processing
@@ -230,6 +237,7 @@ class BooltestJson(Booltest):
             elif backup_dir:
                 misc.file_backup(res_file, backup_dir=backup_dir)
 
+        self.hw_cfg = hw_cfg
         self.hwanalysis = HWAnalysis()
         self.hwanalysis.from_json(hw_cfg)
         self.blocklen = self.hwanalysis.blocklen
@@ -294,12 +302,30 @@ class BooltestJson(Booltest):
         # RESULT process...
         total_results = len(self.hwanalysis.last_res) if self.hwanalysis.last_res else 0
         best_dists = self.hwanalysis.last_res[0:min(NRES_TO_DUMP, total_results)] if self.hwanalysis.last_res else None
-        best_dists = [common.jswrap(x) for x in best_dists]
+        halving_pvals_ok = False
+
+        if self.do_halving and len(jscres) > 1 and 'halvings' in jscres[1] and jscres[1]['halvings']:
+            halving_pvals_ok = True
+            if len(jscres[1]['halvings']) != len(best_dists):
+                logger.info('Inonsistent lengths of best_dists and halvings')
+
+            mrange = min(len(jscres[1]['halvings']), len(best_dists))
+            best_dists = [tuple(list(best_dists[ix]) + [jscres[1]['halvings'][ix]['pval']]) for ix in range(mrange)]
+
+        best_dists_json = [NoIndent(x) for x in best_dists] if best_dists is not None else None
 
         jsres = collections.OrderedDict()
         if best_dists:
             jsres['best_zscore'] = best_dists[0][4]  # .zscore
-            jsres['best_poly'] = best_dists[0][0]  # .poly
+            jsres['best_poly'] = NoIndent(best_dists[0][0])  # .poly
+            if halving_pvals_ok:
+                jsres['best_pval'] = jscres[1]['halvings'][0]['pval']
+
+        for ix, rr in enumerate(jscres):
+            if 'dists' in rr:
+                rr['dists'] = [NoIndent(common.jsunwrap(x)) for x in rr['dists']]
+            if 'halvings' in rr:
+                rr['halvings'] = [NoIndent(common.jsunwrap(x)) for x in rr['halvings']]
 
         jsres['blocklen'] = self.hwanalysis.blocklen
         jsres['degree'] = self.hwanalysis.deg
@@ -314,9 +340,9 @@ class BooltestJson(Booltest):
         jsres['data_hash'] = data_hash
         jsres['data_read'] = iobj.data_read
         jsres['generator'] = self.config_js
-        jsres['best_dists'] = best_dists
+        jsres['best_dists'] = best_dists_json
         jsres['config'] = config
-        jsres['booltest_res'] = jscres[0]
+        jsres['booltest_res'] = jscres
 
         if self.dump_cpu_info:
             jsres['hostname'] = misc.try_get_hostname()
