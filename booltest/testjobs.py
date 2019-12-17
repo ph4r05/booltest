@@ -870,8 +870,9 @@ class Testjobs(Booltest):
 
                 suffix = 'json' if not self.args.all_zscores else 'csv'
                 test_type = '' if not self.args.all_zscores else '-zscores'
-                res_file = '%s-%04dMB-%sbl-%sdeg-%sk%s%s.%s' \
-                           % (test_spec.strategy, data_size, block_size, degree, comb_deg,
+                opmode = '' if not self.args.halving else 'hlv-'
+                res_file = '%s%s-%04dMB-%sbl-%sdeg-%sk%s%s.%s' \
+                           % (opmode, test_spec.strategy, data_size, block_size, degree, comb_deg,
                               ('-%s' % trt) if trt > 0 else '', test_type, suffix)
                 res_file = res_file.replace(' ', '')
 
