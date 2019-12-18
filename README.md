@@ -203,8 +203,8 @@ Tests BoolTest in various configurations.
 
 ## Reference data
 
-Reference data extracted from the `pval_db.json` for standard parameters.
-The z-score distribution does not change for random data.
+Reference data extracted from the `pval_db.json` for standard parameters are displayed in the table below.
+The z-score distribution does not change with data length for random data.
 
 The table shows minimal and maximal observed z-score with given number of samples for given BoolTest parameters run on a random data.
 If your test gives z-score outside of the interval the null hypothesis is rejected with the given alpha.
