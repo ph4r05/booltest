@@ -1093,6 +1093,12 @@ class Booltest(object):
             with iobj:
                 self.analyze_iobj(iobj, coffset, tvsize, jscres['res'])
 
+            for rr in jscres['res']:
+                if 'dists' in rr:
+                    rr['dists'] = [NoIndent(common.jsunwrap(x)) for x in rr['dists']]
+                if 'halvings' in rr:
+                    rr['halvings'] = [NoIndent(common.jsunwrap(x)) for x in rr['halvings']]
+
             logger.info('Finished processing: %s ' % iobj)
             logger.info('Data read: %s B' % iobj.data_read)
             logger.info('Read data SHA1:   %s ' % iobj.sha1.hexdigest())
@@ -1202,10 +1208,10 @@ class Booltest(object):
                     pval = stats.binom_test(cr.obs_cnt, n=ntrials, p=cr.expp, alternative='two-sided')
 
                     jsresc = collections.OrderedDict()
-                    jsresc['poly'] = self.noindent(common.immutable_poly(cr.poly))
                     jsresc['nsamples'] = ntrials
                     jsresc['nsucc'] = cr.obs_cnt
                     jsresc['pval'] = pval
+                    jsresc['poly'] = self.noindent(common.immutable_poly(cr.poly))
                     jsres['halvings'].append(jsresc)
 
                     logger.info(
