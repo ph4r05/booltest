@@ -138,7 +138,7 @@ class BooltestTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(BooltestTest, self).__init__(*args, **kwargs)
 
-    def default_config(self, block_size=128, degree=2, comb_deg=2, data_file=None, data_size=1024*1024):
+    def default_config(self, block_size=128, degree=2, comb_deg=2, data_file=None, data_size=1024*1024, halving=False):
         cfg = {
           "config": {
             "spec": {
@@ -207,7 +207,9 @@ class BooltestTest(unittest.TestCase):
           "gen_file": None,
           "backup_dir": None,
           "skip_finished": False,
-          "all_zscores": False
+          "all_zscores": False,
+          "halving": halving,
+          "halving_top": 5,
         }
 
         return cfg
@@ -217,8 +219,8 @@ class BooltestTest(unittest.TestCase):
           __name__, os.path.join("data", fname)
         )
 
-    def init_booltest(self, blocklen=128, deg=1, comb_deg=1):
-        cfg = self.default_config(blocklen, deg, comb_deg)
+    def init_booltest(self, blocklen=128, deg=1, comb_deg=1, halving=False):
+        cfg = self.default_config(blocklen, deg, comb_deg, halving=halving)
         btest = booltest_json.BooltestJson()
         btest.parse_args([])
 
@@ -313,6 +315,19 @@ class BooltestTest(unittest.TestCase):
         self.assertEqual(best_dists[0].expp, 0.5)
         self.assertEqual(best_dists[0].obs_cnt, 0)
         self.assertLess(best_dists[0].zscore, -5)
+
+    def test_prob1_halving_xor_x0_x42_x100(self):
+        bin_data = self.get_data('randc_seed1_prob1_xor_x0_x42_x100.data')
+        btest = self.init_booltest(128, 1, 3, halving=True)
+        res = btest.work(bin_data)
+        best_dists = res['best_dists']
+
+        self.assertTrue(len(best_dists) > 0)
+        self.assertEqual(best_dists[0][0], ((0,), (42,), (100,)))
+        self.assertEqual(best_dists[0][1], 0.5)  # expp
+        self.assertEqual(best_dists[0][3], 0)  # obs_cnt
+        self.assertLess(best_dists[0][4], -180)  # zscore
+        self.assertLess(best_dists[0][6], 5e200)  # pvalue
 
 
 if __name__ == "__main__":
