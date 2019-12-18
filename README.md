@@ -250,6 +250,13 @@ If your test gives z-score outside of the interval the null hypothesis is reject
 |       512 |         3 |         3 |     40007 |   2.5e-05 |  8.052672 | 10.753842 |  8.816430 |  0.249750 |
 
 
+## Reference z-score distributions
+
+![Z-score distribution plot for block length 128 bit](docs/img/zscore-dists-128.png)
+![Z-score distribution plot for block length 256 bit](docs/img/zscore-dists-256.png)
+![Z-score distribution plot for block length 384 bit](docs/img/zscore-dists-384.png)
+![Z-score distribution plot for block length 512 bit](docs/img/zscore-dists-512.png)
+
 # Installation
 
 ## Scipy installation with pip
