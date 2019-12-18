@@ -4,4 +4,5 @@ include LICENSE
 include booltest/tests/data/*
 include booltest/assets/*
 include assets/*
+include docs/*
 include pval_db.json
