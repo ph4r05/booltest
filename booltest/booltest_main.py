@@ -698,6 +698,7 @@ class Booltest(object):
         self.input_poly = []
         self.input_objects = []
         self.dump_cpu_info = False
+        self.alpha = 1./40000
 
         self.hwanalysis = None
         self.timer_data_read = timer.Timer(start=False)
@@ -934,6 +935,7 @@ class Booltest(object):
         self.deg = int(self.defset(self.args.degree, 2))
         self.top_k = int(self.args.topk) if self.args.topk is not None else None
         self.top_comb = int(self.defset(self.args.combdeg, 2))
+        self.alpha = self.args.alpha
         self.all_deg = self.args.alldeg
         self.rounds = int(self.args.rounds) if self.args.rounds is not None else None
         self.do_halving = self.args.halving
@@ -1011,6 +1013,86 @@ class Booltest(object):
             tvsize -= rem // coef
             logger.info('Updating TV to %d' % tvsize)
         return int(tvsize)
+
+    def human_poly(self, poly):
+        p = []
+        for term in poly:
+            p.append(' * '.join(['x_{%d}' % int(x) for x in term]))
+        if len(p) > 1:
+            p = ['(%s)' % x for x in p]
+        return ' + '.join(p)
+
+    def print_human_readable_results(self, jsres):
+        if self.args and 'no_summary' in self.args and self.args.no_summary:
+            return
+        
+        try:
+            print('-' * 80)
+            print('BoolTest run with the configuration (%s, %s, %s)' % (jsres['blocklen'], jsres['degree'], jsres['comb_degree']))
+            print(' - the block size is %s, i.e., the number of variables in the polynomials. x_{0}, ..., x_{%s}' % (jsres['blocklen'], jsres['blocklen'] - 1))
+            print(' - the maximal order of the first level terms is %s. Combined by AND.' % (jsres['degree']))
+            print(' - the maximal order of the second level polynomials is %s. Combined by XOR/AND.' % (jsres['comb_degree']))
+            print('')
+            for ix, inp in enumerate(jsres['inputs']):
+                print('-' * 80)
+
+                dist = inp['res'][0]['dists'][0]
+                aux_dist = ' in the first half of the data' if self.do_halving else ''
+                first_half_rejected = False
+                print('[+] Results for input: %s' % inp['iobj'])
+                print('The best distinguisher found%s: %s' % (aux_dist, self.human_poly(dist['poly'])))
+                print(' - z-score achieved: %s' % abs(dist['zscore']))
+                print('')
+
+                if 'rejects' in inp['res'][0]:
+                    alpha = 1./inp['res'][0]['ref_samples']
+                    print('BoolTest has reference statistics for used configuration, number of collected samples: %s'
+                          % inp['res'][0]['ref_samples'])
+                    print('Allowed z-score region in the reference data: [%s, %s]' % inp['res'][0]['ref_minmax'])
+                    if inp['res'][0]['rejects']:
+                        first_half_rejected = True
+                        print('As the achieved z-score %s lies outside of the interval, the randomness hypothesis '
+                              'is REJECTED with alpha %.e' % (abs(dist['zscore']), alpha))
+                        print(' = Data is not random')
+                    else:
+                        print('As the achieved z-score %s lies in the allowed interval, the randomness hypothesis '
+                              'cannot be rejected with the alpha %.e' % (abs(dist['zscore']), alpha))
+                        print(' = BoolTest could not find statistically significant non-randomness')
+
+                else:
+                    print('Unfortunately, for selected BoolTest parameters we don\'t have reference statistics '
+                          'computed, thus we cannot say if the randomness hypothesis is rejected or not.')
+                    if not self.do_halving:
+                        print('You may try to run BoolTest with --halving parameter which runs a different evaluation '
+                              'test without a need for reference data computation')
+
+                    print('Expert tip: If you wish to analyze the input data with these parameters, '
+                          'you need to collect reference statistics. For that, run BoolTest on a large sample '
+                          'of random data (e.g., AES with random key and input), collect z-score statistics '
+                          'and find maximum and minimum. If measured z-score lies outside of this interval, '
+                          'you can reject the randomness hypothesis with alpha=1/num_of_reference_samples')
+
+                if not self.do_halving:
+                    continue
+
+                hlv = inp['res'][1]['halvings'][0]
+                print('\nHalving results (test on the another half of the input):')
+                print('The selected distinguisher from the first BoolTest run: %s' % self.human_poly(hlv['poly']))
+                print('The computed p-value on the input data: %.e' % hlv['pval'])
+                if hlv['pval'] < self.alpha:
+                    print('As the p-value is lower than alpha=%.e, the randomness hypothesis is REJECTED' % self.alpha)
+                    print(' = Data is not random')
+
+                else:
+                    print('As the p-value >= alpha %.e, the randomness hypothesis cannot be rejected' % self.alpha)
+                    print(' = BoolTest could not find statistically significant non-randomness')
+                    if first_half_rejected:
+                        print('However, the first phase of the BoolTest run on the first half of the input data '
+                              'found a significant statistical deviation so this can be considered as a weak fail. '
+                              'You may want to run the BoolTest without --halving to assess the whole data length.')
+
+        except Exception as e:
+            logger.error('Exception in processing the results: %s' % e, exc_info=e)
 
     def work(self):
         """
@@ -1135,7 +1217,11 @@ class Booltest(object):
             with open(self.args.json_out_file, 'w+') as fh:
                 common.json_dump(jsout, fh, **kwargs)
 
-        return common.jsunwrap(jsout)
+        jsout = common.jsunwrap(jsout)
+
+        # Human-understandable results.
+        self.print_human_readable_results(jsout)
+        return jsout
 
     def analyze_iobj(self, iobj, coffset=0, tvsize=None, jscres=None):
         data_read = 0
@@ -1368,6 +1454,13 @@ class Booltest(object):
 
         parser.add_argument('--halving-top', dest='halving_top', type=int, default=1,
                             help='Number of top distinguishers to select to the halving phase')
+
+        parser.add_argument('--alpha', dest='alpha', type=float, default=1e-4,
+                            help='Alpha for pvalue hypothesis rejection, for halving method only')
+
+        parser.add_argument('--no-summary', dest='no_summary', action='store_const', const=True, default=False,
+                            help='Turns off the human readable summary')
+
         return parser
 
 
