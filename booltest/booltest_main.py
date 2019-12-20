@@ -919,7 +919,7 @@ class Booltest(object):
         return None
 
     def init_params(self):
-        self.blocklen = int(self.defset(self.args.blocklen, 128))
+        self.blocklen = int(self.defset(self.args.blocklen, 256))
 
         # Default params
         if self.args.default_params:
@@ -931,7 +931,7 @@ class Booltest(object):
             self.args.topterm_heap = True
             self.args.topterm_heap_k = 256
 
-        self.deg = int(self.defset(self.args.degree, 3))
+        self.deg = int(self.defset(self.args.degree, 2))
         self.top_k = int(self.args.topk) if self.args.topk is not None else None
         self.top_comb = int(self.defset(self.args.combdeg, 2))
         self.all_deg = self.args.alldeg
@@ -1253,10 +1253,10 @@ class Booltest(object):
         parser.add_argument('--ref-db', dest='ref_db',
                             help='Reference JSON database file')
 
-        parser.add_argument('--block', dest='blocklen',
+        parser.add_argument('--block', dest='blocklen', type=int, default=256,
                             help='block size in bits, number of bit variables to construct terms from')
 
-        parser.add_argument('--degree', dest='degree',
+        parser.add_argument('--degree', dest='degree', type=int, default=2,
                             help='maximum degree of terms to construct in the first phase (AND)')
 
         parser.add_argument('--tv', dest='tvsize',
@@ -1321,7 +1321,7 @@ class Booltest(object):
         parser.add_argument('--topterm-heap', dest='topterm_heap', action='store_const', const=True, default=False,
                             help='Use heap to compute best K terms for stats & input to the combinations')
 
-        parser.add_argument('--topterm-heap-k', dest='topterm_heap_k', default=None, type=int,
+        parser.add_argument('--topterm-heap-k', dest='topterm_heap_k', default=256, type=int,
                             help='Number of terms to keep in the heap, should be at least top_k')
 
         parser.add_argument('--best-x-combs', dest='best_x_combinations', default=None, type=int,
