@@ -134,7 +134,7 @@ def pos_generator(spec=None, dim=None, maxelem=None):
     ln = len(spec)
     idx = [0] * ln
     while True:
-        yield list(idx)
+        yield idx
 
         # increment with overflow
         c = ln-1
@@ -150,7 +150,7 @@ def pos_generator(spec=None, dim=None, maxelem=None):
             return
 
 
-def term_generator(deg, maxelem, prob_choose=1.0):
+def term_generator(deg, maxelem, prob_choose=1.0, idx=None, clone=False):
     """
     Generates all terms of the given degree with given max len.
 
@@ -161,17 +161,15 @@ def term_generator(deg, maxelem, prob_choose=1.0):
     :param prob_choose: probability the given element will be chosen
     :return:
     """
-    idx = [0] * deg
+    idx = idx if idx else [0] * deg
     for i in range(deg):
         idx[i] = i
         if i > maxelem:
             raise ValueError('deg too big for the maxelem')
 
     while True:
-        if prob_choose >= 1.0:
-            yield list(idx)
-        elif random.random() < prob_choose:
-            yield list(idx)
+        if prob_choose >= 1.0 or random.random() < prob_choose:
+            yield idx if not clone else list(idx)
 
         # increment with overflow
         c = deg - 1
@@ -241,6 +239,26 @@ def zscore_p(observed, expected, N):
     :return:
     """
     return (observed-expected) / math.sqrt((expected*(1.0-expected))/float(N))
+
+def expp_xor_indep(p1, p2):
+    """
+    Probability of term t1 XOR t2 being 1 if t1 is 1 with p1 and t2 is 1 with p2.
+    t1 and t2 has to be independent (no common sub-term).
+    Due to associativity can be computed on multiple terms: t1 ^ t2 ^ t3 ^ t4 = (((t1 ^ t2) ^ t3) ^ t4) - zipping.
+
+    XOR:
+      a b | r
+      ----+---
+      1 1 | 0
+      1 0 | 1  = p1    * (1-p2)
+      0 1 | 1  = (1-p1)* p2
+      0 0 | 0
+
+    :param p1:
+    :param p2:
+    :return:
+    """
+    return p1*(1-p2)+(1-p1)*p2
 
 
 def empty_bitarray(size=None):
@@ -469,6 +487,12 @@ def merge_dicts(dicts):
     return dres
 
 
+def copy_poly(dst, src):
+    dst = dst if dst else [None]*len(src)
+    dst[:] = src[:]
+    return dst
+
+
 class AutoJSONEncoder(jsonenc.IndentingJSONEncoder):
     """
     JSON encoder trying to_json() first
@@ -627,7 +651,10 @@ class TermEval(object):
         self.last_base_size = None
 
         # caches
-        self.sim_norm_cache = LRUCache(64)
+        self.sim_norm_cache = LRUCache(8192)
+        self.pows = [math.pow(2, -1*x) for x in range(deg + 1)]
+        self.bbase = None
+        self.base_buff_size = 4096
 
     def base_size(self):
         """
@@ -870,7 +897,7 @@ class TermEval(object):
         """
         return hw(block)
 
-    def term_generator(self, deg=None):
+    def term_generator(self, deg=None, idx=None):
         """
         Returns term generator for given deg (internal if none is given) and blocklen
         :return:
@@ -878,7 +905,7 @@ class TermEval(object):
         if deg is None:
             deg = self.deg
 
-        return term_generator(deg, self.blocklen-1)
+        return term_generator(deg, self.blocklen-1, 1, idx)
 
     def load(self, block, **kwargs):
         """
@@ -930,6 +957,9 @@ class TermEval(object):
                 self.base[bitpos] = Bits(self.base[bitpos])
 
         self.last_base_size = (self.blocklen, res_size)
+        if FAST_IMPL_PH4:
+            from bitarray import tbase
+            self.bbase = tbase(self.base, self.base_buff_size)
 
     def load_base_new(self, data):
         sub_eval = TermEval(self.blocklen, self.deg)
@@ -1024,7 +1054,7 @@ class TermEval(object):
         if deg is None:
             deg = self.deg
 
-        hw = [None] * (deg+1)
+        hw = [0] * (deg+1)
         hw[0] = []
         for idx in range(1, deg+1):
             hw[idx] = [0] * self.num_terms(idx, False, exact=True)
@@ -1112,7 +1142,7 @@ class TermEval(object):
             hw[deg][idx] = sub[deg-2].fast_hw_and(self.base[term[deg-1]])
 
             # copy the last term
-            lst = term
+            copy_poly(lst, term)
 
         # Finish generators - add missing combinations not reached by the caching from the higher ones.
         # E.g. for (128, 3) the higher combination is [125, 126, 127] so the maximal cached deg 2
@@ -1155,6 +1185,37 @@ class TermEval(object):
 
         return hws
 
+    def eval_poly_hw(self, poly, res=None, subres=None):
+        """
+        Evaluates polynomial Hamming weight on the input-precomputed base
+        :param poly:
+        :param res:
+        :param subres:
+        :return:
+        """
+        if FAST_IMPL_PH4:
+            # return self.hw(self.eval_poly(poly, res=res, subres=subres))
+            # return bitarray.eval_polynomial_hw(self.base, poly)
+            return self.bbase.eval_poly_hw(poly)
+        else:
+            return self.hw(self.eval_poly(poly, res=res, subres=subres))
+
+    def eval_polys_hw(self, polys, res=None, subres=None, hws=None):
+        """
+        Evaluates polynomial Hamming weight on the input-precomputed base
+        :param poly:
+        :param res:
+        :param subres:
+        :return:
+        """
+        if FAST_IMPL_PH4:
+            return self.bbase.eval_poly_hw(None, polys, hws)
+        else:
+            res = [0] * len(polys) if not hws else hws
+            for ix, poly in enumerate(polys):
+                res[ix] = self.hw(self.eval_poly(poly, res=res, subres=subres))
+            return res
+
     def eval_poly(self, poly, res=None, subres=None):
         """
         Evaluates a polynomial on the input precomputed data
@@ -1180,7 +1241,8 @@ class TermEval(object):
         :param deg:
         :return:
         """
-        return math.pow(2, -1 * deg)
+        # return math.pow(2, -1 * deg)
+        return self.pows[deg]  # if deg < self.blocklen else math.pow(2, -1 * deg)
 
     def expp_term(self, term):
         """
@@ -1190,7 +1252,8 @@ class TermEval(object):
         :return:
         """
         dislen = len(set(term))
-        return math.pow(2, -1*dislen)
+        # return math.pow(2, -1 * dislen)
+        return self.pows[dislen]  # if dislen < self.blocklen else math.pow(2, -1 * dislen)
 
     def expp_xor_indep(self, p1, p2):
         """
@@ -1433,8 +1496,12 @@ class TermEval(object):
         term_lens = [len(x) for x in terms]
         all_terms_disjoin = len(union(terms)) == sum(term_lens)
         if all_terms_disjoin:
-            probs = [self.expp_term_deg(term_len) for term_len in term_lens]
-            return reduce(lambda x, y: self.expp_xor_indep(x, y), probs)
+            res = self.expp_term_deg(term_lens[0])
+            for term_len in term_lens[1:]:
+                res = expp_xor_indep(res, self.expp_term_deg(term_len))
+            return res
+            # probs = [self.expp_term_deg(term_len) for term_len in term_lens]
+            # return reduce(lambda x, y: self.expp_xor_indep(x, y), probs)
 
         if ln == 2:
             return self.expp_poly_dep(poly)
@@ -1459,11 +1526,16 @@ class TermEval(object):
         clusters = [[poly[y] for y in x] for x in uf.get_set_map().values()]
 
         # Each cluster can be evaluated independently and XORed with the rest.
-        probs = [self.expp_poly_dep(x) for x in clusters]
-
-        # reduce the prob list with independent term-xor formula..
-        res = reduce(lambda x, y: self.expp_xor_indep(x, y), probs)
+        res = self.expp_poly_dep(clusters[0])
+        for x in clusters[1:]:
+            res = expp_xor_indep(res, self.expp_poly_dep(x))
         return res
+
+        # probs = [self.expp_poly_dep(x) for x in clusters]
+        #
+        # # reduce the prob list with independent term-xor formula..
+        # res = reduce(lambda x, y: self.expp_xor_indep(x, y), probs)
+        # return res
 
 
 class Tester(object):
@@ -1484,6 +1556,13 @@ class Tester(object):
 
     def work(self):
         pass
+
+
+def chunks(iterable, size):
+    from itertools import chain, islice
+    iterator = iter(iterable)
+    for first in iterator:
+        yield list(chain([first], islice(iterator, size - 1)))
 
 
 def bar_chart(sources=None, values=None, res=None, error=None, xlabel=None, title=None):

@@ -44,7 +44,7 @@ class TermEvalTest(unittest.TestCase):
         ]
 
     def test_exp(self):
-        te = common.TermEval(16, 2)
+        te = common.TermEval(16, 6)
         self.assertEqual(te.expp_term_deg(1), 0.5)
         self.assertEqual(te.expp_term_deg(2), 0.25)
         self.assertEqual(te.expp_term_deg(4), 0.0625)

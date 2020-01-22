@@ -197,7 +197,7 @@ class HWAnalysis(object):
             comb_subres = self.term_eval.new_buffer()
             hws_input = [0] * len(self.input_poly)
             for idx, poly in enumerate(self.input_poly):
-                obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=comb_res, subres=comb_subres))
+                obs_cnt = self.term_eval.eval_poly_hw(common.mutable_poly(poly), res=comb_res, subres=comb_subres)
                 hws_input[idx] = obs_cnt
                 self.input_poly_hws[idx] += obs_cnt
 
@@ -548,10 +548,19 @@ class HWAnalysis(object):
         top_res.sort(key=lambda x: abs(x.zscore), reverse=True)
         return top_res
 
+    def comb_should_add(self, zscore, top_res):
+        if self.best_x_combinations is None:
+            return True
+        if len(top_res) <= self.best_x_combinations:
+            return True
+        return zscore > top_res[0][0]
+
     def comb_add_result(self, comb, top_res):
         """
         Adds result to the top results.
         Can use heap to optimize eval speed if caller does not require all results.
+        Should be called only if comb_should_add() returns true
+
         :param comb:
         :param top_res:
         :return:
@@ -566,7 +575,7 @@ class HWAnalysis(object):
         if len(top_res) <= self.best_x_combinations:
             heapq.heappush(top_res, new_item)
 
-        elif abs(comb.zscore) > top_res[0][0]:  # this difference is larger than minimum in heap
+        elif new_item[0] > top_res[0][0]:  # this difference is larger than minimum in heap
             heapq.heapreplace(top_res, new_item)
 
     def comb_base(self, top_comb_cur, top_terms, top_res, num_evals, poly_builder, ref_hws=None):
@@ -582,26 +591,76 @@ class HWAnalysis(object):
         :param ref_hws: reference results
         :return:
         """
-        for idx, places in enumerate(common.term_generator(top_comb_cur, len(top_terms) - 1, self.prob_comb)):
+        iterator = common.term_generator(top_comb_cur, len(top_terms) - 1, self.prob_comb)
+        for idx, places in enumerate(iterator):
             poly = poly_builder(places, top_terms)
             expp = self.term_eval.expp_poly(poly)
             exp_cnt = num_evals * expp
             if exp_cnt == 0:
                 continue
 
-            obs_cnt = self.term_eval.hw(self.term_eval.eval_poly(poly, res=self.comb_res, subres=self.comb_subres))
+            obs_cnt = self.term_eval.eval_poly_hw(poly, self.comb_res, self.comb_subres)
             zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
+            if not self.comb_should_add(abs(zscore), top_res):
+                continue
 
             comb = None
             if ref_hws is None:
                 comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+
             else:
-                ref_obs_cnt = self.ref_term_eval.hw(
-                    self.ref_term_eval.eval_poly(poly, res=self.comb_res, subres=self.comb_subres))
+                ref_obs_cnt = self.ref_term_eval.eval_poly_hw(poly, res=self.comb_res, subres=self.comb_subres)
                 zscore_ref = common.zscore(ref_obs_cnt, exp_cnt, num_evals)
                 comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
 
             self.comb_add_result(comb, top_res)
+
+    def comb_base_batch(self, top_comb_cur, top_terms, top_res, num_evals, poly_builder, ref_hws=None):
+        """
+        Base skeleton for generating all combinations from top_terms up to degree top_comb_cur.
+        Evaluates polynomial, computes expected results, computes zscores.
+
+        :param top_comb_cur: current degree of the combination
+        :param top_terms: top terms buffer to choose terms out of
+        :param top_res: top results accumulator to put, Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
+        :param num_evals: number of evaluations in this round - zscore computation
+        :param poly_builder: function of (places, top_terms) returns a new polynomial
+        :param ref_hws: reference results
+        :return:
+        """
+        iterator = common.term_generator(top_comb_cur, len(top_terms) - 1, self.prob_comb, clone=True)
+        btch = self.term_eval.base_buff_size
+        polys = [None] * btch
+        hws = [0] * btch
+
+        for batch in common.chunks(iterator, btch):
+            ln = len(batch)
+            for ix, places in enumerate(batch):
+                polys[ix] = poly_builder(places, top_terms)
+
+            obs_cnts = self.term_eval.eval_polys_hw(polys[:ln], res=self.comb_res, subres=self.comb_subres, hws=hws)
+            for ix in range(ln):
+                poly = polys[ix]
+                expp = self.term_eval.expp_poly(poly)
+                exp_cnt = num_evals * expp
+                if exp_cnt == 0:
+                    continue
+
+                obs_cnt = obs_cnts[ix]
+                zscore = common.zscore(obs_cnt, exp_cnt, num_evals)
+                if not self.comb_should_add(abs(zscore), top_res):
+                    continue
+
+                comb = None
+                if ref_hws is None:
+                    comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore)
+
+                else:
+                    ref_obs_cnt = self.ref_term_eval.eval_poly_hw(poly, res=self.comb_res, subres=self.comb_subres)
+                    zscore_ref = common.zscore(ref_obs_cnt, exp_cnt, num_evals)
+                    comb = Combined(poly, expp, exp_cnt, obs_cnt, zscore - zscore_ref)
+
+                self.comb_add_result(comb, top_res)
 
     def comb_xor(self, top_comb_cur, top_terms, top_res, num_evals, ref_hws=None):
         """

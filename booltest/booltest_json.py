@@ -313,7 +313,7 @@ class BooltestJson(Booltest):
 
             # Add pvalue from the halving to the best distingushers
             mrange = min(len(jscres[1]['halvings']), len(best_dists))
-            best_dists = [tuple(list(best_dists[ix]) + [jscres[1]['halvings'][ix]['pval']]) for ix in range(mrange)]
+            best_dists = [(list(best_dists[ix]) + [jscres[1]['halvings'][ix]['pval']]) for ix in range(mrange)]
 
         best_dists_json = [NoIndent(x) for x in best_dists] if best_dists is not None else None
 

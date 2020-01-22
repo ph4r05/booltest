@@ -183,7 +183,7 @@ class BooltestTest(unittest.TestCase):
             "no_term_map": True,
             "use_zscore_heap": True,
             "sort_best_zscores": 256,
-            "best_x_combinations": None,
+            "best_x_combinations": 256,
             "total_rounds": 0,
             "total_hws": [],
             "ref_total_hws": [],

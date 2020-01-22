@@ -8,7 +8,7 @@ version = '0.5.4'
 # Please update tox.ini when modifying dependency version requirements
 install_requires = [
     'pycryptodome',      # pycrypto alternative, working also on Win
-    'bitarray_ph4',
+    'bitarray_ph4>=1.2.3',
     'scipy',
     'ufx',
     'repoze.lru',
