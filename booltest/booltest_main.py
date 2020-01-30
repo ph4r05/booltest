@@ -48,6 +48,7 @@ class HWAnalysis(object):
         self.no_comb_and = False
         self.prob_comb = 1.0
         self.skip_print_res = False
+        self.log_prints = False
         self.do_only_top_comb = False
         self.do_only_top_deg = False
         self.no_term_map = False
@@ -243,7 +244,10 @@ class HWAnalysis(object):
     def tprint(self, *args, **kwargs):
         if self.skip_print_res:
             return
-        print(*args, **kwargs)
+        if self.log_prints:
+            logger.info(*args, **kwargs)
+        else:
+            print(*args, **kwargs)
 
     def unrank(self, deg, index):
         """
@@ -1023,6 +1027,7 @@ class Booltest(object):
         hwanalysis.best_x_combinations = self.args.best_x_combinations
         hwanalysis.ref_db_path = self.try_find_refdb()
         hwanalysis.comp_indiv_pval = self.args.indiv_pval
+        hwanalysis.log_prints = self.args.log_prints if (self.args and 'log_prints' in self.args) else False
 
         # compute classical analysis only if there are no input polynomials
         hwanalysis.all_deg_compute = len(self.input_poly) == 0
@@ -1519,6 +1524,9 @@ class Booltest(object):
 
         parser.add_argument('--no-summary', dest='no_summary', action='store_const', const=True, default=False,
                             help='Turns off the human readable summary')
+
+        parser.add_argument('--log-prints', dest='log_prints', action='store_const', const=True, default=False,
+                            help='Do not write info logs to stdout, log to stderr instead')
 
         return parser
 
