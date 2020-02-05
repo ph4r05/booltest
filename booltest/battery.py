@@ -329,7 +329,7 @@ class BoolRunner:
             if rs.is_halving:
                 desc_str = "pvalue: %5e" % (rs.pval,)
             else:
-                desc_str = "rejects: %s, alpha: %5e" % (rs.rejects, rs.alpha)
+                desc_str = "alpha: %5e" % (rs.alpha,)
 
             res = rs.js_res["inputs"][0]["res"]
             dist_poly = jsonpath('$[0].dists[0].poly', res, True)
@@ -390,7 +390,8 @@ class BoolRunner:
                 was_empty = self.runners[i] is None
                 if not was_empty:
                     self.job_queue.task_done()
-                    logger.info("Task %d done, job queue size: %d" % (i, self.job_queue.qsize()))
+                    logger.info("Task %d done, job queue size: %d, running: %s"
+                                % (i, self.job_queue.qsize(), sum([1 for x in self.runners if x])))
                     self.on_finished(self.comp_jobs[i], self.runners[i], i)
 
                 # Start a new task, if any
