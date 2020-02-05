@@ -3,7 +3,7 @@ import sys
 from setuptools import setup
 from setuptools import find_packages
 
-version = '0.5.5'
+version = '0.6.0'
 
 # Please update tox.ini when modifying dependency version requirements
 install_requires = [
@@ -22,6 +22,10 @@ install_requires = [
     'psutil',
     'pid>=2.0.1',
     'py-cpuinfo',
+
+    'jsonpath-ng',
+    'shellescape',
+    'sarge>=0.1.4',
 ]
 
 impl_extras = [
@@ -89,6 +93,7 @@ setup(
             'booltest_json = booltest.booltest_json:main',
             'booltest_egenerator = booltest.egenerator:main',
             'booltest_jobs = booltest.testjobs:main',
+            'booltest_bat = booltest.battery:main',
         ],
     }
 )
