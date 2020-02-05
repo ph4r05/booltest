@@ -155,6 +155,15 @@ class AsyncRunner:
 
         try_fnc(lambda: self.proc.close())
 
+    def drain_stream(self, s, block=False, timeout=0.15):
+        ret = []
+        while True:
+            rs = s.read(-1, block, timeout)
+            if not rs:
+                break
+            ret.append(rs)
+        return ret
+
     def run_internal(self):
         def preexec_function():
             os.setpgrp()
@@ -196,7 +205,7 @@ class AsyncRunner:
             cwd=self.cwd,
             env=self.env,
             shell=self.shell,
-            **run_args,
+            **run_args
         )
 
         self.proc = p
@@ -218,8 +227,10 @@ class AsyncRunner:
                 self.on_output(self, line, is_err)
 
         def add_output(buffers, is_err=False, finish=False):
-            buffers = [x.decode("utf8") for x in buffers]
+            buffers = [x.decode("utf8") for x in buffers if x is not None and x != ""]
             lines = [""]
+            if not buffers and not finish:
+                return
 
             dst_cur = err_cur if is_err else out_cur
             for x in buffers:
@@ -239,9 +250,10 @@ class AsyncRunner:
             if not finish and nlines > 1:
                 dst_cur[0] = lines[-1] or ""
 
-            if finish and (lines[-1] or dst_cur[0]):
+            if finish:
                 cline = dst_cur[0] if nlines == 1 else lines[-1]
-                process_line(cline, is_err)
+                if cline:
+                    process_line(cline, is_err)
 
         try:
             while len(p.commands) == 0:
@@ -256,17 +268,17 @@ class AsyncRunner:
 
             self.is_running = True
             self.on_change()
+            out = None
+            err = None
 
             while p.commands[0] and p.commands[0].returncode is None:
                 if self.using_stdout_cap:
                     out = p.stdout.read(-1, False)
-                    if out:
-                        add_output([out])
+                    add_output([out], is_err=False)
 
                 if self.using_stderr_cap:
                     err = p.stderr.read(-1, False)
-                    if err:
-                        add_output([err], True)
+                    add_output([err], is_err=True)
 
                 if self.on_tick:
                     self.on_tick(self)
@@ -288,12 +300,12 @@ class AsyncRunner:
             self.ret_code = p.commands[0].returncode if p.commands[0] else -1
 
             if self.using_stdout_cap:
-                add_output([p.stdout.read(-1, False)], finish=True)
                 try_fnc(lambda: p.stdout.close())
+                add_output(self.drain_stream(p.stdout, True), finish=True)
 
             if self.using_stderr_cap:
-                add_output([p.stderr.read(-1, False)], True, finish=True)
                 try_fnc(lambda: p.stderr.close())
+                add_output(self.drain_stream(p.stderr, True), is_err=True, finish=True)
 
             self.was_running = True
             self.is_running = False
@@ -345,12 +357,3 @@ class AsyncRunner:
         while not self.is_running and not self.was_running:
             time.sleep(0.1)
         return self
-
-
-# def get_rtt_runner(rtt_args, cwd):
-#     rtt_env = {'LD_LIBRARY_PATH': rtt_utils.extend_lib_path(cwd)}
-#     async_runner = AsyncRunner(rtt_args, cwd=cwd, shell=False, env=rtt_env)
-#     async_runner.log_out_after = False
-#     async_runner.preexec_setgrp = True
-#     return async_runner
-
