@@ -121,6 +121,9 @@ class TestRecord(object):
 
         self.zscore = None
         self.best_poly = None
+        self.is_halving = False
+        self.pvalue = None
+        self.halving_zscore = None
 
         for kw in kwargs:
             setattr(self, kw, kwargs[kw])
@@ -272,6 +275,10 @@ def process_file(js, fname, args=None):
     # if 'elapsed' in js:
     #     tr.elapsed = js['elapsed']
 
+    tr.is_halving = common.defvalkeys(js, 'config.halving')
+    if tr.is_halving:
+        tr.pvalue = common.defvalkeys(js, 'best_pval')
+
     return tr
 
 
@@ -357,7 +364,7 @@ class Processor(object):
         self.total_functions = None
         self.ref_bins = None
         self.timing_bins = None
-        self.test_records = None
+        self.test_records = None  # type: list[TestRecord]
         self.invalid_results = None
         self.invalid_results_num = None
         self.reset_state()
@@ -826,7 +833,7 @@ class Processor(object):
                 fh_csv.write(csv_line + '\n')
 
             # Grid list for booltest params
-            results_list = []
+            results_list = []  # type: list[TestRecord]
             for cur_key in itertools.product(*total_cases):
                 if cur_key in results_map:
                     results_list.append(results_map[cur_key])
@@ -834,7 +841,8 @@ class Processor(object):
                     results_list.append(None)
 
             # CSV result
-            csv_line = args.delim.join(prefix_cols + [(fls(x.zscore) if x is not None else '-') for x in results_list])
+            res_selector = lambda x: (x.pvalue if x.is_halving else x.zscore)
+            csv_line = args.delim.join(prefix_cols + [(fls(res_selector(x)) if x is not None else '-') for x in results_list])
             fh_csv.write(csv_line+'\n')
 
             # CSV only if above threshold
@@ -883,7 +891,7 @@ class Processor(object):
             cur_js['round'] = fnc_round
             cur_js['method'] = method
             cur_js['data_mb'] = data_mb
-            cur_js['tests'] = [[x.block, x.deg, x.comb_deg, x.zscore] for x in group_expanded]
+            cur_js['tests'] = [[x.block, x.deg, x.comb_deg, res_selector(x)] for x in group_expanded]
             json.dump(cur_js, fh_json, indent=2)
             fh_json.write(',\n')
 
@@ -900,7 +908,12 @@ class Processor(object):
                 cur_js['m'] = cur_res.block
                 cur_js['data_file'] = cur_res.cfg_file_name
                 cur_js['zscore'] = cur_res.zscore
-                cur_js['pval0_rej'] = pval_db.eval(cur_res.block, cur_res.deg, cur_res.comb_deg, cur_res.zscore) if args.pval_data else None
+                cur_js['halving'] = cur_res.is_halving
+                if cur_res.is_halving:
+                    cur_js['pvalue'] = cur_res.pvalue
+                    cur_js['pval0_rej'] = cur_res.pvalue < (1./40000)
+                else:
+                    cur_js['pval0_rej'] = pval_db.eval(cur_res.block, cur_res.deg, cur_res.comb_deg, cur_res.zscore) if args.pval_data else None
                 json.dump(cur_js, fh_bat_json, indent=2)
                 fh_bat_json.write(',\n')
 
