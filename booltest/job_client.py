@@ -1,19 +1,27 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#import zmq
 import argparse
 import coloredlogs
 import logging
 import time
 import json
+import uuid
+import collections
 import websockets
 import asyncio
+import os
+import shlex
 import sys
 from jsonpath_ng import jsonpath, parse
+from .runner import AsyncRunner
+
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
+
+job_tpl = './generator-metacentrum.sh -c=%s | ./booltest-json-metacentrum.sh %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"'
+job_tpl_data_file = './booltest-json-metacentrum.sh %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"'
 
 
 def jsonpath(path, obj, allow_none=False):
@@ -21,162 +29,206 @@ def jsonpath(path, obj, allow_none=False):
     return r[0] if not allow_none else (r[0] if r else None)
 
 
-class JobEntry:
+def get_runner(cli, cwd=None, env=None, shell=True):
+    async_runner = AsyncRunner(cli, cwd=cwd, shell=shell, env=env)
+    async_runner.log_out_after = False
+    async_runner.preexec_setgrp = True
+    return async_runner
+
+
+class JobWorker:
     def __init__(self):
-        self.unit = None
-        self.uuid = None
-        self.time_allocated = None
-        self.worker_id = None
-        self.idx = None
+        self.idx = 0
+        self.uuid = str(uuid.uuid4())
+        self.working_job = None  # type: Job
         self.finished = False
-        self.failed = False
-        self.retry_ctr = 0
+        self.res_code = None
+        self.res_out = None
+        self.res_err = None
+        self.last_hb = 0
+        self.runner = None  # type: AsyncRunner
 
 
-class JobServer:
+class Job:
+    def __init__(self, uid=None, obj=None):
+        self.uuid = uid
+        self.obj = obj
+
+
+class JobClient:
     def __init__(self):
         self.args = None
-        self.job_entries = {}  # type: dict[str,JobEntry]
-        self.finished_jobs = set()  # type: set[str]
-        self.job_queue = []  # type: list[str]
-
-        # Mapping worker_id -> job_id
-        self.worker_map = {}  # type: dict[str,str]
+        self.time_start = time.time()
+        self.workers = []  # type: list[JobWorker]
         self.db_lock = asyncio.Lock()
 
-    def job_get(self, worker_id=None):
-        if len(self.job_queue) == 0:
-            return 0
-        uid = self.job_queue.pop()
-        jb = self.job_entries[uid]
-        jb.time_allocated = time.time()
-        jb.worker_id = worker_id
-        return jb
+    def get_uri(self):
+        return "ws://%s:%s" % (self.args.server, self.args.port)
 
-    def on_job_fail(self, jb):
-        jb.retry_ctr += 1
-        if jb.retry_ctr >= 2:
-            jb.finished = True
-            jb.failed = True
+    async def comm_msg(self, msg):
+        async with websockets.connect(self.get_uri()) as websocket:
+            await websocket.send(json.dumps(msg))
+            resp = await websocket.recv()
+            js = json.loads(resp)
+            return js
+
+    async def comm_get_job(self, worker: JobWorker):
+        msg = collections.OrderedDict([
+            ('action', 'acquire'),
+            ('uuid', worker.uuid)
+        ])
+        return (await self.comm_msg(msg))['res']
+
+    async def comm_hb(self, job: Job, worker: JobWorker):
+        msg = collections.OrderedDict([
+            ('action', 'heartbeat'),
+            ('uuid', worker.uuid),
+            ('jid', job.uuid),
+        ])
+        return await self.comm_msg(msg)
+
+    async def comm_finished(self, job: Job, worker: JobWorker):
+        msg = collections.OrderedDict([
+            ('action', 'finished'),
+            ('uuid', worker.uuid),
+            ('jid', job.uuid),
+        ])
+        return await self.comm_msg(msg)
+
+    def should_terminate(self):
+        if not self.args.time:
+            return False
+        return (time.time() - self.time_start) + 10*60 >= self.args.time
+
+    async def worker_hb(self, wx: JobWorker):
+        logger.info("Worker %s:%s HB job %s" % (wx.idx, wx.uuid, wx.working_job.uuid))
+        await self.comm_hb(wx.working_job, wx)
+        wx.last_hb = time.time()
+
+    def get_cli(self, job: Job):
+        jo = job.obj
+        args = ' --config-file %s' % jo['cfg_file_path']
+        job_exec = ''
+        if jo['gen_file_path']:
+            job_exec = job_tpl % (jo['gen_file_path'], args, jo['res_file'], jo['res_file'])
         else:
-            jb.failed = False
-            self.job_queue.append(jb.uuid)
+            job_exec = job_tpl_data_file % (args, jo['res_file'], jo['res_file'])
+        job_exec = job_exec.replace('${LOGDIR}', os.path.abspath(self.args.logdir))
+        return job_exec
 
-    def on_job_alloc(self, jb, worker_id):
-        # If worker had another job, finish it now. It failed probably
-        if worker_id in self.worker_map:
-            wold = self.worker_map[worker_id]
-            if wold is not None:
-                oldjb = self.job_entries[wold]
-                self.on_job_fail(oldjb)
+    async def worker_fetch(self, wx: JobWorker):
+        job = await self.comm_get_job(wx)
+        if job is None:
+            return
 
-        self.worker_map[worker_id] = jb.uuid
-        return jb
+        jb = Job(job['uuid'], job)
+        wx.working_job = jb
+        wx.last_hb = time.time()
+        wx.finished = False
+        wx.res_code = None
+        wx.res_out = None
+        wx.res_err = None
 
-    def on_job_finished(self, uid, worker_id):
-        jb = self.job_entries[uid]
-        jb.finished = True
-        self.worker_map[worker_id] = None
+        cli = self.get_cli(jb)
+        wx.runner = get_runner(cli, shell=True, cwd=os.path.abspath(self.args.cwd))
+        wx.runner.start()
+        logger.info("Worker %s:%s started job %s %s" % (wx.idx, wx.uuid, jb.uuid, cli))
 
-    def buid_resp_job(self, jb):
-        if jb is None:
-            return {'res': None}
-        return {'res': jb.unit}
+    async def worker_check(self, wx: JobWorker):
+        if wx.runner.is_running:
+            return
 
-    async def on_ws_msg(self, websocket, path):
-        logger.debug("on_msg")
-        msg = await websocket.recv()
-        logger.debug("Msg recv: %s" % (msg, ))
+        wx.res_code = wx.runner.ret_code
+        wx.res_out = ''.join(wx.runner.out_acc) if wx.runner.out_acc else ''
+        wx.res_err = ''.join(wx.runner.err_acc) if wx.runner.err_acc else ''
+        wx.finished = True
+        logger.info("Worker %s:%s finished job %s, code: %s" % (wx.idx, wx.uuid, wx.working_job.uuid, wx.res_code))
+        await self.worker_finished(wx)
 
-        async with self.db_lock:
-            resp = self.on_msg(msg)
+    async def worker_finished(self, wx: JobWorker):
+        await self.comm_finished(wx.working_job, wx)
+        wx.working_job = None
+        wx.last_hb = None
+        wx.finished = False
+        wx.res_code = None
+        wx.res_out = None
+        wx.res_err = None
 
-        resp_js = json.dumps(resp)
-        await websocket.send(resp_js)
+    async def process_worker(self, wx: JobWorker, ix):
+        tt = time.time()
+        if wx.working_job and not wx.finished and (tt - wx.last_hb) >= 60:
+            await self.worker_hb(wx)
+        elif wx.working_job is None:
+            await self.worker_fetch(wx)
+        elif not wx.finished:
+            await self.worker_check(wx)
+        elif wx.finished:
+            await self.worker_finished(wx)
 
-    def on_msg(self, message):
-        try:
-            jmsg = json.loads(message)
-            if 'action' not in jmsg:
-                raise ValueError("Invalid message")
-
-            act = jmsg['action']
-            wid = jmsg['uuid']
-            if act == 'acquire':
-                jb = self.job_get(wid)
-                resp = self.buid_resp_job(jb)
-                self.on_job_alloc(jb, wid)
-                return resp
-
-            elif act == 'finished':
-                jid = jmsg['jid']
-                self.on_job_finished(jid, wid)
-                return {'resp': 'ok'}
-
-            else:
-                logger.info("Unknown action: [%s]" % (act,))
-
-        except Exception as e:
-            logger.warning("Exception in job handling: %s" % (e,), exc_info=e)
-        return {'error': 'invalid'}
+    async def process_workers(self):
+        for ix, wx in enumerate(self.workers):
+            async with self.db_lock:
+                try:
+                    await self.process_worker(wx, ix)
+                except Exception as e:
+                    logger.warning("Exc in worker %s: %s" % (ix, e), exc_info=e)
+                    await asyncio.sleep(1.5)
 
     async def work(self):
-        # context = zmq.Context()
-        # socket = context.socket(zmq.REP)
-        # socket.bind("tcp://*:%s" % self.args.port)
-        start_server = websockets.serve(self.on_ws_msg, "0.0.0.0", self.args.port)
-        logger.info("Server started at 0.0.0.0:%s, python: %s" % (self.args.port, sys.version))
-        await start_server
+        for ix in range(self.args.threads):
+            wx = JobWorker()
+            wx.idx = ix
+            self.workers.append(wx)
 
-        # loop = asyncio.get_event_loop()
-        # loop.run_forever()
+        while True:
+            await asyncio.sleep(0.5)
+            if self.should_terminate():
+                logger.info("Terminating")
+                return
+
+            try:
+                await self.process_workers()
+
+            except Exception as e:
+                logger.warning("Exception body: %s" % (e,), exc_info=e)
+                await asyncio.sleep(2.0)
 
     async def main(self):
         parser = self.argparse()
         self.args = parser.parse_args()
-
-        for fl in self.args.files:
-            with open(fl) as fh:
-                js = json.load(fh)
-            jobs = js['jobs']
-            for j in jobs:
-                je = JobEntry()
-                je.unit = j
-                je.uuid = j['uuid']
-                je.idx = len(self.job_entries)
-                self.job_entries[je.uuid] = je
-                self.job_queue.append(je.uuid)
-
-        logger.info("Jobs in the queue: %s" % (len(self.job_queue),))
         return await self.work()
 
     def argparse(self):
         parser = argparse.ArgumentParser(
-            description='Job provider')
+            description='Job runner')
 
         parser.add_argument('--debug', dest='debug', action='store_const', const=True,
                             help='enables debug mode')
+        parser.add_argument('--server', dest='server', default='localhost',
+                            help='Server address to connect to')
         parser.add_argument('--port', dest='port', type=int, default=4688,
                             help='port to bind to')
-
-        parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
-                            help='job files')
+        parser.add_argument('--time', dest='time', type=int, default=None,
+                            help='time allocation, termination handling')
+        parser.add_argument('--threads', dest='threads', type=int, default=1,
+                            help='Concurrent jobs to acquire')
+        parser.add_argument('--logdir', dest='logdir', default='.',
+                            help='Log dir')
+        parser.add_argument('--cwd', dest='cwd', default='.',
+                            help='Working dir')
 
         return parser
 
 
 async def amain():
-    js = JobServer()
+    js = JobClient()
     await js.main()
 
 
 def main():
     loop = asyncio.get_event_loop()
     loop.run_until_complete(amain())
-    loop.run_forever()
     loop.close()
-    # asyncio.get_event_loop().run_until_complete(js.main)
-    # asyncio.get_event_loop().run_forever()
 
 
 if __name__ == '__main__':
