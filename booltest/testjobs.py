@@ -593,6 +593,12 @@ class Testjobs(Booltest):
                 fh.write('if [ $? -ne 0 ]; then echo "Generator failed: %s"; else echo -n "."; fi\n' % fn)
             fh.write('\n')
 
+        # Job file
+        jlist = batcher.get_job_list()
+        jlist_path = os.path.join(self.job_dir, 'batcher-jobs-%s.json' % int(time.time()))
+        with open(jlist_path, 'w') as fh:
+            json.dump(jlist, fh, indent=2)
+
         # chmod
         misc.try_chmod_grx(enqueue_path)
         misc.try_chmod_grx(testgen_path)

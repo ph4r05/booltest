@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import os
+import collections
+import uuid
 
 
 job_tpl_hdr = '''#!/bin/bash
@@ -97,6 +99,16 @@ class TestBatchUnit(object):
         self.data_size = None
         self.size_mb = None
 
+    def get_exec(self):
+        args = ' --config-file %s' % self.cfg_file_path
+
+        job_exec = ''
+        if self.gen_file_path:
+            job_exec = job_tpl % (self.gen_file_path, args, self.res_file, self.res_file)
+        else:
+            job_exec = job_tpl_data_file % (args, self.res_file, self.res_file)
+        return job_exec
+
 
 class BatchGenerator(object):
     """
@@ -105,6 +117,7 @@ class BatchGenerator(object):
     def __init__(self):
         self.generator_files = set()
         self.job_dir = None
+        self.job_acc = []
         self.job_files = []
         self.job_batch = []
         self.job_clean_batch = []
@@ -131,14 +144,9 @@ class BatchGenerator(object):
         :param unit:
         :return:
         """
-        args = ' --config-file %s' % unit.cfg_file_path
+        self.job_acc.append(unit)
+        job_exec = unit.get_exec()
         job_data = job_tpl_prefix % unit.res_file
-
-        job_exec = ''
-        if unit.gen_file_path:
-            job_exec = job_tpl % (unit.gen_file_path, args, unit.res_file, unit.res_file)
-        else:
-            job_exec = job_tpl_data_file % (args, unit.res_file, unit.res_file)
 
         if self.retry:
             chunk = tpl_handle_res_retry.replace('<<JOB>>', job_exec)
@@ -233,5 +241,17 @@ class BatchGenerator(object):
         self.batch_max_deg = 0
         self.batch_max_comb_deg = 0
 
+    def get_job_list(self):
+        jsres = collections.OrderedDict()
+        jobs = []
+        jsres['jobs'] = jobs
 
+        for jb in self.job_acc:  # type: TestBatchUnit
+            rec = collections.OrderedDict()
+            for e in jb.__dict__:
+                rec[e] = getattr(jb, e, None)
+            rec['exec'] = jb.get_exec().strip()
+            rec['uuid'] = str(uuid.uuid4())
+            jobs.append(rec)
+        return jsres
 
