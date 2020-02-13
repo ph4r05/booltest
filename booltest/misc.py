@@ -291,7 +291,8 @@ def get_jobs_in_progress():
             output.append(l)
 
     output = b"\n".join(output)
-    js = json.loads(output)
+    output_utf8 = ''.join([x for x in output.decode('utf8', 'ignore') if ord(x) > 31 or x == '\n' or x == '\t'])
+    js = json.loads(output_utf8)
     jobs = js['Jobs']
     res = {}
 
