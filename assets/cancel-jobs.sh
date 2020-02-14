@@ -8,13 +8,13 @@ if [[ ( -z "$JOB_START" ) || ( -z "$JOB_END" ) ]]; then
     exit 1
 fi
 
-BATCH=50
+BATCH=100
 for (( c=JOB_START; c<=JOB_END; c+=BATCH )); do
     AGG=""
     AGG_IDS=""
     for (( i=c; i< (c+$BATCH) && i <= JOB_END; i++ )); do
         AGG_IDS="$AGG_IDS $i"
-        AGG="$AGG ${i}.arien-pro.ics.muni.cz"
+        AGG="$AGG ${i}.meta-pbs.metacentrum.cz"
     done
     echo "Canceling jobs $AGG_IDS"
     qdel $AGG
