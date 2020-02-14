@@ -165,6 +165,7 @@ class JobServer:
                 js = {'jobs': non_finished}
                 with open(self.args.checkpoint, 'w+') as fh:
                     json.dump(js, fh, indent=2)
+                last_checkpoint = tt
 
             except Exception as e:
                 logger.warning("Exception in watchdog: ")
