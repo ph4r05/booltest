@@ -67,7 +67,7 @@ class JobServer:
 
     def job_get(self, worker_id=None):
         if len(self.job_queue) == 0:
-            return 0
+            return None
         uid = self.job_queue.pop(0)
         jb = self.job_entries[uid]
         jb.time_allocated = time.time()
@@ -90,6 +90,8 @@ class JobServer:
             self.job_queue.append(jb.uuid)
 
     def on_job_alloc(self, jb, worker_id):
+        if not jb:
+            return
         # If worker had another job, finish it now. It failed probably
         if worker_id in self.worker_map:
             wold = self.worker_map[worker_id]
