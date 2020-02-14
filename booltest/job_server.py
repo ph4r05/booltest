@@ -134,6 +134,9 @@ class JobServer:
         tt = time.time()
         return sum([1 for x in self.workers.values() if tt - x.last_ping <= timeout])
 
+    def get_num_jobs(self):
+        return len(self.job_queue)
+
     def run_watchdog(self):
         worker_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(worker_loop)
@@ -202,9 +205,10 @@ class JobServer:
                     self.on_job_alloc(jb, wid)
                     self.on_worker_ping(wid)
                     numw = self.get_num_online_workers()
+                    numj = self.get_num_jobs()
                 resp = self.buid_resp_job(jb)
-                logger.info("Job acquired %s by wid %s, %s, #w: %s"
-                            % (jb.uuid[:13], wid[:13], jb.desc(), numw))
+                logger.info("Job acquired %s by wid %s, %s, #w: %s, #j: %s"
+                            % (jb.uuid[:13], wid[:13], jb.desc(), numw, numj))
                 return resp
 
             elif act == 'finished':
@@ -213,8 +217,9 @@ class JobServer:
                     self.on_job_finished(jid, wid)
                     self.on_worker_ping(wid)
                     numw = self.get_num_online_workers()
-                logger.info("Job finished %s by wid %s, %s, #w: %s"
-                            % (jid[:13], wid[:13], self.job_entries[jid].desc(), numw))
+                    numj = self.get_num_jobs()
+                logger.info("Job finished %s by wid %s, %s, #w: %s, #j: %s"
+                            % (jid[:13], wid[:13], self.job_entries[jid].desc(), numw, numj))
                 return {'resp': 'ok'}
 
             elif act == 'heartbeat':
