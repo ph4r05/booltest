@@ -347,12 +347,16 @@ class AsyncRunner:
         logger.debug("Program terminated")
         self.deinit()
 
-    def start(self):
+    def start(self, wait_running=True):
         install_sarge_filter()
         self.thread = threading.Thread(target=self.run, args=())
         self.thread.setDaemon(False)
         self.thread.start()
         self.terminating = False
+        if not wait_running:
+            self.is_running = True
+            return
+
         self.is_running = False
         while not self.is_running and not self.was_running:
             time.sleep(0.1)
