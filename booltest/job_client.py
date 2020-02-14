@@ -11,6 +11,7 @@ import collections
 import websockets
 import asyncio
 import os
+import hashlib
 import shlex
 import sys
 from jsonpath_ng import jsonpath, parse
@@ -62,6 +63,7 @@ class JobClient:
         self.workers = []  # type: list[JobWorker]
         self.db_lock = asyncio.Lock()
         self.ws_conn = None
+        self.key = None
 
     def get_uri(self):
         return "ws://%s:%s" % (self.args.server, self.args.port)
@@ -100,6 +102,17 @@ class JobClient:
         if not self.args.time:
             return False
         return (time.time() - self.time_start) + 10*60 >= self.args.time
+
+    def ext_key(self, resp, worker: JobWorker):
+        if not self.key:
+            return resp
+        sha = hashlib.sha256()
+        tt = int(time.time())
+        sha.update(bytes(worker.uuid, "ascii"))
+        sha.update(tt.to_bytes(8, byteorder='big'))
+        resp['auth_time'] = tt
+        resp['auth_token'] = sha.hexdigest()
+        return resp
 
     async def worker_hb(self, wx: JobWorker):
         logger.info("Worker %s:%s HB job %s" % (wx.idx, wx.uuid, wx.working_job.uuid))
@@ -191,6 +204,11 @@ class JobClient:
             wx.idx = ix
             self.workers.append(wx)
 
+        if self.args.key_file:
+            with open(self.args.key_file, 'r+') as fh:
+                kjs = json.load(fh)
+            self.key = kjs['key']
+
         change = False
         while True:
             change = False
@@ -207,6 +225,7 @@ class JobClient:
 
             if not change:
                 await asyncio.sleep(0.4)
+                time.sleep(0.1)
 
     async def main(self):
         parser = self.argparse()
@@ -231,6 +250,8 @@ class JobClient:
                             help='Log dir')
         parser.add_argument('--cwd', dest='cwd', default='.',
                             help='Working dir')
+        parser.add_argument('--key-file', dest='key_file', default=None,
+                            help='Config file with auth keys')
 
         return parser
 
