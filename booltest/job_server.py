@@ -13,6 +13,7 @@ import sys
 import threading
 import itertools
 import random
+import hashlib
 from jsonpath_ng import jsonpath, parse
 
 logger = logging.getLogger(__name__)
@@ -43,18 +44,26 @@ class JobEntry:
             return self.uuid
 
 
+class WorkerEntry:
+    def __init__(self, uid=None):
+        self.id = uid
+        self.last_ping = 0
+
+
 class JobServer:
     def __init__(self):
         self.args = None
         self.is_running = True
         self.job_entries = {}  # type: dict[str,JobEntry]
-        self.finished_jobs = set()  # type: set[str]
         self.job_queue = []  # type: list[str]
 
         # Mapping worker_id -> job_id
         self.worker_map = {}  # type: dict[str,str]
+        self.workers = {}  # type: dict[str,WorkerEntry]
         self.db_lock = asyncio.Lock()
+        self.db_lock_t = threading.Lock()
         self.thread_watchdog = None
+        self.key = None
 
     def job_get(self, worker_id=None):
         if len(self.job_queue) == 0:
@@ -100,6 +109,29 @@ class JobServer:
         jb = self.job_entries[uid]
         jb.time_ping = time.time()
 
+    def on_worker_ping(self, worker_id):
+        if worker_id not in self.workers:
+            self.workers[worker_id] = WorkerEntry(worker_id)
+        self.workers[worker_id].last_ping = time.time()
+
+    def check_auth(self, msg):
+        if not self.key:
+            return True
+
+        sha = hashlib.sha256()
+        tt = int(msg['auth_time'])
+        uid = str(msg['uuid'])
+        sha.update(bytes(uid, "ascii"))
+        sha.update(tt.to_bytes(8, byteorder='big'))
+        our_token = sha.hexdigest()
+        if our_token != msg['auth_token']:
+            raise ValueError("Auth token invalid")
+        return True
+
+    def get_num_online_workers(self, timeout=60*5):
+        tt = time.time()
+        return sum([1 for x in self.workers.values() if tt - x.last_ping <= timeout])
+
     def run_watchdog(self):
         worker_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(worker_loop)
@@ -107,20 +139,35 @@ class JobServer:
 
     async def arun_watchdog(self):
         last_sweep = 0
+        last_checkpoint = time.time()
         while self.is_running:
-            await asyncio.sleep(3)
-            tt = time.time()
-            if tt - last_sweep < 180:
-                continue
+            try:
+                await asyncio.sleep(3)
+                tt = time.time()
+                if tt - last_sweep < 180:
+                    continue
 
-            async with self.db_lock:
-                for v in self.job_entries.values():
-                    if v.finished or v.failed or v.time_allocated is None:
-                        continue
-                    if tt - v.time_ping >= 60*5:
-                        logger.info("Expiring job %s for worker %s" % (v.uuid, v.worker_id))
-                        self.on_job_fail(v, timeout=True)
-                pass
+                with self.db_lock_t:
+                    for v in self.job_entries.values():
+                        if v.finished or v.failed or v.time_allocated is None:
+                            continue
+                        if tt - v.time_ping >= 60*5:
+                            logger.info("Expiring job %s for worker %s" % (v.uuid, v.worker_id))
+                            self.on_job_fail(v, timeout=True)
+                    pass
+
+                if tt - last_checkpoint < 60*15 or not self.args.checkpoint:
+                    continue
+
+                with self.db_lock_t:
+                    non_finished = [x.unit for x in self.job_entries.values() if not x.finished]
+
+                js = {'jobs': non_finished}
+                with open(self.args.checkpoint, 'w+') as fh:
+                    json.dump(js, fh, indent=2)
+
+            except Exception as e:
+                logger.warning("Exception in watchdog: ")
 
     def buid_resp_job(self, jb):
         if jb is None:
@@ -147,24 +194,31 @@ class JobServer:
             wid = jmsg['uuid']
 
             if act == 'acquire':
-                async with self.db_lock:
+                with self.db_lock_t:
                     jb = self.job_get(wid)
                     self.on_job_alloc(jb, wid)
+                    self.on_worker_ping(wid)
+                    numw = self.get_num_online_workers()
                 resp = self.buid_resp_job(jb)
-                logger.info("Job acquired %s by wid %s, %s" % (jb.uuid, wid, jb.desc()))
+                logger.info("Job acquired %s by wid %s, %s, #w: %s"
+                            % (jb.uuid[:13], wid[:13], jb.desc(), numw))
                 return resp
 
             elif act == 'finished':
                 jid = jmsg['jid']
-                async with self.db_lock:
+                with self.db_lock_t:
                     self.on_job_finished(jid, wid)
-                logger.info("Job finished %s by wid %s, %s" % (jid, wid, self.job_entries[jid].desc()))
+                    self.on_worker_ping(wid)
+                    numw = self.get_num_online_workers()
+                logger.info("Job finished %s by wid %s, %s, #w: %s"
+                            % (jid[:13], wid[:13], self.job_entries[jid].desc(), numw))
                 return {'resp': 'ok'}
 
             elif act == 'heartbeat':
                 jid = jmsg['jid']
-                async with self.db_lock:
+                with self.db_lock_t:
                     self.on_job_hb(jid, wid)
+                    self.on_worker_ping(wid)
                 return {'resp': 'ok'}
 
             else:
@@ -188,6 +242,11 @@ class JobServer:
     async def main(self):
         parser = self.argparse()
         self.args = parser.parse_args()
+
+        if self.args.key_file:
+            with open(self.args.key_file, 'r+') as fh:
+                kjs = json.load(fh)
+            self.key = kjs['key']
 
         agg_jobs = []
         for fl in self.args.files:
@@ -229,6 +288,8 @@ class JobServer:
                             help='port to bind to')
         parser.add_argument('--checkpoint', dest='checkpoint',
                             help='Job checkpointing file')
+        parser.add_argument('--key-file', dest='key_file', default=None,
+                            help='Config file with auth keys')
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='job files')
 
