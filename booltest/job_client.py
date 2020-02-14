@@ -64,6 +64,8 @@ class JobClient:
         self.db_lock = asyncio.Lock()
         self.ws_conn = None
         self.key = None
+        self.last_server_ping = time.time()
+        self.shutdown_flag = False
 
     def get_uri(self):
         return "ws://%s:%s" % (self.args.server, self.args.port)
@@ -73,6 +75,8 @@ class JobClient:
             await websocket.send(json.dumps(msg))
             resp = await websocket.recv()
             js = json.loads(resp)
+            self.last_server_ping = time.time()
+            self.process_msg(js)
             return js
 
     async def comm_get_job(self, worker: JobWorker):
@@ -113,6 +117,15 @@ class JobClient:
         resp['auth_time'] = tt
         resp['auth_token'] = sha.hexdigest()
         return resp
+
+    def process_msg(self, msg):
+        if self.args.epoch and 'only_epochs' in msg:
+            try:
+                ep = int(msg['only_epochs'])
+                if ep > self.args.epoch:
+                    self.shutdown_flag = True
+            except Exception as e:
+                logger.warning("Msg processing error: %s" % (e,), exc_info=e)
 
     async def worker_hb(self, wx: JobWorker):
         logger.info("Worker %s:%s HB job %s" % (wx.idx, wx.uuid, wx.working_job.uuid))
@@ -216,6 +229,14 @@ class JobClient:
                 logger.info("Terminating")
                 return
 
+            if time.time() - self.last_server_ping >= 60*30:
+                logger.info("Server down for 30 minutes, shutting down")
+                return
+
+            if self.shutdown_flag:
+                logger.info("Shutdown flag set")
+                return
+
             try:
                 change |= await self.process_workers()
 
@@ -252,6 +273,8 @@ class JobClient:
                             help='Working dir')
         parser.add_argument('--key-file', dest='key_file', default=None,
                             help='Config file with auth keys')
+        parser.add_argument('--epoch', dest='epoch', default=None, type=int,
+                            help='Epoch ID for remote kill')
 
         return parser
 
