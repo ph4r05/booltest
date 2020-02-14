@@ -14,7 +14,7 @@ import os
 import shlex
 import sys
 from jsonpath_ng import jsonpath, parse
-from .runner import AsyncRunner
+from booltest.runner import AsyncRunner
 
 
 logger = logging.getLogger(__name__)
@@ -61,6 +61,7 @@ class JobClient:
         self.time_start = time.time()
         self.workers = []  # type: list[JobWorker]
         self.db_lock = asyncio.Lock()
+        self.ws_conn = None
 
     def get_uri(self):
         return "ws://%s:%s" % (self.args.server, self.args.port)
@@ -113,7 +114,7 @@ class JobClient:
             job_exec = job_tpl % (jo['gen_file_path'], args, jo['res_file'], jo['res_file'])
         else:
             job_exec = job_tpl_data_file % (args, jo['res_file'], jo['res_file'])
-        job_exec = job_exec.replace('${LOGDIR}', os.path.abspath(self.args.logdir))
+        job_exec = job_exec.replace('${LOGDIR}', self.args.logdir)
         return job_exec
 
     async def worker_fetch(self, wx: JobWorker):
@@ -130,8 +131,11 @@ class JobClient:
         wx.res_err = None
 
         cli = self.get_cli(jb)
-        wx.runner = get_runner(cli, shell=True, cwd=os.path.abspath(self.args.cwd))
-        wx.runner.start()
+        # cli = '/bin/bash -c "sleep 1.1"'
+        wx.runner = get_runner(cli, shell=True, cwd=self.args.cwd)
+        wx.runner.start(wait_running=False)
+        # wx.runner.is_running = False
+
         logger.info("Worker %s:%s started job %s %s" % (wx.idx, wx.uuid, jb.uuid, cli))
 
     async def worker_check(self, wx: JobWorker):
@@ -156,7 +160,7 @@ class JobClient:
 
     async def process_worker(self, wx: JobWorker, ix):
         tt = time.time()
-        if wx.working_job and not wx.finished and (tt - wx.last_hb) >= 60:
+        if wx.working_job and not wx.finished and (tt - wx.last_hb) >= 180:
             await self.worker_hb(wx)
         elif wx.working_job is None:
             await self.worker_fetch(wx)
@@ -164,34 +168,45 @@ class JobClient:
             await self.worker_check(wx)
         elif wx.finished:
             await self.worker_finished(wx)
+        else:
+            return False
+        return True
 
     async def process_workers(self):
+        change = False
         for ix, wx in enumerate(self.workers):
             async with self.db_lock:
                 try:
-                    await self.process_worker(wx, ix)
+                    change |= await self.process_worker(wx, ix)
                 except Exception as e:
                     logger.warning("Exc in worker %s: %s" % (ix, e), exc_info=e)
                     await asyncio.sleep(1.5)
+        return change
 
     async def work(self):
+        self.args.cwd = os.path.abspath(self.args.cwd)
+        self.args.logdir = os.path.abspath(self.args.logdir)
         for ix in range(self.args.threads):
             wx = JobWorker()
             wx.idx = ix
             self.workers.append(wx)
 
+        change = False
         while True:
-            await asyncio.sleep(0.5)
+            change = False
             if self.should_terminate():
                 logger.info("Terminating")
                 return
 
             try:
-                await self.process_workers()
+                change |= await self.process_workers()
 
             except Exception as e:
                 logger.warning("Exception body: %s" % (e,), exc_info=e)
                 await asyncio.sleep(2.0)
+
+            if not change:
+                await asyncio.sleep(0.4)
 
     async def main(self):
         parser = self.argparse()
