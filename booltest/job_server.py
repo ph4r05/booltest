@@ -11,10 +11,12 @@ import websockets
 import asyncio
 import sys
 import threading
+import itertools
+import random
 from jsonpath_ng import jsonpath, parse
 
 logger = logging.getLogger(__name__)
-coloredlogs.install(level=logging.DEBUG)
+coloredlogs.install(level=logging.INFO)
 
 
 def jsonpath(path, obj, allow_none=False):
@@ -34,6 +36,12 @@ class JobEntry:
         self.failed = False
         self.retry_ctr = 0
 
+    def desc(self):
+        try:
+            return self.unit['res_file']
+        except:
+            return self.uuid
+
 
 class JobServer:
     def __init__(self):
@@ -51,7 +59,7 @@ class JobServer:
     def job_get(self, worker_id=None):
         if len(self.job_queue) == 0:
             return 0
-        uid = self.job_queue.pop()
+        uid = self.job_queue.pop(0)
         jb = self.job_entries[uid]
         jb.time_allocated = time.time()
         jb.time_ping = time.time()
@@ -100,7 +108,7 @@ class JobServer:
     async def arun_watchdog(self):
         last_sweep = 0
         while self.is_running:
-            time.sleep(3)
+            await asyncio.sleep(3)
             tt = time.time()
             if tt - last_sweep < 180:
                 continue
@@ -109,7 +117,7 @@ class JobServer:
                 for v in self.job_entries.values():
                     if v.finished or v.failed or v.time_allocated is None:
                         continue
-                    if tt - v.time_ping >= 180:
+                    if tt - v.time_ping >= 60*5:
                         logger.info("Expiring job %s for worker %s" % (v.uuid, v.worker_id))
                         self.on_job_fail(v, timeout=True)
                 pass
@@ -124,13 +132,12 @@ class JobServer:
         msg = await websocket.recv()
         logger.debug("Msg recv: %s" % (msg, ))
 
-        async with self.db_lock:
-            resp = self.on_msg(msg)
+        resp = await self.on_msg(msg)
 
         resp_js = json.dumps(resp)
         await websocket.send(resp_js)
 
-    def on_msg(self, message):
+    async def on_msg(self, message):
         try:
             jmsg = json.loads(message)
             if 'action' not in jmsg:
@@ -138,20 +145,26 @@ class JobServer:
 
             act = jmsg['action']
             wid = jmsg['uuid']
+
             if act == 'acquire':
-                jb = self.job_get(wid)
+                async with self.db_lock:
+                    jb = self.job_get(wid)
+                    self.on_job_alloc(jb, wid)
                 resp = self.buid_resp_job(jb)
-                self.on_job_alloc(jb, wid)
+                logger.info("Job acquired %s by wid %s, %s" % (jb.uuid, wid, jb.desc()))
                 return resp
 
             elif act == 'finished':
                 jid = jmsg['jid']
-                self.on_job_finished(jid, wid)
+                async with self.db_lock:
+                    self.on_job_finished(jid, wid)
+                logger.info("Job finished %s by wid %s, %s" % (jid, wid, self.job_entries[jid].desc()))
                 return {'resp': 'ok'}
 
             elif act == 'heartbeat':
                 jid = jmsg['jid']
-                self.on_job_hb(jid, wid)
+                async with self.db_lock:
+                    self.on_job_hb(jid, wid)
                 return {'resp': 'ok'}
 
             else:
@@ -176,6 +189,7 @@ class JobServer:
         parser = self.argparse()
         self.args = parser.parse_args()
 
+        agg_jobs = []
         for fl in self.args.files:
             with open(fl) as fh:
                 js = json.load(fh)
@@ -185,6 +199,15 @@ class JobServer:
                 je.unit = j
                 je.uuid = j['uuid']
                 je.idx = len(self.job_entries)
+                agg_jobs.append(je)
+
+        # Fast jobs first
+        cplx_lambda = lambda x: (x['size_mb'], x['degree'], x['comb_deg'], x['block_size'])
+        agg_jobs.sort(key=lambda x: cplx_lambda(x.unit))
+        for k, g in itertools.groupby(agg_jobs, key=lambda x: cplx_lambda(x.unit)):
+            subs = list(g)
+            random.shuffle(subs)
+            for je in subs:
                 self.job_entries[je.uuid] = je
                 self.job_queue.append(je.uuid)
 
@@ -204,7 +227,8 @@ class JobServer:
                             help='enables debug mode')
         parser.add_argument('--port', dest='port', type=int, default=4688,
                             help='port to bind to')
-
+        parser.add_argument('--checkpoint', dest='checkpoint',
+                            help='Job checkpointing file')
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='job files')
 
