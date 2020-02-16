@@ -247,6 +247,8 @@ class JobClient:
             if not change:
                 await asyncio.sleep(0.4)
                 time.sleep(0.1)
+            else:
+                time.sleep(0.035)
 
     async def main(self):
         parser = self.argparse()
