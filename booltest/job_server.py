@@ -202,13 +202,14 @@ class JobServer:
             if act == 'acquire':
                 with self.db_lock_t:
                     jb = self.job_get(wid)
-                    self.on_job_alloc(jb, wid)
-                    self.on_worker_ping(wid)
-                    numw = self.get_num_online_workers()
-                    numj = self.get_num_jobs()
-                resp = self.buid_resp_job(jb)
-                logger.info("Job acquired %s by wid %s, %s, #w: %s, #j: %s"
-                            % (jb.uuid[:13], wid[:13], jb.desc(), numw, numj))
+                    if jb:
+                        self.on_job_alloc(jb, wid)
+                        self.on_worker_ping(wid)
+                        numw = self.get_num_online_workers()
+                        numj = self.get_num_jobs()
+                        logger.info("Job acquired %s by wid %s, %s, #w: %s, #j: %s"
+                                    % (jb.uuid[:13], wid[:13], jb.desc(), numw, numj))
+                    resp = self.buid_resp_job(jb)
                 return resp
 
             elif act == 'finished':
