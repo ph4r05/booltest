@@ -137,6 +137,9 @@ class JobServer:
     def get_num_jobs(self):
         return len(self.job_queue)
 
+    def get_job_ret_code(self, job):
+        return job['ret_code'] if 'ret_code' in job else None
+
     def run_watchdog(self):
         worker_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(worker_loop)
@@ -219,8 +222,9 @@ class JobServer:
                     self.on_worker_ping(wid)
                     numw = self.get_num_online_workers()
                     numj = self.get_num_jobs()
-                logger.info("Job finished %s by wid %s, %s, #w: %s, #j: %s"
-                            % (jid[:13], wid[:13], self.job_entries[jid].desc(), numw, numj))
+                    rcode = self.get_job_ret_code(jmsg)
+                logger.info("Job finished %s by wid %s, %s, c: %s, #w: %s, #j: %s"
+                            % (jid[:13], wid[:13], self.job_entries[jid].desc(), rcode, numw, numj))
                 return {'resp': 'ok'}
 
             elif act == 'heartbeat':
