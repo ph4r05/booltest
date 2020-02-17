@@ -103,10 +103,19 @@ class JobServer:
         self.worker_map[worker_id] = jb.uuid
         return jb
 
-    def on_job_finished(self, uid, worker_id):
-        jb = self.job_entries[uid]
-        jb.finished = True
+    def on_job_finished(self, uid, worker_id, jmsg):
         self.worker_map[worker_id] = None
+        jb = self.job_entries[uid]
+        if jmsg and 'ret_code' in jmsg:
+            rcode = jmsg['ret_code']
+            if rcode == 0 or rcode is None:
+                jb.finished = True
+            else:
+                logger.warning("Job %s finished with error: %s, retry ctr: %s"
+                               % (jb.uuid[:13], rcode, jb.retry_ctr))
+                self.on_job_fail(jb, False)
+        else:
+            jb.finished = True
 
     def on_job_hb(self, uid, worker_id):
         jb = self.job_entries[uid]
@@ -170,8 +179,9 @@ class JobServer:
 
                 with self.db_lock_t:
                     non_finished = [x.unit for x in self.job_entries.values() if not x.finished]
+                    failed = [x.unit for x in self.job_entries.values() if x.failed]
 
-                js = {'jobs': non_finished}
+                js = {'jobs': non_finished, 'jobs_failed': failed}
                 checkp_tmp = self.args.checkpoint + '.tmp'
                 with open(checkp_tmp, 'w+') as fh:
                     json.dump(js, fh, indent=2)
@@ -221,7 +231,7 @@ class JobServer:
             elif act == 'finished':
                 jid = jmsg['jid']
                 with self.db_lock_t:
-                    self.on_job_finished(jid, wid)
+                    self.on_job_finished(jid, wid, jmsg)
                     self.on_worker_ping(wid)
                     numw = self.get_num_online_workers()
                     numj = self.get_num_jobs()
