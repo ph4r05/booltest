@@ -134,6 +134,7 @@ class JobClient:
         logger.info("Worker %s:%s HB job %s" % (wx.idx, wx.uuid, wx.working_job.uuid))
         await self.comm_hb(wx.working_job, wx)
         wx.last_hb = time.time()
+        return True
 
     def get_cli(self, job: Job):
         jo = job.obj
@@ -149,7 +150,7 @@ class JobClient:
     async def worker_fetch(self, wx: JobWorker):
         job = await self.comm_get_job(wx)
         if job is None:
-            return
+            return False
 
         jb = Job(job['uuid'], job)
         wx.working_job = jb
@@ -166,10 +167,11 @@ class JobClient:
         # wx.runner.is_running = False
 
         logger.info("Worker %s:%s started job %s %s" % (wx.idx, wx.uuid, jb.uuid, cli))
+        return True
 
     async def worker_check(self, wx: JobWorker):
         if wx.runner.is_running:
-            return
+            return False
 
         wx.res_code = wx.runner.ret_code
         wx.res_out = ''.join(wx.runner.out_acc) if wx.runner.out_acc else ''
@@ -181,6 +183,7 @@ class JobClient:
         if wx.res_code != 0:
             logger.warning("Non-zero return code, err: %s" % wx.res_err)
         await self.worker_finished(wx)
+        return True
 
     async def worker_finished(self, wx: JobWorker):
         await self.comm_finished(wx.working_job, wx)
@@ -190,20 +193,20 @@ class JobClient:
         wx.res_code = None
         wx.res_out = None
         wx.res_err = None
+        return True
 
     async def process_worker(self, wx: JobWorker, ix):
         tt = time.time()
         if wx.working_job and not wx.finished and (tt - wx.last_hb) >= 180:
-            await self.worker_hb(wx)
+            return await self.worker_hb(wx)
         elif wx.working_job is None:
-            await self.worker_fetch(wx)
+            return await self.worker_fetch(wx)
         elif not wx.finished:
-            await self.worker_check(wx)
+            return await self.worker_check(wx)
         elif wx.finished:
-            await self.worker_finished(wx)
+            return await self.worker_finished(wx)
         else:
             return False
-        return True
 
     async def process_workers(self):
         change = False
@@ -214,6 +217,7 @@ class JobClient:
                 except Exception as e:
                     logger.warning("Exc in worker %s: %s" % (ix, e), exc_info=e)
                     await asyncio.sleep(1.5)
+                    time.sleep(0.1)
         return change
 
     async def work(self):
@@ -250,6 +254,7 @@ class JobClient:
             except Exception as e:
                 logger.warning("Exception body: %s" % (e,), exc_info=e)
                 await asyncio.sleep(2.0)
+                time.sleep(0.1)
 
             if not change:
                 await asyncio.sleep(0.4)
