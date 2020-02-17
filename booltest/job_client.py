@@ -173,6 +173,8 @@ class JobClient:
         wx.res_err = ''.join(wx.runner.err_acc) if wx.runner.err_acc else ''
         wx.finished = True
         logger.info("Worker %s:%s finished job %s, code: %s" % (wx.idx, wx.uuid, wx.working_job.uuid, wx.res_code))
+        if wx.res_code != 0:
+            logger.warning("Non-zero return code, err: %s" % wx.res_err)
         await self.worker_finished(wx)
 
     async def worker_finished(self, wx: JobWorker):
