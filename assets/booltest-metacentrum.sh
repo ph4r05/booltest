@@ -17,10 +17,13 @@ module add mpc-1.0.3
 module add gmp-6.1.2
 module add mpfr-3.1.4
 
-eval "$(pyenv init -)"
-sleep 3
+#eval "$(pyenv init -)"
+#sleep 3
+#
+#pyenv local 3.7.1
+#sleep 3
 
-pyenv local 3.7.1
-sleep 3
+#exec stdbuf -eL python -m booltest.booltest_main $@
 
-exec stdbuf -eL python -m booltest.booltest_main $@
+# Direct python exec, avoids pyenv init problems.
+exec stdbuf -eL /storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python -m booltest.booltest_main $@
