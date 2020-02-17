@@ -81,9 +81,10 @@ class JobServer:
             self.worker_map[jb.worker_id] = None
 
         jb.retry_ctr += 1
-        if jb.retry_ctr >= 2 and not timeout:
+        if jb.retry_ctr >= 6 and not timeout:
             jb.finished = True
             jb.failed = True
+            logger.warning("Job %s failed, too many retries" % (jb.uuid[:13]))
         else:
             jb.failed = False
             jb.time_ping = None
