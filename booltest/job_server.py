@@ -14,6 +14,7 @@ import threading
 import itertools
 import random
 import hashlib
+import os
 from jsonpath_ng import jsonpath, parse
 
 logger = logging.getLogger(__name__)
@@ -171,8 +172,10 @@ class JobServer:
                     non_finished = [x.unit for x in self.job_entries.values() if not x.finished]
 
                 js = {'jobs': non_finished}
-                with open(self.args.checkpoint, 'w+') as fh:
+                checkp_tmp = self.args.checkpoint + '.tmp'
+                with open(checkp_tmp, 'w+') as fh:
                     json.dump(js, fh, indent=2)
+                os.rename(checkp_tmp, self.args.checkpoint)
                 last_checkpoint = tt
 
             except Exception as e:
@@ -210,8 +213,8 @@ class JobServer:
                         self.on_worker_ping(wid)
                         numw = self.get_num_online_workers()
                         numj = self.get_num_jobs()
-                        logger.info("Job acquired %s by wid %s, %s, #w: %s, #j: %s"
-                                    % (jb.uuid[:13], wid[:13], jb.desc(), numw, numj))
+                        logger.info("Job acquired %s by wid %s, #w: %5d, #j: %7d, %s"
+                                    % (jb.uuid[:13], wid[:13], numw, numj, jb.desc()))
                     resp = self.buid_resp_job(jb)
                 return resp
 
@@ -223,8 +226,8 @@ class JobServer:
                     numw = self.get_num_online_workers()
                     numj = self.get_num_jobs()
                     rcode = self.get_job_ret_code(jmsg)
-                logger.info("Job finished %s by wid %s, %s, c: %s, #w: %s, #j: %s"
-                            % (jid[:13], wid[:13], self.job_entries[jid].desc(), rcode, numw, numj))
+                logger.info("Job finished %s by wid %s, #w: %5d, #j: %7d, c: %s, %s"
+                            % (jid[:13], wid[:13], numw, numj, rcode, self.job_entries[jid].desc()))
                 return {'resp': 'ok'}
 
             elif act == 'heartbeat':
