@@ -99,6 +99,7 @@ class JobClient:
             ('action', 'finished'),
             ('uuid', worker.uuid),
             ('jid', job.uuid),
+            ('ret_code', worker.res_code),
         ])
         return await self.comm_msg(msg)
 
