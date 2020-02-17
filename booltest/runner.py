@@ -122,6 +122,8 @@ class AsyncRunner:
         self.ret_code = None
         self.out_acc = []
         self.err_acc = []
+        self.time_start = None
+        self.time_elapsed = None
         self.feeder = None
         self.proc = None
         self.is_running = False
@@ -208,6 +210,7 @@ class AsyncRunner:
             **run_args
         )
 
+        self.time_start = time.time()
         self.proc = p
         self.ret_code = 1
         self.out_acc, self.err_acc = [], []
@@ -324,6 +327,7 @@ class AsyncRunner:
 
         finally:
             self.was_running = True
+            self.time_elapsed = time.time() - self.time_start
             try_fnc(lambda: self.feeder.close())
             try_fnc(lambda: self.proc.close())
 

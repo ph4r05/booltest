@@ -46,6 +46,7 @@ class JobWorker:
         self.res_code = None
         self.res_out = None
         self.res_err = None
+        self.res_time = None
         self.last_hb = 0
         self.runner = None  # type: AsyncRunner
 
@@ -100,6 +101,7 @@ class JobClient:
             ('uuid', worker.uuid),
             ('jid', job.uuid),
             ('ret_code', worker.res_code),
+            ('time_elapsed', worker.res_time),
         ])
         return await self.comm_msg(msg)
 
@@ -172,8 +174,10 @@ class JobClient:
         wx.res_code = wx.runner.ret_code
         wx.res_out = ''.join(wx.runner.out_acc) if wx.runner.out_acc else ''
         wx.res_err = ''.join(wx.runner.err_acc) if wx.runner.err_acc else ''
+        wx.res_time = wx.runner.time_elapsed
         wx.finished = True
-        logger.info("Worker %s:%s finished job %s, code: %s" % (wx.idx, wx.uuid, wx.working_job.uuid, wx.res_code))
+        logger.info("Worker %s:%s finished job %s, code: %s, time: %s"
+                    % (wx.idx, wx.uuid, wx.working_job.uuid, wx.res_code, wx.res_time))
         if wx.res_code != 0:
             logger.warning("Non-zero return code, err: %s" % wx.res_err)
         await self.worker_finished(wx)
