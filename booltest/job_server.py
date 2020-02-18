@@ -286,15 +286,23 @@ class JobServer:
                 je.uuid = j['uuid']
                 je.idx = len(self.job_entries)
                 agg_jobs.append(je)
+                self.job_entries[je.uuid] = je
+                if not self.args.sort_jobs and not self.args.rand_jobs:
+                    self.job_queue.append(je.uuid)
 
         # Fast jobs first
-        cplx_lambda = lambda x: (x['size_mb'], x['degree'], x['comb_deg'], x['block_size'])
-        agg_jobs.sort(key=lambda x: cplx_lambda(x.unit))
-        for k, g in itertools.groupby(agg_jobs, key=lambda x: cplx_lambda(x.unit)):
-            subs = list(g)
-            random.shuffle(subs)
-            for je in subs:
-                self.job_entries[je.uuid] = je
+        if self.args.sort_jobs:
+            cplx_lambda = lambda x: (x['size_mb'], x['degree'], x['comb_deg'], x['block_size'])
+            agg_jobs.sort(key=lambda x: cplx_lambda(x.unit))
+            for k, g in itertools.groupby(agg_jobs, key=lambda x: cplx_lambda(x.unit)):
+                subs = list(g)
+                random.shuffle(subs)
+                for je in subs:
+                    self.job_queue.append(je.uuid)
+
+        elif self.args.rand_jobs:
+            random.shuffle(agg_jobs)
+            for je in agg_jobs:
                 self.job_queue.append(je.uuid)
 
         logger.info("Jobs in the queue: %s" % (len(self.job_queue),))
@@ -317,6 +325,10 @@ class JobServer:
                             help='Job checkpointing file')
         parser.add_argument('--key-file', dest='key_file', default=None,
                             help='Config file with auth keys')
+        parser.add_argument('--sort-jobs', dest='sort_jobs', action='store_const', const=True,
+                            help='sort jobs by difficulty')
+        parser.add_argument('--rand-jobs', dest='rand_jobs', action='store_const', const=True,
+                            help='randomize jobs')
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='job files')
 
