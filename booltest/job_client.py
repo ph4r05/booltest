@@ -67,6 +67,7 @@ class JobClient:
         self.key = None
         self.last_server_ping = time.time()
         self.shutdown_flag = False
+        self.last_empty_fetch = 0
 
     def get_uri(self):
         return "ws://%s:%s" % (self.args.server, self.args.port)
@@ -150,6 +151,7 @@ class JobClient:
     async def worker_fetch(self, wx: JobWorker):
         job = await self.comm_get_job(wx)
         if job is None:
+            self.last_empty_fetch = time.time()
             return False
 
         jb = Job(job['uuid'], job)
@@ -199,7 +201,7 @@ class JobClient:
         tt = time.time()
         if wx.working_job and not wx.finished and (tt - wx.last_hb) >= 180:
             return await self.worker_hb(wx)
-        elif wx.working_job is None:
+        elif wx.working_job is None and time.time() - self.last_empty_fetch > 30:
             return await self.worker_fetch(wx)
         elif not wx.finished:
             return await self.worker_check(wx)
