@@ -203,6 +203,10 @@ class JobServer:
         logger.debug("Msg recv: %s" % (msg, ))
 
         resp = await self.on_msg(msg)
+        if self.args.epoch:
+            resp['only_epochs'] = self.args.epoch
+        if self.args.kill_all:
+            resp['terminate'] = True
 
         resp_js = json.dumps(resp)
         await websocket.send(resp_js)
@@ -217,6 +221,9 @@ class JobServer:
             wid = jmsg['uuid']
 
             if act == 'acquire':
+                if self.args.kill_all:
+                    return self.buid_resp_job(None)
+
                 with self.db_lock_t:
                     jb = self.job_get(wid)
                     if jb:
@@ -329,6 +336,10 @@ class JobServer:
                             help='sort jobs by difficulty')
         parser.add_argument('--rand-jobs', dest='rand_jobs', action='store_const', const=True,
                             help='randomize jobs')
+        parser.add_argument('--kill-all', dest='kill_all', action='store_const', const=True,
+                            help='kill all clients, no job serving')
+        parser.add_argument('--epoch', dest='epoch', type=int, default=None,
+                            help='client epoch to require')
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='job files')
 

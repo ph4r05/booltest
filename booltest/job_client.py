@@ -131,6 +131,10 @@ class JobClient:
             except Exception as e:
                 logger.warning("Msg processing error: %s" % (e,), exc_info=e)
 
+        if 'terminate' in msg and msg['terminate']:
+            logger.info("Server commanded to terminate.")
+            self.shutdown_flag = True
+
     async def worker_hb(self, wx: JobWorker):
         logger.info("Worker %s:%s HB job %s" % (wx.idx, wx.uuid, wx.working_job.uuid))
         await self.comm_hb(wx.working_job, wx)
