@@ -296,7 +296,7 @@ class AsyncRunner:
 
                 if (self.using_stdout_cap and not out) or (self.using_stderr_cap and err):
                     continue
-                time.sleep(0.1)
+                time.sleep(0.15)
 
             logger.debug("Runner while ended")
             p.wait()
