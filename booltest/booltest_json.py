@@ -3,6 +3,7 @@
 
 import itertools
 import os
+import sys
 import shutil
 import subprocess
 import time
@@ -200,6 +201,7 @@ class BooltestJson(Booltest):
         hwanalysis = HWAnalysis()
         hwanalysis.from_json(self.hw_cfg)
         hwanalysis.reset()
+        self.check_ref_db(hwanalysis)
         return hwanalysis
 
     def work(self, bin_data=None):
@@ -240,6 +242,8 @@ class BooltestJson(Booltest):
         self.hw_cfg = hw_cfg
         self.hwanalysis = HWAnalysis()
         self.hwanalysis.from_json(hw_cfg)
+        self.check_ref_db(self.hwanalysis)
+
         self.blocklen = self.hwanalysis.blocklen
         self.deg = self.hwanalysis.deg
         self.top_comb = self.hwanalysis.top_comb
@@ -393,7 +397,7 @@ class BooltestJson(Booltest):
         self.args = parser.parse_args(args)
 
     def main(self):
-        logger.debug('App started')
+        logger.debug('App started, path: %s, version: %s' % (sys.path, sys.version_info))
 
         self.parse_args()
         jsres = self.work()

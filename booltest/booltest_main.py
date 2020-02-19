@@ -13,6 +13,7 @@ import logging
 import random
 import re
 import os
+import sys
 from functools import reduce
 
 import argparse
@@ -958,7 +959,7 @@ class Booltest(object):
             print('  Expected probability: %s' % expp)
 
     def try_find_refdb(self):
-        if self.args.ref_db:
+        if 'ref_db' in self.args and self.args.ref_db:
             return self.args.ref_db
 
         fname = 'pval_db.json'
@@ -981,6 +982,12 @@ class Booltest(object):
                 pass
 
         return None
+
+    def check_ref_db(self, hwanalysis):
+        if not hwanalysis.ref_db_path:
+            hwanalysis.ref_db_path = self.try_find_refdb()
+        else:
+            logger.info("Ref DB path: %s" % hwanalysis.ref_db_path)
 
     def init_params(self):
         self.blocklen = int(self.defset(self.args.blocklen, 256))
@@ -1218,7 +1225,7 @@ class Booltest(object):
             jscres['offset'] = coffset
 
             tvsize = self.adjust_tvsize(tvsize, size, coffset)
-
+            logger.warning("FUCK")
             self.hwanalysis = self.setup_hwanalysis(self.deg, self.top_comb, self.top_k, self.all_deg, zscore_thresh)
             if self.hwanalysis.ref_db_path:
                 logger.info('Using reference data file %s' % self.hwanalysis.ref_db_path)
@@ -1388,7 +1395,7 @@ class Booltest(object):
         return jscres
 
     def main(self):
-        logger.debug('App started')
+        logger.debug('App started, path: %s, version: %s' % (sys.path, sys.version_info))
 
         parser = self.argparser()
         self.args = parser.parse_args()
