@@ -282,8 +282,10 @@ class JobServer:
                 kjs = json.load(fh)
             self.key = kjs['key']
 
+        logger.info("Reading job files")
         agg_jobs = []
         for fl in self.args.files:
+            logger.info("Processing %s" % (fl,))
             with open(fl) as fh:
                 js = json.load(fh)
             jobs = js['jobs']
