@@ -30,7 +30,7 @@ export BACKDIR=$HDIR/bool-back
 export JOBDIR=$HDIR/bool-jobNr14
 export SIGDIR=$HDIR/bool-sig
 
-export JOBDIR=$HDIR/bool-jobNr56
+export JOBDIR=$HDIR/bool-jobNr92
 mkdir -p $JOBDIR
 mkdir -p $BACKDIR
 mkdir -p $SIGDIR
@@ -536,9 +536,131 @@ python ../booltest/booltest/testjobs.py  \
     --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
     --topterm-heap-k 256 --no-functions --check-json 0
 
+########################################################################################################################
+## Sec margins 25, 26, 27
+export RESDIR=$HDIR/bool-res-sm
+mkdir -p $RESDIR
 
+# Security margins experiment 3 for booltest, 10, 100 MB
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-margins/exp25-26-27 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0  --skip-finished
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+ ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-margins/exp25-26-27 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed f39e9205e31b36fa --skip-finished
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+ ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-margins/exp25-26-27 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed c2bf37890011dfed --skip-finished
+
+
+########################################################################################################################
+## Halving sec margins
+export RESDIR=$HDIR/bool-res-hlv
+mkdir -p $RESDIR
+
+# Security margins experiment 3 for booltest, 10, 100 MB
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0  --skip-finished --halving
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed f39e9205e31b36fa --skip-finished --halving
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed c2bf37890011dfed --skip-finished --halving
+
+
+# Sec margins configurations, booltest to high orders: 3-3
+python ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-cfgs/exp3/ \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --skip-finished --halving
+
+########################################################################################################################
+## Halving sec margins II
+export RESDIR=$HDIR/bool-res-hlv2
+mkdir -p $RESDIR
+
+# Security margins experiment 3 for booltest, 10, 100 MB
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-margins/exp25-26-27 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0  --skip-finished --halving
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+ ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-margins/exp25-26-27 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed f39e9205e31b36fa --skip-finished --halving
+
+
+# Security margins experiment 3 for booltest, 10, 100 MB, seed
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+ ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-margins/exp25-26-27 \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --reseed c2bf37890011dfed --skip-finished --halving
+
+
+########################################################################################################################
 # Processing:
 qsub -l select=1:ncpus=4:mem=32gb:brno=true -l walltime=48:00:00 -I
 python booltest/testjobsproc.py ../bool-res --aes-ref
 python booltest/testjobsproc.py ../bool-res.tar --aes-ref --tar
 
+
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python booltest/testjobsproc.py

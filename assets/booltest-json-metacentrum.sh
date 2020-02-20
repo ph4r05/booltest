@@ -17,4 +17,6 @@ module add mpc-1.0.3
 module add gmp-6.1.2
 module add mpfr-3.1.4
 
+# eval "$(pyenv init -)"
+# pyenv local 3.7.1
 exec stdbuf -eL /storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python -m booltest.booltest_json $@
