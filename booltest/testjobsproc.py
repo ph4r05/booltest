@@ -118,6 +118,7 @@ class TestRecord(object):
         self.fhash = None
         self.mtime = None
         self.cfg_file_name = None
+        self.seed = None
 
         self.zscore = None
         self.best_poly = None
@@ -251,6 +252,7 @@ def process_file(js, fname, args=None):
     tr.time_process = common.defvalkeys(js, 'time_process')
     tr.cfg_file_name = common.defvalkeys(js, 'config.config.spec.gen_cfg.file_name')
     tr.data_bytes = common.defvalkeys(js, 'data_read')
+    tr.seed = common.defvalkeys(js, 'config.config.spec.gen_cfg.seed')
 
     if tr.data:
         tr.data = int(math.ceil(math.ceil(tr.data/1024.0)/1024.0))
@@ -390,6 +392,9 @@ class Processor(object):
         parser.add_argument('--out-dir', dest='out_dir', default='.',
                             help='dir for results')
 
+        parser.add_argument('--file-suffix', dest='file_suffix', default='',
+                            help='suffix for result files')
+
         parser.add_argument('--delim', dest='delim', default=';',
                             help='CSV delimiter')
 
@@ -428,6 +433,9 @@ class Processor(object):
 
         parser.add_argument('--delete-invalid', dest='delete_invalid', default=False, action='store_const', const=True,
                             help='Delete invalid results')
+
+        parser.add_argument('--append-seed', dest='append_seed', default=False, action='store_const', const=True,
+                            help='Append seed to the data file')
 
         parser.add_argument('folder', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='folder with test matrix resutls - result dir of testbed.py')
@@ -717,16 +725,17 @@ class Processor(object):
         elif args.benchmark:
             fname_narrow = 'bench_'
 
+        fsuffix = self.args.file_suffix
         fname_time = int(time.time())
-        fname_ref_json = os.path.join(args.out_dir, 'ref_%s%s.json' % (fname_narrow, fname_time))
-        fname_ref_csv = os.path.join(args.out_dir, 'ref_%s%s.csv' % (fname_narrow, fname_time))
-        fname_results_json = os.path.join(args.out_dir, 'results_%s%s.json' % (fname_narrow, fname_time))
-        fname_results_bat_json = os.path.join(args.out_dir, 'results_bat_%s%s.json' % (fname_narrow, fname_time))
-        fname_results_csv = os.path.join(args.out_dir, 'results_%s%s.csv' % (fname_narrow, fname_time))
-        fname_results_rf_csv = os.path.join(args.out_dir, 'results_rf_%s%s.csv' % (fname_narrow, fname_time))
-        fname_results_rfd_csv = os.path.join(args.out_dir, 'results_rfd_%s%s.csv' % (fname_narrow, fname_time))
-        fname_results_rfr_csv = os.path.join(args.out_dir, 'results_rfr_%s%s.csv' % (fname_narrow, fname_time))
-        fname_timing_csv = os.path.join(args.out_dir, 'results_time_%s%s.csv' % (fname_narrow, fname_time))
+        fname_ref_json = os.path.join(args.out_dir, 'ref_%s%s%s.json' % (fname_narrow, fname_time, fsuffix))
+        fname_ref_csv = os.path.join(args.out_dir, 'ref_%s%s%s.csv' % (fname_narrow, fname_time, fsuffix))
+        fname_results_json = os.path.join(args.out_dir, 'results_%s%s%s.json' % (fname_narrow, fname_time, fsuffix))
+        fname_results_bat_json = os.path.join(args.out_dir, 'results_bat_%s%s%s.json' % (fname_narrow, fname_time, fsuffix))
+        fname_results_csv = os.path.join(args.out_dir, 'results_%s%s%s.csv' % (fname_narrow, fname_time, fsuffix))
+        fname_results_rf_csv = os.path.join(args.out_dir, 'results_rf_%s%s%s.csv' % (fname_narrow, fname_time, fsuffix))
+        fname_results_rfd_csv = os.path.join(args.out_dir, 'results_rfd_%s%s%s.csv' % (fname_narrow, fname_time, fsuffix))
+        fname_results_rfr_csv = os.path.join(args.out_dir, 'results_rfr_%s%s%s.csv' % (fname_narrow, fname_time, fsuffix))
+        fname_timing_csv = os.path.join(args.out_dir, 'results_time_%s%s%s.csv' % (fname_narrow, fname_time, fsuffix))
 
         # Reference bins
         ref_keys = sorted(list(self.ref_bins.keys()))
@@ -897,6 +906,10 @@ class Processor(object):
 
             # JSON battery format result
             for cur_res in group_expanded:
+                cdatafile = cur_res.cfg_file_name
+                if self.args.append_seed:
+                    cdatafile = "%s_seed_%s" % (cur_res.cfg_file_name, cur_res.seed)
+
                 cur_js = collections.OrderedDict()
                 cur_js['battery'] = 'booltest'
                 cur_js['function'] = fnc_name
@@ -906,7 +919,8 @@ class Processor(object):
                 cur_js['deg'] = cur_res.deg
                 cur_js['k'] = cur_res.comb_deg
                 cur_js['m'] = cur_res.block
-                cur_js['data_file'] = cur_res.cfg_file_name
+                cur_js['data_file'] = cdatafile
+                cur_js['seed'] = cur_res.seed
                 cur_js['zscore'] = cur_res.zscore
                 cur_js['halving'] = cur_res.is_halving
                 if cur_res.is_halving:
