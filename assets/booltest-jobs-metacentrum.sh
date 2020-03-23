@@ -635,6 +635,8 @@ mkdir -p $RESDIR
 
 
 # Security margins experiment 3 for booltest, 10, 100 MB, seed
+# Redundant, experiments {25, 26, 27} are same just seed differs, reseeding makes dups
+# sets same new seed for all experiments.
 /storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
  ../booltest/booltest/testjobs.py  \
     --generator-path ../crypto-streams-v3.0 \
@@ -646,6 +648,8 @@ mkdir -p $RESDIR
 
 
 # Security margins experiment 3 for booltest, 10, 100 MB, seed
+# Redundant, experiments {25, 26, 27} are same just seed differs, reseeding makes dups
+# sets same new seed for all experiments.
 /storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
  ../booltest/booltest/testjobs.py  \
     --generator-path ../crypto-streams-v3.0 \
@@ -663,4 +667,5 @@ python booltest/testjobsproc.py ../bool-res --aes-ref
 python booltest/testjobsproc.py ../bool-res.tar --aes-ref --tar
 
 
-/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python booltest/testjobsproc.py
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python booltest/testjobsproc.py \
+  --pval-data pval_db.json --json DIR
