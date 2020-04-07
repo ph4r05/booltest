@@ -294,7 +294,8 @@ class AsyncRunner:
                     logger.debug("Sigint sent")
                     logger.debug("Process closed")
 
-                if (self.using_stdout_cap and not out) or (self.using_stderr_cap and err):
+                # If there is data, consume it right away.
+                if (self.using_stdout_cap and out) or (self.using_stderr_cap and err):
                     continue
                 time.sleep(0.15)
 
