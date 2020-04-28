@@ -661,6 +661,22 @@ mkdir -p $RESDIR
 
 
 ########################################################################################################################
+# Booltest2 10k reference runs
+export RESDIR=$HDIR/bool-res-hlv-ref
+export JOBDIR=$HDIR/bool-jobNr10
+mkdir -p cd $JOBDIR; cd $JOBDIR
+
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python \
+ ../booltest/booltest/testjobs.py  \
+    --generator-path ../crypto-streams-v3.0 \
+    --generator-folder ../bool-conf-ref \
+    --data-dir $RESDIR --job-dir $JOBDIR --result-dir=$RESDIR \
+    --top 128 --matrix-comb-deg 1 2 3 --matrix-deg 1 2 3 --matrix-block 128 256 384 512 \
+    --no-comb-and --only-top-comb --only-top-deg --no-term-map --topterm-heap \
+    --topterm-heap-k 256 --no-functions --check-json 0 --skip-finished --halving
+
+
+########################################################################################################################
 # Processing:
 qsub -l select=1:ncpus=4:mem=32gb:brno=true -l walltime=48:00:00 -I
 python booltest/testjobsproc.py ../bool-res --aes-ref
