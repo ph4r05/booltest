@@ -14,6 +14,7 @@ import subprocess
 import sys
 import hashlib
 import fnmatch
+from typing import Tuple, List, Dict, Optional, Any, Union
 
 import scipy.misc
 import scipy.stats
@@ -448,6 +449,7 @@ class Testjobs(Booltest):
         batcher.job_dir = self.job_dir
         batcher.aggregation_factor = self.args.aggregation_factor
         batcher.max_hour_job = self.args.max_hr_job
+        batcher.no_files = self.args.minimal_files
         return batcher
 
     def rescan_job_files(self):
@@ -559,14 +561,7 @@ class Testjobs(Booltest):
         logger.info('Generated job files: %s, tests: %s' % (len(batcher.job_files), batcher.num_units))
         self.finalize_batch(batcher)
 
-    def finalize_batch(self, batcher):
-        """
-        Creates final enqueueing scripts for the batch
-        :param batcher:
-        :type batcher: testjobsbase.BatchGenerator
-        :return:
-        """
-        # Enqueue
+    def write_enqueue_script(self, batcher):
         enqueue_path = os.path.join(self.job_dir, 'enqueue-meta-%s.sh' % int(time.time()))
         with open(enqueue_path, 'w') as fh:
             fh.write('#!/bin/bash\n\n')
@@ -580,7 +575,21 @@ class Testjobs(Booltest):
             qsub_args = ':'.join(qsub_args)
             qsub_args = (':%s' % qsub_args) if qsub_args != '' else ''
             for fn in batcher.job_files:
-                fh.write('qsub -l select=1:ncpus=%s:mem=%s%s -l walltime=%s %s \n' % (nprocs, fn[1], qsub_args, fn[2], fn[0]))
+                fh.write('qsub -l select=1:ncpus=%s:mem=%s%s -l walltime=%s %s \n' % (
+                nprocs, fn[1], qsub_args, fn[2], fn[0]))
+        return enqueue_path
+
+    def finalize_batch(self, batcher):
+        """
+        Creates final enqueueing scripts for the batch
+        :param batcher:
+        :type batcher: testjobsbase.BatchGenerator
+        :return:
+        """
+        enqueue_path = None
+        if not self.args.pure_server:
+            enqueue_path = self.write_enqueue_script(batcher)
+            misc.try_chmod_grx(enqueue_path)
 
         # Generator tester file
         testgen_path = os.path.join(self.job_dir, 'test-generators-%s.sh' % int(time.time()))
@@ -597,15 +606,13 @@ class Testjobs(Booltest):
         jlist = batcher.get_job_list()
         jlist_path = os.path.join(self.job_dir, 'batcher-jobs-%s.json' % int(time.time()))
         with open(jlist_path, 'w') as fh:
-            json.dump(jlist, fh, indent=2)
+            json.dump(jlist, fh, indent=self.args.indent)
 
-        # chmod
-        misc.try_chmod_grx(enqueue_path)
         misc.try_chmod_grx(testgen_path)
         logger.info('Gentest: %s' % testgen_path)
         logger.info('Enqueue: %s' % enqueue_path)
 
-        if self.args.enqueue:
+        if not self.args.pure_server and self.args.enqueue:
             logger.info('Enqueueing...')
             p = subprocess.Popen(enqueue_path, stdout=sys.stdout, stderr=sys.stderr, shell=True)
             p.wait()
@@ -845,7 +852,7 @@ class Testjobs(Booltest):
                     test_array.append(copy.deepcopy(tce_c))
 
         # test multiple booltest params
-        test_runs = []  # type: list[TestRun]
+        test_runs = []  # type: List[TestRun]
         logger.info('Test array size: %s' % len(test_array))
 
         # Generate test cases, run the analysis.
@@ -917,7 +924,7 @@ class Testjobs(Booltest):
         num_skipped_scheduled = 0
         self.time_gen_total.start()
 
-        for fidx, trun in enumerate(test_runs):  # type: tuple(int, TestRun)
+        for fidx, trun in enumerate(test_runs):
             hwanalysis = self.testcase(trun.block_size, trun.degree, trun.comb_deg)
             json_config = collections.OrderedDict()
             json_config['exp_time'] = self.time_experiment
@@ -974,13 +981,14 @@ class Testjobs(Booltest):
                         common.try_json_load(open(cfg_file_path, 'r').read())))
                     raise ValueError('File name conflict: %s, test idx: %s' % (cfg_file_path, fidx))
 
-            if gen_file_path and (not os.path.exists(gen_file_path) or self.args.overwrite_existing):
+            if not self.args.pure_server and gen_file_path and (not os.path.exists(gen_file_path) or self.args.overwrite_existing):
                 with open(gen_file_path, 'w+') as fh:
-                    fh.write(common.json_dumps(trun.spec.gen_cfg, indent=2))
+                    fh.write(common.json_dumps(trun.spec.gen_cfg, indent=self.args.indent))
                 misc.try_chmod_gr(gen_file_path)
 
-            with open(cfg_file_path, 'w+') as fh:
-                fh.write(common.json_dumps(json_config, indent=2))
+            if not self.args.pure_server:
+                with open(cfg_file_path, 'w+') as fh:
+                    fh.write(common.json_dumps(json_config, indent=self.args.indent))
 
             # Job batch creation
             unit = testjobsbase.TestBatchUnit()
@@ -993,6 +1001,9 @@ class Testjobs(Booltest):
             unit.comb_deg = trun.comb_deg
             unit.data_size = trun.spec.data_size
             unit.size_mb = self.to_mbs(trun.spec.data_size, ceiling=True)
+            if self.args.pure_server:
+                unit.gen_data = trun.spec.gen_cfg
+                unit.cfg_data = json_config
             batcher.add_unit(unit)
         batcher.flush()
 
@@ -1261,6 +1272,15 @@ class Testjobs(Booltest):
 
         parser.add_argument('--remove-broken-json', dest='remove_broken_result', default=0, type=int,
                             help='Removes invalid json results')
+
+        parser.add_argument('--minimal-files', dest='minimal_files', default=0, type=int,
+                            help='Reduce file output, used for job server')
+
+        parser.add_argument('--pure-server', dest='pure_server', default=0, type=int,
+                            help='Pure server mode, generate all in one')
+
+        parser.add_argument('--indent', dest='indent', default=2, type=int,
+                            help='Json indents')
 
         #
         # Testing matrix definition

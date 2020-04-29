@@ -4,6 +4,7 @@
 import os
 import collections
 import uuid
+from typing import List, Tuple, Dict, Optional, Any, Union
 
 
 job_tpl_hdr = '''#!/bin/bash
@@ -98,6 +99,8 @@ class TestBatchUnit(object):
         self.comb_deg = None
         self.data_size = None
         self.size_mb = None
+        self.gen_data = None
+        self.cfg_data = None
 
     def get_exec(self):
         args = ' --config-file %s' % self.cfg_file_path
@@ -117,7 +120,7 @@ class BatchGenerator(object):
     def __init__(self):
         self.generator_files = set()
         self.job_dir = None
-        self.job_acc = []
+        self.job_acc = []  # type: List[TestBatchUnit]
         self.job_files = []
         self.job_batch = []
         self.job_clean_batch = []
@@ -125,7 +128,7 @@ class BatchGenerator(object):
         self.batch_max_deg = 0
         self.batch_max_comb_deg = 0
         self.job_batch_max_size = 50
-        self.cur_batch_def = None  # type: TestBatchUnit
+        self.cur_batch_def = None  # type: Optional[TestBatchUnit]
         self.memory_threshold = 50
         self.num_units = 0
         self.num_skipped = 0
@@ -134,6 +137,7 @@ class BatchGenerator(object):
         self.aggregation_factor = 1.0
         self.retry = True
         self.max_hour_job = 24
+        self.no_files = False
 
     def aggregate(self, jobs, fact, min_jobs=1):
         return max(min_jobs, int(jobs * fact))
@@ -145,6 +149,9 @@ class BatchGenerator(object):
         :return:
         """
         self.job_acc.append(unit)
+        if self.no_files:
+            return
+
         job_exec = unit.get_exec()
         job_data = job_tpl_prefix % unit.res_file
 
@@ -216,6 +223,9 @@ class BatchGenerator(object):
         if len(self.job_batch) == 0:
             return
 
+        if self.no_files:
+            return
+
         job_data = job_tpl_hdr + '\n'.join(self.job_clean_batch) + '\n\n' + '\n'.join(self.job_batch)
         unit = self.cur_batch_def
 
@@ -246,7 +256,7 @@ class BatchGenerator(object):
         jobs = []
         jsres['jobs'] = jobs
 
-        for jb in self.job_acc:  # type: TestBatchUnit
+        for jb in self.job_acc:
             rec = collections.OrderedDict()
             for e in jb.__dict__:
                 rec[e] = getattr(jb, e, None)
