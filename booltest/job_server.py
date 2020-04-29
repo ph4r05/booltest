@@ -288,8 +288,10 @@ class JobServer:
             logger.info("Processing %s" % (fl,))
             with open(fl) as fh:
                 js = json.load(fh)
+
+            logger.info("File %s loaded" % (fl,))
             jobs = js['jobs']
-            for j in jobs:
+            for ix, j in enumerate(jobs):
                 je = JobEntry()
                 je.unit = j
                 je.uuid = j['uuid']
@@ -298,6 +300,9 @@ class JobServer:
                 self.job_entries[je.uuid] = je
                 if not self.args.sort_jobs and not self.args.rand_jobs:
                     self.job_queue.append(je.uuid)
+                jobs[ix] = None  # memory cleanup
+        jobs = None
+        del js
 
         # Fast jobs first
         if self.args.sort_jobs:
