@@ -39,12 +39,12 @@ touch ${IND_BASE}.started
 
 job_tpl = '''
 ./generator-metacentrum.sh -c=%s | ./booltest-json-metacentrum.sh \\
-    %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"
+    %s > "${LOGDIR}/%s.log" 2>&1"
 '''
 
 job_tpl_data_file = '''
 ./booltest-json-metacentrum.sh \\
-    %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"
+    %s > "${LOGDIR}/%s.log" 2>&1"
 '''
 
 tpl_handle_res_common = '''
