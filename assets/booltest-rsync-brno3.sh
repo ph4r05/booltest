@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Old:
 export HOMEDIR="/storage/brno3-cerit/home/${LOGNAME}"
