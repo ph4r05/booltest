@@ -107,9 +107,9 @@ class TestBatchUnit(object):
 
         job_exec = ''
         if self.gen_file_path:
-            job_exec = job_tpl % (self.gen_file_path, args, self.res_file, self.res_file)
+            job_exec = job_tpl % (self.gen_file_path, args, self.res_file)
         else:
-            job_exec = job_tpl_data_file % (args, self.res_file, self.res_file)
+            job_exec = job_tpl_data_file % (args, self.res_file)
         return job_exec
 
 
