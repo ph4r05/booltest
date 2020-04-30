@@ -15,14 +15,24 @@ import hashlib
 import shlex
 import sys
 from jsonpath_ng import jsonpath, parse
+from typing import Dict, List, Tuple, Optional, Any
 from booltest.runner import AsyncRunner
 
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
 
-job_tpl = './generator-metacentrum.sh -c=%s | ./booltest-json-metacentrum.sh %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"'
-job_tpl_data_file = './booltest-json-metacentrum.sh %s > "${LOGDIR}/%s.out" 2> "${LOGDIR}/%s.err"'
+job_tpl = './generator-metacentrum.sh -c=%s | ./booltest-json-metacentrum.sh %s > "${LOGDIR}/%s.log" 2>&1'
+job_tpl_data_file = './booltest-json-metacentrum.sh %s > "${LOGDIR}/%s.log" 2>&1'
+
+
+def try_rm(pth):
+    if not pth:
+        return
+    try:
+        os.unlink(pth)
+    except:
+        pass
 
 
 def jsonpath(path, obj, allow_none=False):
@@ -41,27 +51,27 @@ class JobWorker:
     def __init__(self):
         self.idx = 0
         self.uuid = str(uuid.uuid4())
-        self.working_job = None  # type: Job
+        self.working_job = None  # type: Optional[Job]
         self.finished = False
         self.res_code = None
         self.res_out = None
         self.res_err = None
         self.res_time = None
         self.last_hb = 0
-        self.runner = None  # type: AsyncRunner
+        self.runner = None  # type: Optional[AsyncRunner]
 
 
 class Job:
     def __init__(self, uid=None, obj=None):
         self.uuid = uid
-        self.obj = obj
+        self.obj = obj  # type: Optional[Dict[str, Any]]
 
 
 class JobClient:
     def __init__(self):
         self.args = None
         self.time_start = time.time()
-        self.workers = []  # type: list[JobWorker]
+        self.workers = []  # type: List[JobWorker]
         self.db_lock = asyncio.Lock()
         self.ws_conn = None
         self.key = None
@@ -152,6 +162,23 @@ class JobClient:
         job_exec = job_exec.replace('${LOGDIR}', self.args.logdir)
         return job_exec
 
+    def get_job_files(self, job: Job):
+        """Gen files cannot be cleaned as they are shared among configurations"""
+        jo = job.obj
+        res = [jo['cfg_file_path']]
+        if self.args.logdir:
+            res.append(os.path.join(self.args.logdir, '%s.log' % jo['res_file']))
+        return res
+
+    def try_rm_job_files(self, job: Job):
+        try:
+            files = self.get_job_files(job)
+            for fl in files:
+                try_rm(fl)
+
+        except Exception as e:
+            logger.warning("Exception in files removal: %s" % (e,), exc_info=e)
+
     async def worker_fetch(self, wx: JobWorker):
         job = await self.comm_get_job(wx)
         if job is None:
@@ -193,6 +220,9 @@ class JobClient:
 
     async def worker_finished(self, wx: JobWorker):
         await self.comm_finished(wx.working_job, wx)
+        if self.args.delete_on_success and wx.res_code == 0:
+            self.try_rm_job_files(wx.working_job)
+
         wx.working_job = None
         wx.last_hb = None
         wx.finished = False
@@ -295,6 +325,8 @@ class JobClient:
                             help='Config file with auth keys')
         parser.add_argument('--epoch', dest='epoch', default=None, type=int,
                             help='Epoch ID for remote kill')
+        parser.add_argument('--delete-on-success', dest='delete_on_success', default=0, type=int,
+                            help='Delete job files on success')
 
         return parser
 
