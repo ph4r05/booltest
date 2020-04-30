@@ -16,6 +16,7 @@ import random
 import hashlib
 import os
 from jsonpath_ng import jsonpath, parse
+from typing import Dict, List, Tuple, Optional, Any
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.INFO)
@@ -55,18 +56,21 @@ class JobServer:
     def __init__(self):
         self.args = None
         self.is_running = True
-        self.job_entries = {}  # type: dict[str,JobEntry]
-        self.job_queue = []  # type: list[str]
+        self.job_ctr = 0
+        self.job_src_files = []
+        self.job_entries = {}  # type: Dict[str,JobEntry]
+        self.job_queue = []  # type: List[str]
 
         # Mapping worker_id -> job_id
-        self.worker_map = {}  # type: dict[str,str]
-        self.workers = {}  # type: dict[str,WorkerEntry]
+        self.worker_map = {}  # type: Dict[str,str]
+        self.workers = {}  # type: Dict[str,WorkerEntry]
         self.db_lock = asyncio.Lock()
         self.db_lock_t = threading.Lock()
         self.thread_watchdog = None
         self.key = None
 
     def job_get(self, worker_id=None):
+        self.check_job_queue()  # TODO: has to be done in async way...
         if len(self.job_queue) == 0:
             return None
         uid = self.job_queue.pop(0)
@@ -76,7 +80,7 @@ class JobServer:
         jb.worker_id = worker_id
         return jb
 
-    def on_job_fail(self, jb, timeout=False):
+    def on_job_fail(self, jb: JobEntry, timeout=False):
         if jb.worker_id and jb.worker_id in self.worker_map and self.worker_map[jb.worker_id] == jb.uuid:
             self.worker_map[jb.worker_id] = None
 
@@ -90,6 +94,9 @@ class JobServer:
             jb.time_ping = None
             jb.time_allocated = None
             self.job_queue.append(jb.uuid)
+
+    def on_job_success(self, jb: JobEntry):
+        jb.unit = None
 
     def on_job_alloc(self, jb, worker_id):
         if not jb:
@@ -111,6 +118,7 @@ class JobServer:
             rcode = jmsg['ret_code']
             if rcode == 0 or rcode is None:
                 jb.finished = True
+                self.on_job_success(jb)
             else:
                 logger.warning("Job %s finished with error: %s, retry ctr: %s"
                                % (jb.uuid[:13], rcode, jb.retry_ctr))
@@ -273,6 +281,75 @@ class JobServer:
         # loop = asyncio.get_event_loop()
         # loop.run_forever()
 
+    def load_jobs(self, js, agg_jobs):
+        jobs = js['jobs']
+        agg_jobs = agg_jobs if agg_jobs is not None else []
+        for ix, j in enumerate(jobs):
+            je = JobEntry()
+            je.unit = j
+            je.uuid = j['uuid']
+            je.idx = self.job_ctr
+            agg_jobs.append(je)
+            self.job_ctr += 1
+            self.job_entries[je.uuid] = je
+            if not self.args.sort_jobs and not self.args.rand_jobs:
+                self.job_queue.append(je.uuid)
+            jobs[ix] = None  # memory cleanup
+        return agg_jobs
+
+    def sort_and_add_jobs(self, jobs):
+        cplx_lambda = lambda x: (x['size_mb'], x['degree'], x['comb_deg'], x['block_size'])
+        jobs.sort(key=lambda x: cplx_lambda(x.unit))
+        for k, g in itertools.groupby(jobs, key=lambda x: cplx_lambda(x.unit)):
+            subs = list(g)
+            random.shuffle(subs)
+            for je in subs:
+                self.job_queue.append(je.uuid)
+
+    def shuffle_and_add_jobs(self, jobs):
+        random.shuffle(jobs)
+        for je in jobs:
+            self.job_queue.append(je.uuid)
+
+    def load_job_file(self, fl, agg_jobs=None):
+        agg_jobs = agg_jobs if agg_jobs is not None else []
+        logger.info("Processing %s" % (fl,))
+        with open(fl) as fh:
+            js = json.load(fh)
+
+        logger.info("File %s loaded" % (fl,))
+        return self.load_jobs(js, agg_jobs)
+
+    def load_all_jobs(self):
+        logger.info("Reading job files")
+        agg_jobs = []
+        for fl in self.args.files:
+            self.load_job_file(fl, agg_jobs)
+
+        if self.args.sort_jobs:
+            self.sort_and_add_jobs(agg_jobs)
+
+        elif self.args.rand_jobs:
+            self.shuffle_and_add_jobs(agg_jobs)
+
+    def check_job_queue(self):
+        if not self.args.continuous_loading:
+            return
+        if len(self.job_queue) >= 10000:
+            return
+        if len(self.job_src_files) == 0:
+            return
+
+        agg_jobs = []
+        fl = self.job_src_files.pop()
+        self.load_job_file(fl, agg_jobs)
+
+        if self.args.sort_jobs:
+            self.sort_and_add_jobs(agg_jobs)
+
+        elif self.args.rand_jobs:
+            self.shuffle_and_add_jobs(agg_jobs)
+
     async def main(self):
         parser = self.argparse()
         self.args = parser.parse_args()
@@ -282,42 +359,11 @@ class JobServer:
                 kjs = json.load(fh)
             self.key = kjs['key']
 
-        logger.info("Reading job files")
-        agg_jobs = []
-        for fl in self.args.files:
-            logger.info("Processing %s" % (fl,))
-            with open(fl) as fh:
-                js = json.load(fh)
-
-            logger.info("File %s loaded" % (fl,))
-            jobs = js['jobs']
-            for ix, j in enumerate(jobs):
-                je = JobEntry()
-                je.unit = j
-                je.uuid = j['uuid']
-                je.idx = len(self.job_entries)
-                agg_jobs.append(je)
-                self.job_entries[je.uuid] = je
-                if not self.args.sort_jobs and not self.args.rand_jobs:
-                    self.job_queue.append(je.uuid)
-                jobs[ix] = None  # memory cleanup
-        jobs = None
-        del js
-
-        # Fast jobs first
-        if self.args.sort_jobs:
-            cplx_lambda = lambda x: (x['size_mb'], x['degree'], x['comb_deg'], x['block_size'])
-            agg_jobs.sort(key=lambda x: cplx_lambda(x.unit))
-            for k, g in itertools.groupby(agg_jobs, key=lambda x: cplx_lambda(x.unit)):
-                subs = list(g)
-                random.shuffle(subs)
-                for je in subs:
-                    self.job_queue.append(je.uuid)
-
-        elif self.args.rand_jobs:
-            random.shuffle(agg_jobs)
-            for je in agg_jobs:
-                self.job_queue.append(je.uuid)
+        if not self.args.continuous_loading:
+            self.load_all_jobs()
+        else:
+            self.job_src_files = self.args.files
+            self.check_job_queue()
 
         logger.info("Jobs in the queue: %s" % (len(self.job_queue),))
 
@@ -347,6 +393,8 @@ class JobServer:
                             help='kill all clients, no job serving')
         parser.add_argument('--epoch', dest='epoch', type=int, default=None,
                             help='client epoch to require')
+        parser.add_argument('--continuous-loading', dest='continuous_loading', type=int, default=None,
+                            help='Do not load all jobs at once')
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='job files')
 

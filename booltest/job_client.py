@@ -12,6 +12,7 @@ import websockets
 import asyncio
 import os
 import hashlib
+import shutil
 import shlex
 import sys
 from jsonpath_ng import jsonpath, parse
@@ -31,6 +32,15 @@ def try_rm(pth):
         return
     try:
         os.unlink(pth)
+    except:
+        pass
+
+
+def try_rm_tree(pth):
+    if not pth:
+        return
+    try:
+        shutil.rmtree(pth, True)
     except:
         pass
 
@@ -59,12 +69,14 @@ class JobWorker:
         self.res_time = None
         self.last_hb = 0
         self.runner = None  # type: Optional[AsyncRunner]
+        self.scratch_dir = None
 
 
 class Job:
     def __init__(self, uid=None, obj=None):
         self.uuid = uid
         self.obj = obj  # type: Optional[Dict[str, Any]]
+        self.scratch_dir = None
 
 
 class JobClient:
@@ -78,6 +90,7 @@ class JobClient:
         self.last_server_ping = time.time()
         self.shutdown_flag = False
         self.last_empty_fetch = 0
+        self.scratch_dir = None
 
     def get_uri(self):
         return "ws://%s:%s" % (self.args.server, self.args.port)
@@ -151,14 +164,39 @@ class JobClient:
         wx.last_hb = time.time()
         return True
 
+    def scratch_dir_get(self, fallback='/tmp'):
+        scratch = os.getenv('SCRATCHDIR')
+
+        if not scratch:
+            logger.warning('SCRATCHDIR dir not set')
+            return fallback
+
+        if not os.path.exists(scratch):
+            logger.warning('SCRATCHDIR dir does not exist: %s' % (scratch,))
+            return fallback
+        return scratch
+
     def get_cli(self, job: Job):
         jo = job.obj
-        args = ' --config-file %s' % jo['cfg_file_path']
+        cfg_file = jo['cfg_file_path']
+        gen_file = jo['gen_file_path']
+        res_file = jo['res_file']
+
+        if 'gen_data' in jo and 'cfg_data' in jo:
+            os.makedirs(job.scratch_dir, exist_ok=True)
+            cfg_file = os.path.join(job.scratch_dir, 'cfg-%s.json' % res_file)
+            gen_file = os.path.join(job.scratch_dir, 'gen-%s.json' % res_file)
+            with open(cfg_file, 'w+') as fh:
+                json.dump(jo['cfg_data'], fh)
+            with open(gen_file, 'w+') as fh:
+                json.dump(jo['gen_data'], fh)
+
+        args = ' --config-file %s' % cfg_file
         job_exec = ''
-        if jo['gen_file_path']:
-            job_exec = job_tpl % (jo['gen_file_path'], args, jo['res_file'], jo['res_file'])
+        if gen_file:
+            job_exec = job_tpl % (gen_file, args, jo['res_file'])
         else:
-            job_exec = job_tpl_data_file % (args, jo['res_file'], jo['res_file'])
+            job_exec = job_tpl_data_file % (args, jo['res_file'])
         job_exec = job_exec.replace('${LOGDIR}', self.args.logdir)
         return job_exec
 
@@ -186,6 +224,7 @@ class JobClient:
             return False
 
         jb = Job(job['uuid'], job)
+        jb.scratch_dir = os.path.join(wx.scratch_dir, 'jb-%s' % jb.uuid)
         wx.working_job = jb
         wx.last_hb = time.time()
         wx.finished = False
@@ -222,6 +261,9 @@ class JobClient:
         await self.comm_finished(wx.working_job, wx)
         if self.args.delete_on_success and wx.res_code == 0:
             self.try_rm_job_files(wx.working_job)
+        if wx.working_job.scratch_dir:
+            try_rm_tree(wx.working_job.scratch_dir)
+            wx.working_job.scratch_dir = None
 
         wx.working_job = None
         wx.last_hb = None
@@ -259,9 +301,12 @@ class JobClient:
     async def work(self):
         self.args.cwd = os.path.abspath(self.args.cwd)
         self.args.logdir = os.path.abspath(self.args.logdir)
+        self.scratch_dir = self.scratch_dir_get()
         for ix in range(self.args.threads):
             wx = JobWorker()
             wx.idx = ix
+            wx.scratch_dir = os.path.join(self.scratch_dir, 'booltw-%s' % wx.uuid)
+            os.makedirs(wx.scratch_dir, exist_ok=True)
             self.workers.append(wx)
 
         if self.args.key_file:
