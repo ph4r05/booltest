@@ -449,7 +449,10 @@ class Testjobs(Booltest):
         batcher.job_dir = self.job_dir
         batcher.aggregation_factor = self.args.aggregation_factor
         batcher.max_hour_job = self.args.max_hr_job
-        batcher.no_files = self.args.minimal_files
+        batcher.no_pbs_files = self.args.minimal_files
+        batcher.indent = self.args.indent
+        batcher.shuffle_batches = self.args.shuffle_batches
+        batcher.jobs_per_server_file = self.args.jobs_per_batch
         return batcher
 
     def rescan_job_files(self):
@@ -601,12 +604,6 @@ class Testjobs(Booltest):
                 fh.write('./generator-metacentrum.sh -c=%s 2>/dev/null >/dev/null\n' % fn)
                 fh.write('if [ $? -ne 0 ]; then echo "Generator failed: %s"; else echo -n "."; fi\n' % fn)
             fh.write('\n')
-
-        # Job file
-        jlist = batcher.get_job_list()
-        jlist_path = os.path.join(self.job_dir, 'batcher-jobs-%s.json' % int(time.time()))
-        with open(jlist_path, 'w') as fh:
-            json.dump(jlist, fh, indent=self.args.indent)
 
         misc.try_chmod_grx(testgen_path)
         logger.info('Gentest: %s' % testgen_path)
@@ -1279,7 +1276,13 @@ class Testjobs(Booltest):
         parser.add_argument('--pure-server', dest='pure_server', default=0, type=int,
                             help='Pure server mode, generate all in one')
 
-        parser.add_argument('--indent', dest='indent', default=2, type=int,
+        parser.add_argument('--shuffle-batches', dest='shuffle_batches', default=1, type=int,
+                            help='Shuffle server batches')
+
+        parser.add_argument('--jobs-per-batch', dest='jobs_per_batch', default=None, type=int,
+                            help='Number of jobs per server batch')
+
+        parser.add_argument('--indent', dest='indent', default=None, type=int,
                             help='Json indents')
 
         #
