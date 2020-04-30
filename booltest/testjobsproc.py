@@ -21,6 +21,7 @@ import traceback
 import logging
 import math
 import coloredlogs
+from typing import List, Dict, Tuple, Any, Optional
 
 from booltest import common, egenerator, timer
 
@@ -108,6 +109,7 @@ class TestRecord(object):
         self.comb_deg = None
         self.data = None
         self.data_bytes = None
+        self.data_hash = None
         self.elapsed = None
         self.iteration = 0
         self.strategy = None
@@ -252,10 +254,18 @@ def process_file(js, fname, args=None):
     tr.time_process = common.defvalkeys(js, 'time_process')
     tr.cfg_file_name = common.defvalkeys(js, 'config.config.spec.gen_cfg.file_name')
     tr.data_bytes = common.defvalkeys(js, 'data_read')
+    tr.data_hash = common.defvalkeys(js, 'data_hash')
     tr.seed = common.defvalkeys(js, 'config.config.spec.gen_cfg.seed')
 
     if tr.data:
         tr.data = int(math.ceil(math.ceil(tr.data/1024.0)/1024.0))
+
+    if not tr.cfg_file_name:
+        tr.cfg_file_name = common.defvalkeys(js, 'config.config.gen_file')
+        if tr.cfg_file_name and tr.cfg_file_name.startswith('gen-'):
+            tr.cfg_file_name = tr.cfg_file_name[4:]
+        if tr.cfg_file_name and tr.cfg_file_name.endswith('json'):
+            tr.cfg_file_name = tr.cfg_file_name[:-5]
 
     tr.bname = fname
     mtch = re.search(r'-(\d+)\.json$', fname)
@@ -366,7 +376,7 @@ class Processor(object):
         self.total_functions = None
         self.ref_bins = None
         self.timing_bins = None
-        self.test_records = None  # type: list[TestRecord]
+        self.test_records = None  # type: Optional[List[TestRecord]]
         self.invalid_results = None
         self.invalid_results_num = None
         self.reset_state()
@@ -819,7 +829,7 @@ class Processor(object):
 
             # CSV grouping, avg all results
             csv_grouper = lambda x: (x.block, x.deg, x.comb_deg)
-            group_expanded = sorted(list(g), key=csv_grouper)  # type: list[TestRecord]
+            group_expanded = sorted(list(g), key=csv_grouper)  # type: List[TestRecord]
             results_map = {}
             for ssk, ssg in itertools.groupby(group_expanded, key=csv_grouper):
                 ssg = list(ssg)
@@ -842,7 +852,7 @@ class Processor(object):
                 fh_csv.write(csv_line + '\n')
 
             # Grid list for booltest params
-            results_list = []  # type: list[TestRecord]
+            results_list = []  # type: List[TestRecord]
             for cur_key in itertools.product(*total_cases):
                 if cur_key in results_map:
                     results_list.append(results_map[cur_key])
@@ -920,6 +930,7 @@ class Processor(object):
                 cur_js['k'] = cur_res.comb_deg
                 cur_js['m'] = cur_res.block
                 cur_js['data_file'] = cdatafile
+                cur_js['data_hash'] = cur_res.data_hash
                 cur_js['seed'] = cur_res.seed
                 cur_js['zscore'] = cur_res.zscore
                 cur_js['halving'] = cur_res.is_halving
