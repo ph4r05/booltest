@@ -60,13 +60,16 @@ class JobServer:
         self.job_src_files = []
         self.job_entries = {}  # type: Dict[str,JobEntry]
         self.job_queue = []  # type: List[str]
+        self.preloaded_jobs = []  # type: List[JobEntry]
 
         # Mapping worker_id -> job_id
         self.worker_map = {}  # type: Dict[str,str]
         self.workers = {}  # type: Dict[str,WorkerEntry]
         self.db_lock = asyncio.Lock()
         self.db_lock_t = threading.Lock()
+        self.input_lock_t = threading.Lock()
         self.thread_watchdog = None
+        self.thread_loader = None
         self.key = None
 
     def job_get(self, worker_id=None):
@@ -198,7 +201,41 @@ class JobServer:
                 last_checkpoint = tt
 
             except Exception as e:
-                logger.warning("Exception in watchdog: ")
+                logger.warning("Exception in watchdog: %s" % (e,), exc_info=e)
+
+    def run_loader(self):
+        last_check = 0
+        if not self.args.continuous_loading:
+            return
+
+        while self.is_running:
+            try:
+                time.sleep(1)
+                tt = time.time()
+                if tt - last_check < 5:
+                    continue
+                if len(self.job_src_files) == 0:
+                    return  # loading finished
+
+                # Quota on number of preloaded jobs
+                num_jobs = len(self.preloaded_jobs)
+                if num_jobs >= 10000:
+                    continue
+                with self.db_lock_t:
+                    num_jobs += len(self.job_queue)
+                if num_jobs >= 10000:
+                    continue
+                
+                # Preload jobs to the
+                with self.input_lock_t:
+                    agg_jobs = []
+                    fl = self.job_src_files.pop()
+                    self.load_job_file(fl, agg_jobs)
+                    with self.db_lock_t:
+                        self.preloaded_jobs += agg_jobs
+
+            except Exception as e:
+                logger.warning("Exception in loader: %s" % (e,), exc_info=e)
 
     def buid_resp_job(self, jb):
         if jb is None:
@@ -281,7 +318,7 @@ class JobServer:
         # loop = asyncio.get_event_loop()
         # loop.run_forever()
 
-    def load_jobs(self, js, agg_jobs):
+    def load_jobs(self, js, agg_jobs: Optional[List[JobEntry]] = None) -> List[JobEntry]:
         jobs = js['jobs']
         agg_jobs = agg_jobs if agg_jobs is not None else []
         for ix, j in enumerate(jobs):
@@ -291,27 +328,10 @@ class JobServer:
             je.idx = self.job_ctr
             agg_jobs.append(je)
             self.job_ctr += 1
-            self.job_entries[je.uuid] = je
-            if not self.args.sort_jobs and not self.args.rand_jobs:
-                self.job_queue.append(je.uuid)
             jobs[ix] = None  # memory cleanup
         return agg_jobs
 
-    def sort_and_add_jobs(self, jobs):
-        cplx_lambda = lambda x: (x['size_mb'], x['degree'], x['comb_deg'], x['block_size'])
-        jobs.sort(key=lambda x: cplx_lambda(x.unit))
-        for k, g in itertools.groupby(jobs, key=lambda x: cplx_lambda(x.unit)):
-            subs = list(g)
-            random.shuffle(subs)
-            for je in subs:
-                self.job_queue.append(je.uuid)
-
-    def shuffle_and_add_jobs(self, jobs):
-        random.shuffle(jobs)
-        for je in jobs:
-            self.job_queue.append(je.uuid)
-
-    def load_job_file(self, fl, agg_jobs=None):
+    def load_job_file(self, fl, agg_jobs: Optional[List[JobEntry]] = None) -> List[JobEntry]:
         agg_jobs = agg_jobs if agg_jobs is not None else []
         logger.info("Processing %s" % (fl,))
         with open(fl) as fh:
@@ -320,35 +340,73 @@ class JobServer:
         logger.info("File %s loaded" % (fl,))
         return self.load_jobs(js, agg_jobs)
 
+    def add_jobs_to_queue(self, jobs_to_add: List[JobEntry]):
+        for je in jobs_to_add:
+            self.job_entries[je.uuid] = je
+            if not self.args.sort_jobs and not self.args.rand_jobs:
+                self.job_queue.append(je.uuid)
+
+        if self.args.sort_jobs:
+            self.sort_and_add_jobs(jobs_to_add)
+
+        elif self.args.rand_jobs:
+            self.shuffle_and_add_jobs(jobs_to_add)
+
+    def sort_and_add_jobs(self, jobs: List[JobEntry]):
+        cplx_lambda = lambda x: (x['size_mb'], x['degree'], x['comb_deg'], x['block_size'])
+        jobs.sort(key=lambda x: cplx_lambda(x.unit))
+        for k, g in itertools.groupby(jobs, key=lambda x: cplx_lambda(x.unit)):
+            subs = list(g)
+            random.shuffle(subs)
+            for je in subs:
+                self.job_queue.append(je.uuid)
+
+    def shuffle_and_add_jobs(self, jobs: List[JobEntry]):
+        random.shuffle(jobs)
+        for je in jobs:
+            self.job_queue.append(je.uuid)
+
+    def load_job_file_add_to_queue(self, fl, agg_jobs: Optional[List[JobEntry]] = None) -> List[JobEntry]:
+        agg_jobs = agg_jobs if agg_jobs is not None else []
+        prev_jobs = len(agg_jobs)
+        self.load_job_file(fl, agg_jobs)
+        self.add_jobs_to_queue(agg_jobs[prev_jobs:])
+        return agg_jobs
+
     def load_all_jobs(self):
         logger.info("Reading job files")
         agg_jobs = []
         for fl in self.args.files:
             self.load_job_file(fl, agg_jobs)
 
-        if self.args.sort_jobs:
-            self.sort_and_add_jobs(agg_jobs)
+        self.add_jobs_to_queue(agg_jobs)
 
-        elif self.args.rand_jobs:
-            self.shuffle_and_add_jobs(agg_jobs)
-
-    def check_job_queue(self):
+    def check_job_queue(self, do_load=False):
         if not self.args.continuous_loading:
-            return
-        if len(self.job_queue) >= 10000:
             return
         if len(self.job_src_files) == 0:
             return
+        if len(self.job_queue) >= 1000:
+            return
+
+        # Check preloaded jobs array. If jobs are present, add them to the queue.
+        preloaded = []
+        with self.db_lock_t:
+            if len(self.preloaded_jobs):
+                preloaded = self.preloaded_jobs
+                self.preloaded_jobs = []
+
+        if preloaded:
+            logger.info("Adding reloaded jobs to the job queue: %s" % (len(preloaded),))
+            self.add_jobs_to_queue(preloaded)
+
+        if not do_load:
+            return
 
         agg_jobs = []
-        fl = self.job_src_files.pop()
-        self.load_job_file(fl, agg_jobs)
-
-        if self.args.sort_jobs:
-            self.sort_and_add_jobs(agg_jobs)
-
-        elif self.args.rand_jobs:
-            self.shuffle_and_add_jobs(agg_jobs)
+        with self.input_lock_t:
+            fl = self.job_src_files.pop()
+            self.load_job_file_add_to_queue(fl, agg_jobs)
 
     async def main(self):
         parser = self.argparse()
@@ -363,13 +421,17 @@ class JobServer:
             self.load_all_jobs()
         else:
             self.job_src_files = self.args.files
-            self.check_job_queue()
+            self.check_job_queue(do_load=True)
 
         logger.info("Jobs in the queue: %s" % (len(self.job_queue),))
 
         self.thread_watchdog = threading.Thread(target=self.run_watchdog, args=())
         self.thread_watchdog.setDaemon(False)
         self.thread_watchdog.start()
+
+        self.thread_loader = threading.Thread(target=self.run_loader, args=())
+        self.thread_loader.setDaemon(False)
+        self.thread_loader.start()
 
         return await self.work()
 
