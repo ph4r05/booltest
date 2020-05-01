@@ -77,6 +77,7 @@ class Job:
         self.uuid = uid
         self.obj = obj  # type: Optional[Dict[str, Any]]
         self.scratch_dir = None
+        self.log_file = None
 
 
 class JobClient:
@@ -197,25 +198,35 @@ class JobClient:
             job_exec = job_tpl % (gen_file, args, jo['res_file'])
         else:
             job_exec = job_tpl_data_file % (args, jo['res_file'])
-        job_exec = job_exec.replace('${LOGDIR}', self.args.logdir)
+
+        logdir = self.args.logdir
+        if self.args.log_to_scratch:
+            job.log_file = os.path.join(job.scratch_dir, '%s.log' % jo['res_file'])
+            logdir = job.scratch_dir
+
+        job_exec = job_exec.replace('${LOGDIR}', logdir)
         return job_exec
 
-    def get_job_files(self, job: Job):
-        """Gen files cannot be cleaned as they are shared among configurations"""
-        jo = job.obj
-        res = [jo['cfg_file_path']]
-        if self.args.logdir:
-            res.append(os.path.join(self.args.logdir, '%s.log' % jo['res_file']))
-        return res
-
-    def try_rm_job_files(self, job: Job):
+    def try_cleanup_job_files(self, job: Job, exit_code: int):
         try:
-            files = self.get_job_files(job)
+            jo = job.obj
+            files = [jo['cfg_file_path']]
+
+            if self.args.logdir and self.args.log_to_scratch and job.log_file and exit_code != 0:
+                dst_log = os.path.join(self.args.logdir, '%s.log' % jo['res_file'])
+                try:
+                    shutil.copy(dst_log, job.log_file)
+                except Exception as e:
+                    logger.warning("Could not copy log file %s to %s: %s" % (dst_log, job.log_file, e), exc_info=e)
+
+            elif self.args.logdir and not self.args.log_to_scratch and exit_code == 0:
+                files.append(os.path.join(self.args.logdir, '%s.log' % jo['res_file']))
+
             for fl in files:
                 try_rm(fl)
 
         except Exception as e:
-            logger.warning("Exception in files removal: %s" % (e,), exc_info=e)
+            logger.warning("Exception in job files cleanup: %s" % (e,), exc_info=e)
 
     async def worker_fetch(self, wx: JobWorker):
         job = await self.comm_get_job(wx)
@@ -260,7 +271,7 @@ class JobClient:
     async def worker_finished(self, wx: JobWorker):
         await self.comm_finished(wx.working_job, wx)
         if self.args.delete_on_success and wx.res_code == 0:
-            self.try_rm_job_files(wx.working_job)
+            self.try_cleanup_job_files(wx.working_job, wx.res_code)
         if wx.working_job.scratch_dir:
             try_rm_tree(wx.working_job.scratch_dir)
             wx.working_job.scratch_dir = None
@@ -372,6 +383,8 @@ class JobClient:
                             help='Epoch ID for remote kill')
         parser.add_argument('--delete-on-success', dest='delete_on_success', default=0, type=int,
                             help='Delete job files on success')
+        parser.add_argument('--log-to-scratch', dest='log_to_scratch', default=1, type=int,
+                            help='Log to a scratch dir')
 
         return parser
 
