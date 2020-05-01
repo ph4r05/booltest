@@ -61,6 +61,7 @@ class JobServer:
         self.job_entries = {}  # type: Dict[str,JobEntry]
         self.job_queue = []  # type: List[str]
         self.preloaded_jobs = []  # type: List[JobEntry]
+        self.failed_jobs = []
 
         # Mapping worker_id -> job_id
         self.worker_map = {}  # type: Dict[str,str]
@@ -91,6 +92,7 @@ class JobServer:
         if jb.retry_ctr >= 40 and not timeout:
             jb.finished = True
             jb.failed = True
+            self.failed_jobs.append(jb)
             logger.warning("Job %s failed, too many retries" % (jb.uuid[:13]))
         else:
             jb.failed = False
@@ -191,7 +193,7 @@ class JobServer:
 
                 with self.db_lock_t:
                     non_finished = [x.unit for x in self.job_entries.values() if not x.finished]
-                    failed = [x.unit for x in self.job_entries.values() if x.failed]
+                    failed = [x.unit for x in self.failed_jobs]
 
                 js = {'jobs': non_finished, 'jobs_failed': failed}
                 checkp_tmp = self.args.checkpoint + '.tmp'
