@@ -12,6 +12,11 @@ import numpy as np
 import matplotlib
 from scipy import stats
 from scipy.misc import derivative
+from typing import Dict, List, Tuple, Optional, Any, Set
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def unique_justseen(iterable, key=None):
@@ -239,12 +244,100 @@ def tabulate_pvals(val, nbins=200, abs_val=False, target_pvals=[0.0, 0.0001, 0.0
     ])
 
 
-def main():
-    js = json.load(open('ref_1554219251.json'))
-    csv = open('ref_1554219251.csv').read()
+def extract_zscores_from_bat(js, skip_halving=True, sort_inputs=True, numlimit=100000):
+    KeyType = Tuple[int, int, int]
+    seeds = collections.defaultdict(lambda: set())  # type: Dict[KeyType, Set[str]]
+    hashes = collections.defaultdict(lambda: set())  # type: Dict[KeyType, Set[str]]
+    ifiles = collections.defaultdict(lambda: set())  # type: Dict[KeyType, Set[str]]
 
+    def keygen(x):
+        return int(x['m']), int(x['deg']), int(x['k'])
+
+    def descgen(x):
+        return '%s-%s-%s' % descgen(x)
+
+    def method_sortidx(m):
+        if m is None:
+            return 0
+        score = 0
+        if '-inctr-' in m:
+            score += 10
+        if '-krnd-' in m:
+            score += 5
+        return -score
+
+    def inp_sorter(x):
+        mth = x['method'] if 'method' in x else None
+        datab = x['data_bytes'] if 'data_bytes' in x else 0
+        sidx = method_sortidx(mth)
+        return sidx, -datab, mth
+
+    def inpfilter(x):
+        return x is not None and x['function'] == 'AES' and \
+               int(x['round']) == 10 and \
+               int(x['data_bytes']) > 1000 * 1000 * 9 and \
+               (not skip_halving or 'halving' not in x or not x['halving'])
+
+    inputs_cands = filter(inpfilter, js)
+    if sort_inputs:
+        inputs_cands = sorted(inputs_cands, key=inp_sorter)
+
+    logger.debug('Input candidates: %s' % (len(inputs_cands),))
+    ctr_skip_seed = 0
+    ctr_skip_dhash = 0
+    ctr_skip_dfile = 0
+    results = collections.defaultdict(lambda: list())  # type: Dict[KeyType, List[Tuple[float, int, str]]]
+    for ix, inp in enumerate(inputs_cands):
+        ckey = keygen(inp)
+        seed = inp['seed'] if 'seed' in inp else None
+        dfile = inp['data_file'] if 'data_file' in inp else None
+        dhash = inp['data_hash'] if 'data_hash' in inp else None
+        mth = inp['method'] if 'method' in inp else 'inctr-krnd-ri0'
+        
+        if numlimit and len(results[ckey]) >= numlimit:
+            continue
+        if seed and seed in seeds[ckey]:
+            ctr_skip_seed += 1
+            # logger.debug('Same seed %s, hash %s, ckey %s, dfile: %s' % (seed, dhash, ckey, dfile))
+            continue
+        if dhash and dhash in hashes[ckey]:
+            ctr_skip_dhash += 1
+            continue
+        if dfile and dfile in ifiles[ckey]:
+            ctr_skip_dfile += 1
+            continue
+
+        seeds[ckey].add(seed)
+        hashes[ckey].add(dhash)
+        results[ckey].append((float(inp['zscore']), int(inp['data_bytes']), mth))
+    
+    outs = []
+    for ckey in results:
+        zscores = [x[0] for x in results[ckey]]
+        sizes = [x[1] for x in results[ckey]]
+        meths = [x[2] for x in results[ckey]]
+        medsize = sorted(sizes)[len(sizes)//2]
+        medmeth = sorted(meths)[len(meths)//2]
+
+        cur = collections.OrderedDict([
+            ('method', medmeth),
+            ('block', ckey[0]),
+            ('deg', ckey[1]),
+            ('comb_deg', ckey[2]),
+            ('data_size', medsize),
+            ('zscores', zscores)
+        ])
+        outs.append(cur)
+
+    logger.debug('Skipped same seed: %s' % (ctr_skip_seed,))
+    logger.debug('Skipped same hash: %s' % (ctr_skip_dhash,))
+    logger.debug('Skipped same dfile: %s' % (ctr_skip_dfile,))
+    return outs
+
+
+def csv2json(data):
     csv_data = []
-    for rec in [x.strip() for x in csv.split("\n")]:
+    for rec in [x.strip() for x in data.split("\n")]:
         p = rec.split(';')
         if len(p) < 6:
             continue
@@ -254,17 +347,23 @@ def main():
             ('deg', int(p[2])),
             ('comb_deg', int(p[3])),
             ('data_size', int(p[4])),
-            ('zscores', [float(x.replace(',','.')) for x in p[6:]])
+            ('zscores', [float(x.replace(',', '.')) for x in p[6:]])
         ])
         csv_data.append(cur)
-    print(json.dumps(csv_data[0]))
+    return csv_data
 
 
-    data = csv_data
-    data_filt = [x for x in data if x and len(x['zscores']) > 1000]
-    data_filt.sort(key=lambda x: (x['method'], x['block'], x['deg'], x['comb_deg'], x['data_size']))
+def main():
+    # csv = open('ref_1554219251.csv').read()
+    # data = csv2json(csv)
+    # print(json.dumps(data[0]))
+    # data_filt = [x for x in data if x and len(x['zscores']) > 1000]
+    # data_filt.sort(key=lambda x: (x['method'], x['block'], x['deg'], x['comb_deg'], x['data_size']))
+    js1 = json.load(open('/tmp/results_bat_1588463858-booltest1-ref3-40k.json'))
+    js2 = json.load(open('/tmp/results_bat_1588274711-booltest1-ref-60k.json'))
+    js = js1 + js2
+    data_filt = extract_zscores_from_bat(js)
     np.random.seed(87655677)
-
 
     pval_db = []
     for dix, val in enumerate(data_filt):
