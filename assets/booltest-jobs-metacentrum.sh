@@ -27,11 +27,12 @@ pyenv local 3.7.1
 export HDIR=/storage/brno3-cerit/home/ph4r05/
 export RESDIR=$HDIR/bool-res
 export BACKDIR=$HDIR/bool-back
-export JOBDIR=$HDIR/bool-jobNr14
 export SIGDIR=$HDIR/bool-sig
+export LOGDIR=$HDIR/bool-log
 
 mkdir -p $BACKDIR
 mkdir -p $SIGDIR
+mkdir -p $LOGDIR
 
 export JOBDIR=$HDIR/bool-jobNr92
 mkdir -p $JOBDIR
@@ -730,4 +731,7 @@ python booltest/testjobsproc.py ../bool-res.tar --aes-ref --tar
 
 /storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python booltest/testjobsproc.py \
   --pval-data pval_db.json --file-suffix='-booltest1-ref3-40k' --json ../bool-res-ref3
+
+/storage/brno3-cerit/home/ph4r05/.pyenv/versions/3.7.1/bin/python booltest/testjobsproc.py \
+  --pval-data pval_db.json --file-suffix='-sm' --json ../bool-res-sm
 
