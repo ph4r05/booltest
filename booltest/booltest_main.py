@@ -1225,7 +1225,6 @@ class Booltest(object):
             jscres['offset'] = coffset
 
             tvsize = self.adjust_tvsize(tvsize, size, coffset)
-            logger.warning("FUCK")
             self.hwanalysis = self.setup_hwanalysis(self.deg, self.top_comb, self.top_k, self.all_deg, zscore_thresh)
             if self.hwanalysis.ref_db_path:
                 logger.info('Using reference data file %s' % self.hwanalysis.ref_db_path)
