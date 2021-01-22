@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#import zmq
 import argparse
 import coloredlogs
 import logging
@@ -58,14 +57,14 @@ class JobServer:
         self.is_running = True
         self.job_ctr = 0
         self.job_src_files = []
-        self.job_entries = {}  # type: Dict[str,JobEntry]
+        self.job_entries = {}  # type: Dict[str, JobEntry]
         self.job_queue = []  # type: List[str]
         self.preloaded_jobs = []  # type: List[JobEntry]
         self.failed_jobs = []
 
         # Mapping worker_id -> job_id
-        self.worker_map = {}  # type: Dict[str,str]
-        self.workers = {}  # type: Dict[str,WorkerEntry]
+        self.worker_map = {}  # type: Dict[str, Optional[str]]
+        self.workers = {}  # type: Dict[str, WorkerEntry]
         self.db_lock = asyncio.Lock()
         self.db_lock_t = threading.Lock()
         self.input_lock_t = threading.Lock()
@@ -73,7 +72,7 @@ class JobServer:
         self.thread_loader = None
         self.key = None
 
-    def job_get(self, worker_id=None):
+    def job_get(self, worker_id=None) -> Optional[JobEntry]:
         self.check_job_queue()  # TODO: has to be done in async way...
         if len(self.job_queue) == 0:
             return None
@@ -103,7 +102,7 @@ class JobServer:
     def on_job_success(self, jb: JobEntry):
         jb.unit = None
 
-    def on_job_alloc(self, jb, worker_id):
+    def on_job_alloc(self, jb: Optional[JobEntry], worker_id) -> Optional[JobEntry]:
         if not jb:
             return
         # If worker had another job, finish it now. It failed probably
@@ -116,7 +115,7 @@ class JobServer:
         self.worker_map[worker_id] = jb.uuid
         return jb
 
-    def on_job_finished(self, uid, worker_id, jmsg):
+    def on_job_finished(self, uid, worker_id, jmsg: Optional[Dict]):
         self.worker_map[worker_id] = None
         jb = self.job_entries[uid]
         if jmsg and 'ret_code' in jmsg:
@@ -140,7 +139,7 @@ class JobServer:
             self.workers[worker_id] = WorkerEntry(worker_id)
         self.workers[worker_id].last_ping = time.time()
 
-    def check_auth(self, msg):
+    def check_auth(self, msg: Dict):
         if not self.key:
             return True
 
@@ -239,7 +238,7 @@ class JobServer:
             except Exception as e:
                 logger.warning("Exception in loader: %s" % (e,), exc_info=e)
 
-    def buid_resp_job(self, jb):
+    def buid_resp_job(self, jb: Optional[JobEntry]) -> Dict:
         if jb is None:
             return {'res': None}
         return {'res': jb.unit}
@@ -258,7 +257,7 @@ class JobServer:
         resp_js = json.dumps(resp)
         await websocket.send(resp_js)
 
-    async def on_msg(self, message):
+    async def on_msg(self, message) -> Dict[str, Any]:
         try:
             jmsg = json.loads(message)
             if 'action' not in jmsg:
