@@ -1487,7 +1487,7 @@ class Booltest(object):
                             help='Probability the given combination is going to be chosen. '
                                  'Enables stochastic test, useful for large degrees.')
 
-        parser.add_argument('--default-params', dest='default_params', action='store_const', const=True, default=False,
+        parser.add_argument('--default-params', dest='default_params', type=int, default=1,
                             help='Default parameter settings for testing, used in the paper')
 
         parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],

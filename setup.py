@@ -3,12 +3,12 @@ import sys
 from setuptools import setup
 from setuptools import find_packages
 
-version = '0.6.7'
+version = '0.7.0'
 
 # Please update tox.ini when modifying dependency version requirements
 install_requires = [
     'pycryptodome',      # pycrypto alternative, working also on Win
-    'bitarray_ph4>=1.2.3',
+    'bitarray_ph4>=1.6.4',
     'scipy',
     'ufx',
     'repoze.lru',
@@ -31,6 +31,10 @@ install_requires = [
 impl_extras = [
     'bitstring',
     'numpy',
+]
+
+network = [
+    'websockets',
 ]
 
 dev_extras = [
@@ -86,6 +90,7 @@ setup(
         'dev': dev_extras,
         'docs': docs_extras,
         'impl': impl_extras,
+        'net': network,
     },
     entry_points={
         'console_scripts': [
