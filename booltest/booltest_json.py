@@ -145,20 +145,21 @@ class BooltestJson(Booltest):
         new_generator_path = os.path.join(tmpdir, 'generator')
         shutil.copy(generator_path, new_generator_path)
 
+        cfg_file = os.path.join(tmpdir, 'generator.json')
         config_str = json.dumps(config_js, indent=2)
-        with open(os.path.join(tmpdir, 'generator.json'), 'w') as fh:
+        with open(cfg_file, 'w') as fh:
             fh.write(config_str)
 
-        # Generate some data here
-
-        p = subprocess.Popen(new_generator_path, shell=True, cwd=tmpdir)
+        tmp_out = os.path.join(tmpdir, 'stdout')
+        cmd = "%s -c=%s > %s" % (new_generator_path, cfg_file, tmp_out)
+        p = subprocess.Popen(cmd, shell=True, cwd=tmpdir)
         p.communicate()
         if p.returncode != 0:
             logger.error('Could not generate data, code: %s' % p.returncode)
             return None
 
         # Generated file:
-        data_files = [f for f in os.listdir(tmpdir) if os.path.isfile(os.path.join(tmpdir, f))
+        data_files = [f for f in (os.listdir(tmpdir) + ['stdout']) if os.path.isfile(os.path.join(tmpdir, f))
                       and f.endswith('bin')]
         if len(data_files) != 1:
             logger.error('Error in generating data to process. Files found: %s' % data_files)
