@@ -448,7 +448,7 @@ class AsyncRunner:
             if not test_is_running(): return
 
         if self.is_win:
-            cmd = f"tasklist /fi \"pid eq {pid}\""
+            cmd = "tasklist /fi \"pid eq %s\"" % pid
             logger.debug("Retrieving process info on the process %s" % (pid,))
             subprocess.run(cmd, shell=True)
             time.sleep(self.signal_timeout)
@@ -467,7 +467,7 @@ class AsyncRunner:
                 try_fnc(lambda: p.commands[0].process.send_signal(signal.CTRL_C_EVENT))
                 sleep_if_running(self.terminate_ctrlc_timeout)
 
-            cmd = f"Taskkill /PID {pid} /F /T"
+            cmd = "Taskkill /PID %s /F /T" % pid
             logger.debug("Closing process with taskkill: %s" % (cmd,))
             subprocess.run(cmd, shell=True)
             time.sleep(self.terminate_timeout)
@@ -511,7 +511,7 @@ class AsyncRunner:
         try_fnc(lambda: sarge_sigint(p.commands[0], signal.SIGKILL))
 
     def _win_get_children(self, pid):
-        cmd = f"wmic process where (ParentProcessId={pid}) get ProcessId"
+        cmd = "wmic process where (ParentProcessId=%s) get ProcessId" % pid
         logger.debug("Obtaining child processes for %s: %s" % (pid, cmd,))
         r = subprocess.run(cmd, shell=True, check=True, text=True, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
         lines = [x.strip() for x in r.stdout.splitlines()[1:] if x.strip()]
@@ -603,7 +603,7 @@ class AsyncRunner:
                 logger.debug("Keyboard interrupt wait()")
 
         if require_ok and self.ret_code != 0:
-            raise Exception(f"Return code is not zero: {self.ret_code}")
+            raise Exception("Return code is not zero: %s" % self.ret_code)
 
     def shutdown(self, timeout=None):
         if not self.is_running:
