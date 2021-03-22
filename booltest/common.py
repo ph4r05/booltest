@@ -638,6 +638,21 @@ def generate_seed(iteration=0):
     return binascii.hexlify(seed)
 
 
+def gcd(x, y):
+    while y:
+        x, y = y, x % y
+    return x
+
+
+def comp_byte_align_multiplier(bit_size, bit_align=8):
+    """
+    Computes multiplier X such that bit_size * X % 8 == 0
+    X is in [1, 8], 8 is for sure, we can make it smaller
+    X = 8 / gcd(bit_size, 8)
+    """
+    return bit_align / gcd(bit_size, bit_align)
+
+
 # Re-exports, compatibility
 
 
