@@ -1077,13 +1077,14 @@ class Booltest(object):
             raise ValueError('Negative TV size: %s' % tvsize)
 
         # multiplier when not byte-aligned to make it byte-aligned on tvsize.
-        bits_align = 8 if not self.do_halving else 16  # will be divided by 2 later
-        align_mutl = common.comp_byte_align_multiplier(self.blocklen, bits_align)
+        align_blocklen = self.blocklen if not self.do_halving else 2 * self.blocklen
+        align_mutl = common.comp_byte_align_multiplier(align_blocklen)
         aligned_blocklen = self.blocklen * align_mutl
 
         if (tvsize * 8) % aligned_blocklen != 0:
             logger.warning('Input data size not aligned to the block size. '
-                           'Input bytes: %d, block bits: %d, coef: %d' % (tvsize, self.blocklen, align_mutl))
+                           'Input bytes: %d, block bits: %d, align_mutl: %d, align_block: %s, halving: %s'
+                           % (tvsize, self.blocklen, align_mutl, aligned_blocklen, self.do_halving))
             tvsize = (((tvsize * 8) // aligned_blocklen) * aligned_blocklen) // 8
             logger.info('Updating TV to %d' % tvsize)
         return int(tvsize)
