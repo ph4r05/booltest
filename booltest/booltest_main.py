@@ -1078,7 +1078,7 @@ class Booltest(object):
 
         # multiplier when not byte-aligned to make it byte-aligned on tvsize.
         align_blocklen = self.blocklen if not self.do_halving else 2 * self.blocklen
-        align_mutl = common.comp_byte_align_multiplier(align_blocklen)
+        align_mutl = common.comp_byte_align_multiplier(align_blocklen, 8 if not self.do_halving else 16)
         aligned_blocklen = align_blocklen * align_mutl
 
         if (tvsize * 8) % aligned_blocklen != 0:
@@ -1327,8 +1327,8 @@ class Booltest(object):
                 break
 
             if (len(data) * 8 % self.hwanalysis.blocklen) != 0:
-                logger.info('Not aligned block read, terminating. Data left: %s bits, block size: %s bits'
-                            % (len(data) * 8, self.hwanalysis.blocklen))
+                logger.info('Not aligned block read, terminating. Data left: %s bits, block size: %s bits, tv %s'
+                            % (len(data) * 8, self.hwanalysis.blocklen, tvsize))
                 break
 
             with self.timer_data_bins:
