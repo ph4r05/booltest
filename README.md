@@ -110,7 +110,7 @@ The best distinguisher results are essentially following Binomial distribution:
 `Bi(number_of_blocks, probability_of_dist_eval_to_1)`.
 
 To compute the p-value we run the Binomial test:
-```scipy.stats.binom_test(observed_ones, n=ntrials, p=dist_probab, alternative='two-sided')``` 
+```scipy.stats.binomtest(observed_ones, n=ntrials, p=dist_probab, alternative='two-sided').pvalue``` 
  
 This method eliminates a need to have a `pval_db.json` database computed with the reference data for given parameters.
 The benefit is the halving method gives directly a p-value, without a need to run reference computations.

@@ -9,7 +9,7 @@ version = '0.7.5'
 install_requires = [
     'pycryptodome',      # pycrypto alternative, working also on Win
     'bitarray_ph4>=1.6.4',
-    'scipy',
+    'scipy>=1.7.0',
     'ufx',
     'repoze.lru',
 

@@ -289,7 +289,7 @@ class HWAnalysis(object):
 
         for res in results:
             fail = 'x' if self.zscore_thresh and abs(res.zscore) > self.zscore_thresh else ' '
-            indiv_pval = ' indiv-pval: %.5e,' % (stats.binom_test(res.obs_cnt, n=num_evals, p=res.expp, alternative='two-sided'),) if self.comp_indiv_pval else ''
+            indiv_pval = ' indiv-pval: %.5e,' % (stats.binomtest(res.obs_cnt, n=num_evals, p=res.expp, alternative='two-sided').pvalue,) if self.comp_indiv_pval else ''
             self.tprint(' - zscore[idx%02d]: %+05.5f, observed: %08d, expected: %08d %s idx: %6d,%s poly: %s'
                         % (res.idx, res.zscore, res.obs_cnt, res.exp_cnt, fail, res.idx, indiv_pval, self.input_poly[res.idx]))
 
@@ -533,7 +533,7 @@ class HWAnalysis(object):
 
         for i in range(min(len(top_res), 30)):
             comb = top_res[i]
-            indiv_pval = ' indiv-pval: %.5e,' % (stats.binom_test(comb.obs_cnt, n=num_evals, p=comb.expp, alternative='two-sided'),) if self.comp_indiv_pval else ''
+            indiv_pval = ' indiv-pval: %.5e,' % (stats.binomtest(comb.obs_cnt, n=num_evals, p=comb.expp, alternative='two-sided').pvalue,) if self.comp_indiv_pval else ''
             self.tprint(' - best poly zscore %9.5f, expp: %.4e, exp: %7d, obs: %7d, diff: %10.7f %%,%s poly: %s'
                         % (comb.zscore, comb.expp, comb.exp_cnt, comb.obs_cnt,
                            100.0 * (comb.exp_cnt - comb.obs_cnt) / comb.exp_cnt, indiv_pval, sorted(comb.poly)))
@@ -1365,7 +1365,7 @@ class Booltest(object):
                 jsres['halvings'] = []
                 for ix, cr in enumerate(self.sort_res_by_input_poly(rshort)):
                     ntrials = (tvsize * 8) // self.blocklen
-                    pval = stats.binom_test(cr.obs_cnt, n=ntrials, p=cr.expp, alternative='two-sided')
+                    pval = stats.binomtest(cr.obs_cnt, n=ntrials, p=cr.expp, alternative='two-sided').pvalue
 
                     jsresc = collections.OrderedDict()
                     jsresc['nsamples'] = ntrials
